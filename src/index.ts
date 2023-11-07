@@ -41,7 +41,7 @@ class CrossingGuard extends Client {
     }
 
     login() {
-        return super.login(process.env.TEST_TOKEN);
+        return super.login(process.env.REAL_TOKEN);
     }
 
     announce(message: Message | PartialMessage, isEdit = false) {
