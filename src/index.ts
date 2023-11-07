@@ -61,7 +61,13 @@ class CrossingGuard extends Client {
 
         to_guild.channels.fetch(this.announcement_channel).then(channel => {
             const textChannel = channel as TextChannel;
-            textChannel.send(template);
+
+            textChannel.send({
+                stickers: Array.from(message.stickers.values()),
+                content: template,
+                embeds: message.embeds,
+                files: Array.from(message.attachments.values())
+            });
         });
     }
 }
