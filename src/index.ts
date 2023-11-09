@@ -1,4 +1,4 @@
-import { Client, Message, PartialMessage, Events, GatewayIntentBits, TextChannel } from 'discord.js';
+import { Client, Message, EmbedBuilder, PartialMessage, Events, GatewayIntentBits, TextChannel } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 
@@ -62,11 +62,21 @@ class CrossingGuard extends Client {
         to_guild.channels.fetch(this.announcement_channel).then(channel => {
             const textChannel = channel as TextChannel;
 
+            var embeds = message.embeds.map(embed => {
+                if (embed.video) {
+                    var exembed = new EmbedBuilder(embed).setImage(embed.video.url);
+                    return exembed;
+                }
+
+                return embed;
+            });
+
             textChannel.send({
-                stickers: Array.from(message.stickers.values()),
                 content: template,
-                embeds: message.embeds,
-                files: Array.from(message.attachments.values())
+                embeds: embeds,
+                files: Array.from(message.attachments.values()),
+                allowedMentions: { parse: ['roles', 'users'] },
+                reply: { messageReference: <Message<boolean>>message, failIfNotExists: false }
             });
         });
     }
