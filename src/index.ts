@@ -1,4 +1,4 @@
-import { Client, Message, EmbedBuilder, PartialMessage, Events, GatewayIntentBits, TextChannel } from 'discord.js';
+import { Client, Message, EmbedBuilder, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 
@@ -45,6 +45,8 @@ class CrossingGuard extends Client {
     }
 
     announce(message: Message | PartialMessage, isEdit = false) {
+        console.log("Message to announce embeds: \n" + JSON.stringify(message.embeds) + "\n");
+
         let from_guild = message.guildId;
         let to_guild = this.guilds.cache.first();
 
@@ -54,30 +56,22 @@ class CrossingGuard extends Client {
         }
 
         if (isEdit)
-            var template = `**Edited from an earlier message in ${message.author.displayName}**\n<@&${getRole(BigInt(from_guild))}>\n\n${message.content}`;
+            var template = `**Edited from an earlier message in ${message.author.displayName}**\n<@&${getRole(from_guild)}>\n\n${message.content}`;
         else
-            var template = `**From ${message.author.displayName}**\n` + `<@&${getRole(BigInt(from_guild))}>\n\n${message.content} `;
+            var template = `**From ${message.author.displayName}**\n` + `<@&${getRole(from_guild)}>\n\n${message.content} `;
 
 
         to_guild.channels.fetch(this.announcement_channel).then(channel => {
             const textChannel = channel as TextChannel;
 
-            var embeds = message.embeds.map(embed => {
-                if (embed.video) {
-                    var exembed = new EmbedBuilder(embed).setImage(embed.video.url);
-                    return exembed;
-                }
-
-                return embed;
-            });
-
-            textChannel.send({
+            var messageToSend: MessageCreateOptions = {
                 content: template,
-                embeds: embeds,
+                embeds: message.embeds.filter(embed => { return !embed.video }),
                 files: Array.from(message.attachments.values()),
-                allowedMentions: { parse: ['roles', 'users'] },
-                reply: { messageReference: <Message<boolean>>message, failIfNotExists: false }
-            });
+                allowedMentions: { parse: ['roles', 'users'] }
+            }
+
+            textChannel.send(messageToSend);
         });
     }
 }
@@ -87,56 +81,58 @@ class CrossingGuard extends Client {
 let bot = new CrossingGuard();
 bot.login();
 
-function getRole(guild_id: BigInt) {
+function getRole(guild_id: string) {
     switch (guild_id) {
-        case 698402467133784154n:
+        case "698402467133784154":
             return "1095843313644470393";
-        case 997400397058682940n:
+        case "997400397058682940":
             return "1090720870097485914";
-        case 751307973846106143n:
+        case "751307973846106143":
             return "1090720744205467733";
-        case 585899337012215828n:
+        case "585899337012215828":
             return "1090720848278736906";
-        case 432671778733555742n:
+        case "432671778733555742":
             return "1095844856288522351";
-        case 286476446338252800n:
+        case "286476446338252800":
             return "1085631851185569963";
-        case 143852930036924417n:
+        case "143852930036924417":
             return "1090720722390888609";
-        case 341757159798734849n:
+        case "341757159798734849":
             return "1090720664408817775";
-        case 313066655494438922n:
+        case "313066655494438922":
             return "1085631799633399879";
-        case 331596305120100368n:
+        case "331596305120100368":
             return "1085631822324580423";
-        case 227080337862164480n:
+        case "227080337862164480":
             return "1090720689989877831";
-        case 208334819652796416n:
+        case "208334819652796416":
             return "1090720583563612170";
-        case 212744497434460160n:
+        case "212744497434460160":
             return "1090720878788100218";
-        case 476939901326196738n:
+        case "476939901326196738":
             return "1090735405697089556";
-        case 366568834628321281n:
+        case "366568834628321281":
             return "1090735351129182288";
-        case 821828605340418088n:
+        case "821828605340418088":
             return "1095098731369599106";
-        case 768658159623340063n:
+        case "768658159623340063":
             return "1095912368892026950";
-        case 133012942890336256n:
+        case "133012942890336256":
             return "1095912611066945577";
-        case 1055661804275122238n:
+        case "1055661804275122238":
             return "1096694886733991936";
-        case 728589320713404437n:
+        case "728589320713404437":
             return "1118096782241579110";
-        case 753521154542665739n: // Pretty sure this is Skyblock Isles
+        case "753521154542665739": // Pretty sure this is Skyblock Isles
             return "1171523568400605234";
-        case 1008927083877118034n: // AresMMO
+        case "1008927083877118034": // AresMMO
             return "1129787484419666022";
-        case 338498631265157120n: // Hegemony
+        case "338498631265157120": // Hegemony
             return "1169488764968648744";
-        case 988890821917032528n: // Era of Kings
+        case "988890821917032528": // Era of Kings
             return "1135764490550530110";
+        case "1170943588474040402": // Crossroads Testing
+            return "1171556676676104254"; // @Test
         default:
             return "1085631729651421345"; // Architect
     }
