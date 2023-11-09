@@ -45,8 +45,6 @@ class CrossingGuard extends Client {
     }
 
     announce(message: Message | PartialMessage, isEdit = false) {
-        console.log("Message to announce embeds: \n" + JSON.stringify(message.embeds) + "\n");
-
         let from_guild = message.guildId;
         let to_guild = this.guilds.cache.first();
 
