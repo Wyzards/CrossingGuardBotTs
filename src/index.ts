@@ -1,4 +1,4 @@
-import { Client, Message, EmbedBuilder, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
+import { Client, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 
@@ -45,7 +45,7 @@ class CrossingGuard extends Client {
     }
 
     announce(message: Message | PartialMessage, isEdit = false) {
-        let from_guild = message.guildId;
+        let from_guild = CrossingGuard.isCrosspost(message) ? message.reference.guildId : message.guildId;
         let to_guild = this.guilds.cache.first();
 
         if (!to_guild || !from_guild) {
@@ -71,6 +71,10 @@ class CrossingGuard extends Client {
 
             textChannel.send(messageToSend);
         });
+    }
+
+    public static isCrosspost(message: Message | PartialMessage): boolean {
+        return message.flags.has(MessageFlags.IsCrosspost);
     }
 }
 
@@ -130,9 +134,11 @@ function getRole(guild_id: string) {
         case "988890821917032528": // Era of Kings
             return "1135764490550530110";
         case "1170943588474040402": // Crossroads Testing
-            return "1171556676676104254"; // @Test
+            return "1171556676676104254"; // @Announce Role
+        case "968257358847434762": // Grubnest
+            return "1171994022898843700" // @Test
         default:
-            return "1085631729651421345"; // Architect
+            return "1085631729651421345"; // @Architect
     }
 }
 
