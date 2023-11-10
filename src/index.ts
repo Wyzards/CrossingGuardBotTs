@@ -62,14 +62,24 @@ class CrossingGuard extends Client {
         to_guild.channels.fetch(this.announcement_channel).then(channel => {
             const textChannel = channel as TextChannel;
 
-            var messageToSend: MessageCreateOptions = {
-                content: template,
-                embeds: message.embeds.filter(embed => { return !embed.video }),
-                files: Array.from(message.attachments.values()),
-                allowedMentions: { parse: ['roles', 'users'] }
-            }
+            var messageContent = template.trim();
 
-            textChannel.send(messageToSend);
+            do {
+                var maxSnippet = messageContent.substring(0, 2000);
+                var lastSpace = maxSnippet.lastIndexOf(' ');
+                var lastNewline = maxSnippet.lastIndexOf('\n');
+                var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+
+                var messageToSend: MessageCreateOptions = {
+                    content: sending.trim(),
+                    embeds: message.embeds.filter(embed => { return !embed.video }),
+                    files: Array.from(message.attachments.values()),
+                    allowedMentions: { parse: ['roles', 'users'] }
+                }
+
+                messageContent = messageContent.substring(sending.length, messageContent.length);
+                textChannel.send(messageToSend);
+            } while (messageContent.length > 0);
         });
     }
 }
