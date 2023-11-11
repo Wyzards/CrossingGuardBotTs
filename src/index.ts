@@ -1,6 +1,7 @@
 import { Client, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
+import Database from "./database.js";
 
 class CrossingGuard extends Client {
     private hidden_channels: Array<String> = [];
@@ -32,7 +33,7 @@ class CrossingGuard extends Client {
 
     private loadConfig() {
         var bot = this;
-        fs.readFile('./test_config.json', 'utf8', (err, data) => {
+        fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
 
             bot.hidden_channels = config["hidden_channels"];
