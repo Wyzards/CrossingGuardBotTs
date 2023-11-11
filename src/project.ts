@@ -9,6 +9,7 @@ class Project {
     private _discordId: string;
     private _ip: string;
     private _roleId: string;
+    private _links: ProjectLink[];
 
     public constructor(id: number) {
         this._id = id;
@@ -48,6 +49,10 @@ class Project {
 
     public get roleId(): string {
         return this._roleId;
+    }
+
+    public get links(): ProjectLink[] {
+        return this._links;
     }
 
 }
