@@ -1,4 +1,4 @@
-enum Status {
+enum ProjectStatus {
     PLAYABLE = "PLAYABLE",
     IN_DEVELOPMENT = "IN_DEVELOPMENT",
     ARCHIVED = "ARCHIVED",

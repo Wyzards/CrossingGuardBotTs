@@ -4,7 +4,7 @@ class Project {
     private _channelId: string;
     private _name: string;
     private _displayName: string;
-    private _status: Status;
+    private _status: ProjectStatus;
     private _description: string;
     private _discordId: string;
     private _ip: string;
@@ -32,7 +32,7 @@ class Project {
         return this._displayName;
     }
 
-    public get status(): Status {
+    public get status(): ProjectStatus {
         return this._status;
     }
 

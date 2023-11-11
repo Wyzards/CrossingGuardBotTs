@@ -1,7 +1,7 @@
 import { Client, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
-import Database from "./database.js";
+import Database from "./Database.js";
 
 class CrossingGuard extends Client {
     private hidden_channels: Array<String> = [];
