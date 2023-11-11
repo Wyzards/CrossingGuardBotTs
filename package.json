@@ -21,7 +21,7 @@
     "start": "node ./dist/App.js",
     "tsc": "tsc",
     "postinstall": "npm run tsc",
-    "dev": "ts-node-dev --respawn --pretty --transpile-only index.ts",
+    "dev": "ts-node-dev --respawn --pretty --transpile-only App.ts",
     "reload": "npm run tsc && npm run start"
   }
 }
