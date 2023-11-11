@@ -10,6 +10,7 @@ class Project {
     private _ip: string;
     private _roleId: string;
     private _links: ProjectLink[];
+    private _staff: ProjectStaff[];
 
     public constructor(id: number) {
         this._id = id;
