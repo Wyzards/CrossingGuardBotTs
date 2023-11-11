@@ -32,7 +32,7 @@ class CrossingGuard extends Client {
 
     private loadConfig() {
         var bot = this;
-        fs.readFile('./config.json', 'utf8', (err, data) => {
+        fs.readFile('./test_config.json', 'utf8', (err, data) => {
             const config = JSON.parse(data);
 
             bot.hidden_channels = config["hidden_channels"];
@@ -41,7 +41,7 @@ class CrossingGuard extends Client {
     }
 
     login() {
-        return super.login(process.env.REAL_TOKEN);
+        return super.login(process.env.TEST_TOKEN);
     }
 
     announce(message: Message | PartialMessage, isEdit = false) {
