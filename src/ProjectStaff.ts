@@ -1,4 +1,6 @@
-class ProjectStaff {
+import { ProjectStaffRank } from "./ProjectStaffRank.js";
+
+export default class ProjectStaff {
 
     private _projectId: number;
     private _discordUserId: string;

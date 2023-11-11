@@ -1,4 +1,6 @@
-class Project {
+import ProjectStaff from "./ProjectStaff.js";
+
+export default class Project {
 
     private readonly _id: number;
     private _channelId: string;
@@ -12,8 +14,18 @@ class Project {
     private _links: ProjectLink[];
     private _staff: ProjectStaff[];
 
-    public constructor(id: number) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[]) {
         this._id = id;
+        this._channelId = channelId;
+        this._name = name;
+        this._displayName = displayName;
+        this._status = status;
+        this._description = description;
+        this._discordId = discordId;
+        this._ip = ip;
+        this._roleId = roleId;
+        this._links = links;
+        this._staff = staff;
     }
 
     public get id(): number {

@@ -18,7 +18,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "start": "node ./dist/App.js",
+    "start": "node ./dist/CrossingGuardBot.js",
     "tsc": "tsc",
     "postinstall": "npm run tsc",
     "dev": "ts-node-dev --respawn --pretty --transpile-only App.ts",
