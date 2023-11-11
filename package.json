@@ -18,7 +18,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "start": "node ./dist/index.js",
+    "start": "node ./dist/App.js",
     "tsc": "tsc",
     "postinstall": "npm run tsc",
     "dev": "ts-node-dev --respawn --pretty --transpile-only index.ts",

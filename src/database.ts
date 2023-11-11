@@ -30,6 +30,10 @@ export default class Database {
         this.connection.query("CREATE TABLE IF NOT EXISTS project_staff (user_id INT NOT NULL AUTO_INCREMENT, staff_rank INT NOT NULL, project_id INT REFERENCES projects(project_id), PRIMARY KEY (user_id))");
     }
 
+    public getRoleByGuild(guildId: string): string {
+        return null;
+    }
+
     public getProjectByGuild(guildId: string): Project {
         return null;
     }
