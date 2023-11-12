@@ -1,19 +1,45 @@
-import { Client, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions } from 'discord.js';
+import { Client, Collection, SlashCommandBuilder, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions, ClientApplication } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
+import * as path from 'path';
 import Database from "./Database.js";
 
 class CrossingGuardBot extends Client {
     private hidden_channels: Array<String> = [];
     private announcement_channel = "0";
     private database: Database;
+    private commands: Collection<String, { data: SlashCommandBuilder, execute: Function }>;
 
     constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
         this.database = Database.getInstance();
+        this.commands = new Collection();
+
         this.loadConfig();
         this.registerEvents();
+        this.registerCommands();
+    }
+
+    private registerCommands() {
+        const foldersPath = path.join(__dirname, 'commands');
+        const commandFolders = fs.readdirSync(foldersPath);
+
+        for (const folder of commandFolders) {
+            const commandsPath = path.join(foldersPath, folder);
+            const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+            for (const file of commandFiles) {
+                const filePath = path.join(commandsPath, file);
+                const command = require(filePath);
+
+                if ('data' in command && 'execute' in command) {
+                    this.commands.set(command.data.name, command);
+                } else {
+                    console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+                }
+            }
+        }
     }
 
     private registerEvents() {
@@ -30,6 +56,29 @@ class CrossingGuardBot extends Client {
         this.on(Events.MessageUpdate, (oldMessage, newMessage) => {
             if (this.hidden_channels.includes(newMessage.channelId))
                 bot.announce(newMessage, true);
+        });
+
+        this.on(Events.InteractionCreate, async interaction => {
+            if (!interaction.isChatInputCommand()) return;
+
+            console.log("COMMANDS RETRIEVED: " + JSON.stringify((<CrossingGuardBot>interaction.client).commands));
+            const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
+
+            if (!command) {
+                console.error(`No command matching ${interaction.commandName} was found.`);
+                return;
+            }
+
+            try {
+                await command.execute(interaction);
+            } catch (error) {
+                console.error(error);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                } else {
+                    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                }
+            }
         });
     }
 

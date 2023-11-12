@@ -32,6 +32,11 @@ export default class Database {
         this.connection.query("CREATE TABLE IF NOT EXISTS project_staff (user_id INT NOT NULL AUTO_INCREMENT, staff_rank INT NOT NULL, project_id INT REFERENCES projects(project_id), PRIMARY KEY (user_id))");
     }
 
+
+    public getProjectByGuild(guildId: string): Project {
+        return null;
+    }
+
     public getProjectById(projectId: number): Project {
         return null;
     }
@@ -48,12 +53,9 @@ export default class Database {
         return null;
     }
 
-    public getProjectByGuild(guildId: string): Project {
-        return null;
-    }
 
-    public createNewProject(): void {
-
+    public createNewProject(name: string): void {
+        this.connection.query("INSERT INTO Projects (name, status) VALUES (?, ?)", [name, ProjectStatus.HIDDEN]);
     }
 
     public getProject(projectId): Project {
