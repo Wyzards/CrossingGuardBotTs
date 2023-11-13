@@ -4,21 +4,28 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database.js";
 
-class CrossingGuardBot extends Client {
+export default class CrossingGuardBot extends Client {
+    private static instance: CrossingGuardBot;
     private hidden_channels: Array<String> = [];
     private announcement_channel = "0";
-    private database: Database;
+    private _database: Database;
     private commands: Collection<String, { data: SlashCommandBuilder, execute: Function }>;
 
-    constructor() {
+    private constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
-        this.database = Database.getInstance();
+        this._database = Database.getInstance();
         this.commands = new Collection();
 
         this.loadConfig();
         this.registerEvents();
         this.registerCommands();
+    }
+
+    public static getInstance(): CrossingGuardBot {
+        if (CrossingGuardBot.instance == null)
+            CrossingGuardBot.instance = new CrossingGuardBot();
+        return CrossingGuardBot.instance;
     }
 
     private registerCommands() {
@@ -92,6 +99,10 @@ class CrossingGuardBot extends Client {
         });
     }
 
+    public get database(): Database {
+        return this._database;
+    }
+
     public login() {
         return super.login(process.env.TEST_TOKEN);
     }
@@ -106,9 +117,9 @@ class CrossingGuardBot extends Client {
         }
 
         if (isEdit)
-            var template = `**Edited from an earlier message in ${message.author.displayName}**\n<@&${this.database.getRoleByGuild(from_guild)}>\n\n${message.content}`;
+            var template = `**Edited from an earlier message in ${message.author.displayName}**\n<@&${this._database.getRoleByGuild(from_guild)}>\n\n${message.content}`;
         else
-            var template = `**From ${message.author.displayName}**\n` + `<@&${this.database.getRoleByGuild(from_guild)}>\n\n${message.content} `;
+            var template = `**From ${message.author.displayName}**\n` + `<@&${this._database.getRoleByGuild(from_guild)}>\n\n${message.content} `;
 
 
         to_guild.channels.fetch(this.announcement_channel).then(channel => {
@@ -138,5 +149,5 @@ class CrossingGuardBot extends Client {
 
 
 
-let bot = new CrossingGuardBot();
+let bot = CrossingGuardBot.getInstance();
 bot.login();

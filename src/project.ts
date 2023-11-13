@@ -1,4 +1,5 @@
 import ProjectStaff from "./ProjectStaff.js";
+import { ProjectStatus } from "./ProjectStatus.js";
 
 export default class Project {
 

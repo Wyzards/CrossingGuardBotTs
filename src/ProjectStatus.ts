@@ -1,4 +1,4 @@
-enum ProjectStatus {
+export enum ProjectStatus {
     PLAYABLE,
     IN_DEVELOPMENT,
     ARCHIVED,

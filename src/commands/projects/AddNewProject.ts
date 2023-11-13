@@ -1,4 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
+import CrossingGuardBot from "../../CrossingGuardBot.js";
 
 const data = new SlashCommandBuilder()
     .setName("addproject")
@@ -15,6 +16,8 @@ const data = new SlashCommandBuilder()
 async function execute(interaction) {
     const projectName = interaction.options.getString("project_name");
     const displayName = interaction.options.getString("display_name");
+
+    CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
 
     await interaction.reply("Project created with project_name: " + projectName + ", and display_name: " + displayName);
 }

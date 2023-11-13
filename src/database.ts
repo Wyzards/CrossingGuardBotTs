@@ -2,6 +2,7 @@ import * as mysql from 'mysql';
 import * as fs from 'fs';
 import Project from "./Project.js";
 import ProjectStaff from "./ProjectStaff.js";
+import { ProjectStatus } from "./ProjectStatus.js";
 
 export default class Database {
 
@@ -54,8 +55,8 @@ export default class Database {
     }
 
 
-    public createNewProject(name: string): void {
-        this.connection.query("INSERT INTO Projects (name, status) VALUES (?, ?)", [name, ProjectStatus.HIDDEN]);
+    public createNewProject(name: string, displayName: string): void {
+        this.connection.query("INSERT INTO Projects (name, display_name, status) VALUES (?, ?, ?)", [name, displayName, ProjectStatus.HIDDEN]);
     }
 
     public getProject(projectId): Project {
