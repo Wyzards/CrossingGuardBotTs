@@ -4,6 +4,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database.js";
 
+function bestOutputs(boneCount, bitCount) {
+
+}
+
+
 export default class CrossingGuardBot extends Client {
     private static instance: CrossingGuardBot;
     private hidden_channels: Array<String> = [];

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot.js";
 
 const data = new SlashCommandBuilder()
@@ -11,11 +11,17 @@ const data = new SlashCommandBuilder()
     .addStringOption(option =>
         option.setName("display_name")
             .setDescription("The display name for this project")
-            .setRequired(true));
+            .setRequired(true))
+    .addChannelOption(option =>
+        option.setName("channel")
+            .setDescription("The the forum channel for this project"));
 
 async function execute(interaction) {
     const projectName = interaction.options.getString("project_name");
     const displayName = interaction.options.getString("display_name");
+    const channel = interaction.options.getChannel("channel");
+
+    console.log("CHANNEL: " + JSON.stringify(channel));
 
     CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
 
