@@ -149,6 +149,8 @@ function getRole(guild_id: string) {
             return "1171994022898843700" // @Test
         case "388383662154055680": // Avalon Online
             return "1173374961986060371";
+        case "283802277263704064": // Atlas
+            return "1173819307407458314";
         default:
             return "1085631729651421345"; // @Architect
     }
