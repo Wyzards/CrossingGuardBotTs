@@ -1,5 +1,6 @@
-import ProjectStaff from "./ProjectStaff.js";
-import { ProjectStatus } from "./ProjectStatus.js";
+import ProjectStaff from "./ProjectStaff";
+import ProjectLink from "./ProjectLink";
+import { ProjectStatus } from "./ProjectStatus";
 
 export default class Project {
 
@@ -83,6 +84,10 @@ export default class Project {
 
     public get roleId(): string {
         return this._roleId;
+    }
+
+    public set links(links: ProjectLink[]) {
+        this._links = links;
     }
 
     public get links(): ProjectLink[] {

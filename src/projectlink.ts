@@ -1,4 +1,4 @@
-class ProjectLink {
+export default class ProjectLink {
 
     private _projectId: number;
     private _linkId: number;

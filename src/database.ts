@@ -1,8 +1,9 @@
 import * as mysql from 'mysql';
 import * as fs from 'fs';
-import Project from "./Project.js";
-import ProjectStaff from "./ProjectStaff.js";
-import { ProjectStatus } from "./ProjectStatus.js";
+import Project from "./Project";
+import ProjectStaff from "./ProjectStaff";
+import { ProjectStatus } from "./ProjectStatus";
+import ProjectLink from "./ProjectLink";
 
 export default class Database {
 
