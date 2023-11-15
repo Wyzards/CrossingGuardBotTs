@@ -14,15 +14,31 @@ const data = new SlashCommandBuilder()
             .setRequired(true))
     .addChannelOption(option =>
         option.setName("channel")
-            .setDescription("The the forum channel for this project"));
+            .setDescription("The the forum channel for this project"))
+    .addRoleOption(option =>
+        option.setName("project_role")
+            .setDescription("The role to give people interested in this project"));
 
 async function execute(interaction) {
     const projectName = interaction.options.getString("project_name");
     const displayName = interaction.options.getString("display_name");
-    const channel = interaction.options.getChannel("channel");
+    const channel = interaction.options.getChannel("channel") ?? null;
+    const role = interaction.options.getRole("project_role") ?? null;
 
     CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName);
+
+    if (channel != null)
+        CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+            project.channelId = channel.id;
+            CrossingGuardBot.getInstance().database.saveProject(project);
+        });
+
+    if (role != null) {
+        CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+            project.roleId = role.id;
+            CrossingGuardBot.getInstance().database.saveProject(project);
+        });
+    }
 
     await interaction.reply("Project created with project_name: " + projectName + ", and display_name: " + displayName);
 }

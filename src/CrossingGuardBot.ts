@@ -41,8 +41,6 @@ export default class CrossingGuardBot extends Client {
 
                 const command = await import(filePath);
 
-                console.log("COMMAND REGISTERED: " + command);
-
                 if ('data' in command && 'execute' in command) {
                     this.commands.set(command.data.name, command);
                 } else {
@@ -71,7 +69,6 @@ export default class CrossingGuardBot extends Client {
         this.on(Events.InteractionCreate, async interaction => {
             if (!interaction.isChatInputCommand()) return;
 
-            console.log("COMMANDS RETRIEVED: " + JSON.stringify((<CrossingGuardBot>interaction.client).commands));
             const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
 
             if (!command) {

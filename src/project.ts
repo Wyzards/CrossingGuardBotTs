@@ -33,6 +33,10 @@ export default class Project {
         return this._id;
     }
 
+    public set channelId(id: string) {
+        this._channelId = id;
+    }
+
     public get channelId(): string {
         return this._channelId;
     }
@@ -49,6 +53,10 @@ export default class Project {
         return this._status;
     }
 
+    public set description(description: string) {
+        this._description = description;
+    }
+
     public get description(): string {
         return this._description;
     }
@@ -61,6 +69,10 @@ export default class Project {
         return this._ip;
     }
 
+    public set roleId(roleId: string) {
+        this._roleId = roleId;
+    }
+
     public get roleId(): string {
         return this._roleId;
     }
@@ -69,4 +81,7 @@ export default class Project {
         return this._links;
     }
 
+    public get staff(): ProjectStaff[] {
+        return this._staff;
+    }
 }

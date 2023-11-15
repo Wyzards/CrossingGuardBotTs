@@ -43,28 +43,54 @@ export default class Database {
     }
 
     public getProjectByName(projectName): Promise<Project> {
-        return this.connection.query("SELECT * FROM Projects WHERE name = ?", [projectName], (error, results, fields) => {
-            results = results[0];
+        var database = this;
 
-            var links = [];
-            var staff = [];
+        return new Promise((resolve) => {
+            this.connection.query("SELECT * FROM Projects WHERE name = ?", [projectName], (err, results, fields) => {
+                results = results[0];
 
-            var project = new Project(results["project_id"], results["channel_id"], results["name"], results["display_name"], +results["status"], results["description"], results["guild_id"], results["ip"], results["role_id"], links, staff);
+                var links = database.getProjectLinks(results["project_id"]);
+                var staff = database.getProjectStaff(results["project_id"]);
 
-            console.log(JSON.stringify(project));
+                resolve(new Project(results["project_id"], results["channel_id"], results["name"], results["display_name"], +results["status"], results["description"], results["guild_id"], results["ip"], results["role_id"], links, staff));
+            });
         });
     }
 
     public getProjectStaff(projectId: number): ProjectStaff[] {
-        return null;
+        return [];
     }
 
     public getProjectLinks(projectId: number): ProjectLink[] {
-        return null;
+        return [];
     }
 
     public getRoleByGuild(guildId: string): string {
         return null;
+    }
+
+    public saveProject(project: Project): void {
+        this.connection.query("UPDATE projects SET channel_id = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?", [project.channelId, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
+
+        // Deletes any removed links
+        if (project.links.length > 0)
+            this.connection.query("DELETE FROM project_links WHERE project_id = ? AND link_id NOT IN (" + project.links.map(link => link.linkId).join(", ") + ")", [project.id]);
+        else
+            this.connection.query("DELETE FROM project_links WHERE project_id = ?", [project.id]);
+
+        project.links.forEach(link => {
+            this.connection.query("INSERT INTO project_links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
+        });
+
+        // Deletes any removed staff
+        if (project.staff.length > 0)
+            this.connection.query("DELETE FROM project_staff WHERE project_id = ? AND user_id NOT IN (" + project.staff.map(staff => staff.discordUserId).join(", ") + ")", [project.id]);
+        else
+            this.connection.query("DELETE FROM project_staff WHERE project_id = ?", [project.id]);
+
+        project.staff.forEach(staff => {
+            this.connection.query("INSERT INTO project_staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank, staff]);
+        });
     }
 
 
