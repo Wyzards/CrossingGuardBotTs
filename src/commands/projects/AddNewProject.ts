@@ -28,7 +28,7 @@ async function execute(interaction) {
     CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
 
     if (channel != null)
-        CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        await CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
             project.channelId = channel.id;
             CrossingGuardBot.getInstance().database.saveProject(project);
         });

@@ -10,7 +10,7 @@ export default class Project {
     private _status: ProjectStatus;
     private _description: string;
     private _discordId: string;
-    private _ip: string;
+    private _ip: string; // Also stores version information. Ex: 1.19.2 - 1.20.2 > play.megido.xyz
     private _roleId: string;
     private _links: ProjectLink[];
     private _staff: ProjectStaff[];
@@ -49,6 +49,10 @@ export default class Project {
         return this._displayName;
     }
 
+    public set status(status: ProjectStatus) {
+        this._status = status;
+    }
+
     public get status(): ProjectStatus {
         return this._status;
     }
@@ -63,6 +67,10 @@ export default class Project {
 
     public get discordId(): string {
         return this._discordId;
+    }
+
+    public set ip(ip: string) {
+        this._ip = ip;
     }
 
     public get ip(): string {
