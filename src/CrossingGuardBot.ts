@@ -4,11 +4,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database.js";
 
-function bestOutputs(boneCount, bitCount) {
-
-}
-
-
 export default class CrossingGuardBot extends Client {
     private static instance: CrossingGuardBot;
     private hidden_channels: Array<String> = [];
@@ -33,7 +28,7 @@ export default class CrossingGuardBot extends Client {
         return CrossingGuardBot.instance;
     }
 
-    private registerCommands() {
+    private async registerCommands() {
         const foldersPath = path.join(__dirname, 'commands');
         const commandFolders = fs.readdirSync(foldersPath);
 
@@ -43,7 +38,10 @@ export default class CrossingGuardBot extends Client {
 
             for (const file of commandFiles) {
                 const filePath = path.join(commandsPath, file);
-                const command = require(filePath);
+
+                const command = await import(filePath);
+
+                console.log("COMMAND REGISTERED: " + command);
 
                 if ('data' in command && 'execute' in command) {
                     this.commands.set(command.data.name, command);

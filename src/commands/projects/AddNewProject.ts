@@ -21,9 +21,8 @@ async function execute(interaction) {
     const displayName = interaction.options.getString("display_name");
     const channel = interaction.options.getChannel("channel");
 
-    console.log("CHANNEL: " + JSON.stringify(channel));
-
     CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName);
 
     await interaction.reply("Project created with project_name: " + projectName + ", and display_name: " + displayName);
 }
