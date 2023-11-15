@@ -151,6 +151,8 @@ function getRole(guild_id: string) {
             return "1173374961986060371";
         case "283802277263704064": // Atlas
             return "1173819307407458314";
+        case "805527716295081986": // Minerva
+            return "1174449039610228927";
         default:
             return "1085631729651421345"; // @Architect
     }
