@@ -36,7 +36,7 @@ async function execute(interaction) {
         project.staff = staff;
         CrossingGuardBot.getInstance().database.saveProject(project);
 
-        interaction.reply("Added " + interaction.options.getUser("user").displayName + " to the staff of " + project.displayName + " as a " + ProjectStaffRank[rank]);
+        interaction.reply("Added " + interaction.options.getUser("user").toString() + " to the staff of " + project.displayName + " as a " + ProjectStaffRank[rank]);
     });
 }
 
