@@ -1,9 +1,10 @@
-import { SlashCommandBuilder, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 
 const data = new SlashCommandBuilder()
     .setName("setprojectdesc")
     .setDescription("Set a project's description")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
         option.setName("project_name")
             .setDescription("The name of the project")

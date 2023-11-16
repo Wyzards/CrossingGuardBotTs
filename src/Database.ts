@@ -73,8 +73,6 @@ export default class Database {
                         throw err;
                     }
 
-                    console.log(JSON.stringify(project));
-
                     resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.ipString, project.roleId, project.links, project.staff));
                 })
             });
