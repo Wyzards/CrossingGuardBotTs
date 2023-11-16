@@ -136,8 +136,12 @@ export default class Database {
     }
 
 
-    public createNewProject(name: string, displayName: string): void {
+    public addProject(name: string, displayName: string): void {
         this.connection.query("INSERT INTO Projects (name, display_name, status) VALUES (?, ?, ?)", [name, displayName, ProjectStatus.HIDDEN]);
+    }
+
+    public createNewProject(name: string, displayName: string): void {
+
     }
 
     public static getInstance(): Database {
