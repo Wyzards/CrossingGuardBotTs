@@ -1,6 +1,6 @@
 export enum ProjectStaffRank {
 
-    LEAD = "LEAD",
-    STAFF = "STAFF"
+    LEAD = 0,
+    STAFF = 1
 
 }

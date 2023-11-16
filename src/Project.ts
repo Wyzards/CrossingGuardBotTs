@@ -54,6 +54,10 @@ export default class Project {
         this._status = status;
     }
 
+    public set staff(staff: ProjectStaff[]) {
+        this._staff = staff;
+    }
+
     public get status(): ProjectStatus {
         return this._status;
     }
