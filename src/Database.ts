@@ -1,4 +1,5 @@
 import * as mysql from 'mysql';
+import * as async from "async";
 import * as fs from 'fs';
 import Project from "./Project";
 import ProjectStaff from "./ProjectStaff";
@@ -47,23 +48,65 @@ export default class Database {
         var database = this;
 
         return new Promise((resolve) => {
-            this.connection.query("SELECT * FROM Projects WHERE name = ?", [projectName], (err, results, fields) => {
-                results = results[0];
+            var project: any = {};
 
-                var links = database.getProjectLinks(results["project_id"]);
-                var staff = database.getProjectStaff(results["project_id"]);
+            this.connection.query("SELECT * FROM Projects WHERE name = ?", [projectName], (err, projectData) => {
+                if (err) {
+                    throw err;
+                }
 
-                resolve(new Project(results["project_id"], results["channel_id"], results["name"], results["display_name"], +results["status"], results["description"], results["guild_id"], results["ip"], results["role_id"], links, staff));
+                projectData = projectData[0];
+                project.id = projectData["project_id"];
+                project.channelId = projectData["channel_id"];
+                project.name = projectData["name"];
+                project.displayName = projectData["display_name"];
+                project.status = +projectData["status"];
+                project.description = projectData["description"];
+                project.ipString = projectData["ip"];
+                project.guildId = projectData["guild_id"];
+                project.roleId = projectData["role_id"];
+                project.links = [];
+                project.staff = [];
+
+                async.parallel([links, staff], function (err, data) {
+                    if (err) {
+                        throw err;
+                    }
+
+                    console.log(JSON.stringify(project));
+
+                    resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.ipString, project.roleId, project.links, project.staff));
+                })
             });
+
+            function links(callback) {
+                database.connection.query("SELECT * FROM Project_Links WHERE project_id = ?", [project.id], (err, results) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    results.forEach(link => {
+                        project.links.push(new ProjectLink(link["project_id"], link["link_id"], link["link_name"], link["link_url"]));
+                    });
+
+                    callback(null);
+                });
+            }
+
+            function staff(callback) {
+                database.connection.query("SELECT * FROM Project_Staff WHERE project_id = ?", [project.id], (err, results) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    results.forEach(staff => {
+                        project.staff.push(new ProjectStaff(staff["project_id"], staff["user_id"], staff["staff_rank"]));
+                    });
+
+                    callback(null);
+                });
+            }
         });
-    }
-
-    public getProjectStaff(projectId: number): ProjectStaff[] {
-        return [];
-    }
-
-    public getProjectLinks(projectId: number): ProjectLink[] {
-        return [];
     }
 
     public getRoleByGuild(guildId: string): string {
