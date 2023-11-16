@@ -28,9 +28,9 @@ async function execute(interaction) {
             CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
                 project.description = description;
                 CrossingGuardBot.getInstance().database.saveProject(project);
+                interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
             });
 
-            interaction.reply("Project created with the name `" + projectName + "` has been given the following description:\n" + description);
         })
 }
 

@@ -21,7 +21,7 @@ async function execute(interaction) {
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.staff = project.staff.filter(staff => staff.discordUserId !== userId);
         CrossingGuardBot.getInstance().database.saveProject(project);
-        interaction.reply("Removed the user " + interaction.options.getUser("user").toString() + " from " + project.displayName);
+        interaction.reply({ content: `Removed the user ${interaction.options.getUser("user").toString()} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
     });
 }
 

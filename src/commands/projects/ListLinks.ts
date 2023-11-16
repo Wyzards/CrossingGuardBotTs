@@ -18,7 +18,7 @@ async function execute(interaction) {
         let reply = project.displayName + "'s Links\n--------------------\n";
 
         project.links.forEach(link => {
-            reply += "- [" + link.linkName + "](" + link.linkUrl + ")\n";
+            reply += `- [${link.linkName}](${link.linkUrl})\n`;
         });
 
         interaction.reply(reply);

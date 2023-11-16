@@ -29,9 +29,9 @@ async function execute(interaction) {
         links.push(new ProjectLink(project.id, 0, linkName, linkURL));
         project.links = links;
         CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}`, ephemeral: true });
     });
 
-    interaction.reply("Added the link [" + linkName + "](" + linkURL + ") to " + projectName);
 }
 
 export { data, execute };

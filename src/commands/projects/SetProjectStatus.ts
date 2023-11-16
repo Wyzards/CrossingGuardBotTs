@@ -28,9 +28,9 @@ async function execute(interaction) {
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.status = status;
         CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[status]}`, ephemeral: true });
     });
 
-    interaction.reply("Project " + projectName + "'s status set to '" + ProjectStatus[status] + "'");
 }
 
 export { data, execute };

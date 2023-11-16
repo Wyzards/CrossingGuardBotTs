@@ -19,7 +19,7 @@ async function execute(interaction) {
         let reply = project.displayName + "'s Staff\n--------------------\n";
 
         project.staff.forEach(staff => {
-            reply += "- <@" + staff.discordUserId + "> ~ " + ProjectStaffRank[staff.rank] + "\n";
+            reply += `- <@${staff.discordUserId}> ~ ${ProjectStaffRank[staff.rank]}\n`;
         });
 
         interaction.reply({ content: reply, allowedMentions: { parse: [] } });

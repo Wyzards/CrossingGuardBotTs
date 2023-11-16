@@ -21,9 +21,9 @@ async function execute(interaction) {
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.ip = ipString;
         CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
     });
 
-    interaction.reply("Project " + projectName + "'s IP set to '" + ipString + "'");
 }
 
 export { data, execute };

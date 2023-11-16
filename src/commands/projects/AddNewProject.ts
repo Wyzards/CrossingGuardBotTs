@@ -41,7 +41,7 @@ async function execute(interaction) {
         });
     }
 
-    await interaction.reply("Project created with project_name: " + projectName + ", and display_name: " + displayName);
+    await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
 
 export { data, execute };

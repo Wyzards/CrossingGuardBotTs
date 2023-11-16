@@ -21,9 +21,9 @@ async function execute(interaction) {
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.links = project.links.filter(link => link.linkName !== linkName);
         CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `Removed the link \`${linkName} from ${project.displayName}`, ephemeral: true });
     });
 
-    interaction.reply("Removed the link `" + linkName + "` from " + projectName);
 }
 
 export { data, execute };
