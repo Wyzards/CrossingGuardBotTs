@@ -112,7 +112,7 @@ export default class Database {
     }
 
     public saveProject(project: Project): void {
-        this.connection.query("UPDATE projects SET channel_id = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?", [project.channelId, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
+        this.connection.query("UPDATE projects SET channel_id = ?, guild_id = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?", [project.channelId, project.guildId, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
         // Deletes any removed links
         if (project.links.length > 0)

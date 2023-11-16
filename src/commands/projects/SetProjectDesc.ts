@@ -18,9 +18,6 @@ async function execute(interaction) {
     const projectName = interaction.options.getString("project_name");
     const descriptionMessageId = interaction.options.getString("description_msg_id");
 
-    console.log("ID: " + descriptionMessageId);
-    console.log("CHANNEL: " + JSON.stringify(interaction.channel))
-
     interaction.channel.messages.fetch(descriptionMessageId)
         .then(message => {
             var description = message.content;

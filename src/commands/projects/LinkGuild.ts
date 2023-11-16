@@ -1,29 +1,32 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
+import ProjectLink from "../../ProjectLink";
+import { ProjectStaffRank } from "../../ProjectStaffRank";
+import ProjectStaff from "../../ProjectStaff";
 
 const data = new SlashCommandBuilder()
-    .setName("removelink")
-    .setDescription("Remove a link from a project")
+    .setName("linkguild")
+    .setDescription("Link a guild to a project")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
         option.setName("project_name")
             .setDescription("The name of the project")
             .setRequired(true))
     .addStringOption(option =>
-        option.setName("name")
-            .setDescription("The name to display for this link")
+        option.setName("guild_id")
+            .setDescription("The id of the guild to link to")
             .setRequired(true));
 
 async function execute(interaction) {
     const projectName = interaction.options.getString("project_name");
-    const linkName = interaction.options.getString("name");
+    const guildId = interaction.options.getString("guild_id");
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
-        project.links = project.links.filter(link => link.linkName !== linkName);
+        project.guildId = guildId;
         CrossingGuardBot.getInstance().database.saveProject(project);
-        interaction.reply({ content: `Removed the link \`${linkName}\` from ${project.displayName}`, ephemeral: true });
-    });
 
+        interaction.reply({ content: `Linked ${guildId} to ${project.displayName}`, ephemeral: true });
+    });
 }
 
 export { data, execute };
