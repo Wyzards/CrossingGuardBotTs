@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectLink from "../../ProjectLink";
 
 const data = new SlashCommandBuilder()
     .setName("removelink")
