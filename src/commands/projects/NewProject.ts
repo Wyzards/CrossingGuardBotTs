@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot.js";
 
 const data = new SlashCommandBuilder()

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
-import CrossingGuardBot from "../../CrossingGuardBot.js";
+import CrossingGuardBot from "../../CrossingGuardBot";
 
 const data = new SlashCommandBuilder()
     .setName("addproject")
@@ -28,17 +28,7 @@ async function execute(interaction) {
     const channel = interaction.options.getChannel("channel");
     const role = interaction.options.getRole("project_role");
 
-    CrossingGuardBot.getInstance().database.addProject(projectName, displayName);
-
-    await CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
-        project.channelId = channel.id;
-        CrossingGuardBot.getInstance().database.saveProject(project);
-    });
-
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
-        project.roleId = role.id;
-        CrossingGuardBot.getInstance().database.saveProject(project);
-    });
+    CrossingGuardBot.getInstance().database.addProject(projectName, displayName, channel.id, role.id);
 
     await interaction.reply({ content: `Project added with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }

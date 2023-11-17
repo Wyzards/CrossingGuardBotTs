@@ -40,7 +40,6 @@ const rest = new REST().setToken(process.env.TEST_TOKEN);
 
         console.log(`Successfully reloaded application (/) commands.`);
     } catch (error) {
-        // And of course, make sure you catch and log any errors!
         console.error(error);
     }
 })();

@@ -5,6 +5,8 @@ import Project from "./Project";
 import ProjectStaff from "./ProjectStaff";
 import { ProjectStatus } from "./ProjectStatus";
 import ProjectLink from "./ProjectLink";
+import CrossingGuardBot from './CrossingGuardBot';
+import { ChannelType } from 'discord.js';
 
 export default class Database {
 
@@ -136,12 +138,28 @@ export default class Database {
     }
 
 
-    public addProject(name: string, displayName: string): void {
-        this.connection.query("INSERT INTO Projects (name, display_name, status) VALUES (?, ?, ?)", [name, displayName, ProjectStatus.HIDDEN]);
+    public addProject(name: string, displayName: string, channelId: string, roleId: string): void {
+        this.connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
     }
 
     public createNewProject(name: string, displayName: string): void {
-
+        // Create role and get ID
+        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+            guild.roles.create({
+                hoist: true,
+                name: displayName
+            }).then(role => {
+                guild.channels.fetch(process.env.PROJECT_CATEGORY).then(categoryChannel => {
+                    guild.channels.create({
+                        name: name,
+                        type: ChannelType.GuildForum,
+                        parent: categoryChannel.id
+                    }).then(channel => {
+                        this.addProject(name, displayName, channel.id, role.id);
+                    });
+                });
+            });
+        });
     }
 
     public static getInstance(): Database {

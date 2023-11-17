@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectLink from "../../ProjectLink";
 import { ProjectStaffRank } from "../../ProjectStaffRank";
 import ProjectStaff from "../../ProjectStaff";
 
