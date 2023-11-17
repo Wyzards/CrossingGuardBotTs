@@ -153,6 +153,8 @@ function getRole(guild_id: string) {
             return "1173819307407458314";
         case "805527716295081986": // Minerva
             return "1174449039610228927";
+        case "467349291740954625": // RotMC
+            return "1175182675443720295";
         default:
             return "1085631729651421345"; // @Architect
     }
