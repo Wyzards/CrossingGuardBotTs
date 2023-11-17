@@ -1,6 +1,7 @@
 import ProjectStaff from "./ProjectStaff";
 import ProjectLink from "./ProjectLink";
 import { ProjectStatus } from "./ProjectStatus";
+import { GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions } from "discord.js";
 
 export default class Project {
 
@@ -28,6 +29,22 @@ export default class Project {
         this._roleId = roleId;
         this._links = links;
         this._staff = staff;
+    }
+
+    public get channelMessage(): GuildForumThreadMessageCreateOptions {
+        let linksContent = this._links.length > 0 ? "> **Links**\n" : "";
+        let discordLink = this._links.filter(link => link.linkName === "Discord").length ? this._links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
+
+        this._links.forEach(link => {
+            linksContent += `- [${link.linkName}](${link.linkUrl})\n`;
+        });
+
+        if (this._links.length > 0)
+            linksContent += "\n";
+
+        return {
+            content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + (discordLink ? `**Discord:** ${discordLink}` : "")
+        };
     }
 
     public get id(): number {

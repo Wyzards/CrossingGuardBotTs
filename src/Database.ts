@@ -6,7 +6,7 @@ import ProjectStaff from "./ProjectStaff";
 import { ProjectStatus } from "./ProjectStatus";
 import ProjectLink from "./ProjectLink";
 import CrossingGuardBot from './CrossingGuardBot';
-import { ChannelType } from 'discord.js';
+import { ChannelType, ForumChannel, PermissionsBitField, Emoji, MessageCreateOptions } from 'discord.js';
 
 export default class Database {
 
@@ -39,10 +39,6 @@ export default class Database {
 
 
     public getProjectByGuild(guildId: string): Project {
-        return null;
-    }
-
-    public getProjectById(projectId: number): Project {
         return null;
     }
 
@@ -143,6 +139,7 @@ export default class Database {
     }
 
     public createNewProject(name: string, displayName: string): void {
+        var database = this;
         // Create role and get ID
         CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
             guild.roles.create({
@@ -155,10 +152,61 @@ export default class Database {
                         type: ChannelType.GuildForum,
                         parent: categoryChannel.id
                     }).then(channel => {
-                        this.addProject(name, displayName, channel.id, role.id);
+                        database.addProject(name, displayName, channel.id, role.id);
+
+                        database.getProjectByName(name).then(project => {
+                            database.updateRole(project);
+                            database.updateChannel(project);
+                        });
+
                     });
                 });
             });
+        });
+    }
+
+    public updateChannel(project: Project): void {
+        var database = this;
+
+        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+            guild.channels.edit(project.channelId, {
+                permissionOverwrites: [
+                    {
+                        id: guild.roles.everyone.id,
+                        deny: [PermissionsBitField.Flags.ViewChannel]
+                    }
+                ],
+                defaultReactionEmoji: { id: null, name: "😎" }, // CONFIGURE THIS
+                name: ProjectStatus.channelIcon(project.status) + project.name,
+                availableTags: [
+                    { name: "About", moderated: true },
+                    { name: "General" },
+                    { name: "Announcement", moderated: true },
+                    { name: "Review" }
+                ],
+                topic: `Post anything related to ${project.displayName} here!`
+            }).then(function () {
+                console.log("CHANNEL DONE EDITING, SENDING MSG");
+
+                guild.channels.fetch(project.channelId).then(channel => {
+                    console.log("GOT CHANNEL...");
+
+                    (channel as ForumChannel).threads.create({
+                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
+                        message: project.channelMessage,
+                        name: project.displayName
+                    }).then(threadChannel => {
+                        console.log("CREATED THREAD, PINNING");
+                        threadChannel.pin();
+                    });
+                })
+            });
+        });
+    }
+
+    public updateRole(project: Project): void {
+        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+            guild.roles.edit(project.roleId, { position: 2, name: project.displayName, color: ProjectStatus.roleColor(project.status) });
         });
     }
 
