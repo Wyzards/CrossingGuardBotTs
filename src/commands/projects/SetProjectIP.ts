@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ForumChannel, PermissionFlagsBits, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
+import Database from "../../Database";
 
 const data = new SlashCommandBuilder()
     .setName("setprojectip")
@@ -22,6 +23,8 @@ async function execute(interaction) {
         project.ip = ipString;
         CrossingGuardBot.getInstance().database.saveProject(project);
         interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
+
+        Database.updateChannel(project);
     });
 
 }

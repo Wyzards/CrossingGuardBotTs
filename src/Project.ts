@@ -31,7 +31,7 @@ export default class Project {
         this._staff = staff;
     }
 
-    public get channelMessage(): GuildForumThreadMessageCreateOptions {
+    public get channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
         let linksContent = this._links.length > 0 ? "> **Links**\n" : "";
         let discordLink = this._links.filter(link => link.linkName === "Discord").length ? this._links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
 

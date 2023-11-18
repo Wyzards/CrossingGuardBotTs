@@ -6,7 +6,7 @@ import ProjectStaff from "./ProjectStaff";
 import { ProjectStatus } from "./ProjectStatus";
 import ProjectLink from "./ProjectLink";
 import CrossingGuardBot from './CrossingGuardBot';
-import { ChannelType, ForumChannel, PermissionsBitField, Emoji, MessageCreateOptions } from 'discord.js';
+import { ChannelType, ForumChannel, PermissionsBitField, ThreadChannel, Emoji, MessageCreateOptions, ChannelFlags, GuildForumThreadCreateOptions, GuildForumThreadMessageCreateOptions, MessageEditOptions } from 'discord.js';
 
 export default class Database {
 
@@ -156,7 +156,7 @@ export default class Database {
 
                         database.getProjectByName(name).then(project => {
                             database.updateRole(project);
-                            database.updateChannel(project);
+                            Database.updateChannel(project);
                         });
 
                     });
@@ -165,7 +165,7 @@ export default class Database {
         });
     }
 
-    public updateChannel(project: Project): void {
+    public static updateChannel(project: Project): void {
         var database = this;
 
         CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
@@ -186,18 +186,26 @@ export default class Database {
                 ],
                 topic: `Post anything related to ${project.displayName} here!`
             }).then(function () {
-                console.log("CHANNEL DONE EDITING, SENDING MSG");
-
                 guild.channels.fetch(project.channelId).then(channel => {
-                    console.log("GOT CHANNEL...");
+                    (channel as ForumChannel).threads.fetchActive().then(threads => {
+                        for (const thread of threads.threads) {
+                            if (thread[1].flags.has(ChannelFlags.Pinned)) {
+                                thread[1].fetchStarterMessage().then(message => {
+                                    message.edit(project.channelMessage as MessageEditOptions);
+                                });
 
-                    (channel as ForumChannel).threads.create({
-                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
-                        message: project.channelMessage,
-                        name: project.displayName
-                    }).then(threadChannel => {
-                        console.log("CREATED THREAD, PINNING");
-                        threadChannel.pin();
+                                return;
+                            }
+                        }
+
+                        (channel as ForumChannel).threads.create({
+                            appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
+                            message: project.channelMessage as GuildForumThreadMessageCreateOptions,
+                            name: project.displayName,
+                        }).then(threadChannel => {
+                            threadChannel.pin();
+                            threadChannel.setLocked(true);
+                        });
                     });
                 })
             });
