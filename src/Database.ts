@@ -38,8 +38,67 @@ export default class Database {
     }
 
 
-    public getProjectByGuild(guildId: string): Project {
-        return null;
+    public getProjectByGuild(guildId: string): Promise<Project> {
+        var database = this;
+
+        return new Promise((resolve) => {
+            var project: any = {};
+
+            this.connection.query("SELECT * FROM Projects WHERE guild_id = ?", [guildId], (err, projectData) => {
+                if (err) {
+                    throw err;
+                }
+
+                projectData = projectData[0];
+                project.id = projectData["project_id"];
+                project.channelId = projectData["channel_id"];
+                project.name = projectData["name"];
+                project.displayName = projectData["display_name"];
+                project.status = +projectData["status"];
+                project.description = projectData["description"];
+                project.ipString = projectData["ip"];
+                project.guildId = projectData["guild_id"];
+                project.roleId = projectData["role_id"];
+                project.links = [];
+                project.staff = [];
+
+                async.parallel([links, staff], function (err, data) {
+                    if (err) {
+                        throw err;
+                    }
+
+                    resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.ipString, project.roleId, project.links, project.staff));
+                })
+            });
+
+            function links(callback) {
+                database.connection.query("SELECT * FROM Project_Links WHERE project_id = ?", [project.id], (err, results) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    results.forEach(link => {
+                        project.links.push(new ProjectLink(link["project_id"], link["link_id"], link["link_name"], link["link_url"]));
+                    });
+
+                    callback(null);
+                });
+            }
+
+            function staff(callback) {
+                database.connection.query("SELECT * FROM Project_Staff WHERE project_id = ?", [project.id], (err, results) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    results.forEach(staff => {
+                        project.staff.push(new ProjectStaff(staff["project_id"], staff["user_id"], staff["staff_rank"]));
+                    });
+
+                    callback(null);
+                });
+            }
+        });
     }
 
     public getProjectByName(projectName): Promise<Project> {
@@ -105,10 +164,6 @@ export default class Database {
         });
     }
 
-    public getRoleByGuild(guildId: string): string {
-        return null;
-    }
-
     public saveProject(project: Project): void {
         this.connection.query("UPDATE projects SET channel_id = ?, guild_id = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?", [project.channelId, project.guildId, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
@@ -131,16 +186,19 @@ export default class Database {
         project.staff.forEach(staff => {
             this.connection.query("INSERT INTO project_staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
         });
+
+        project.updateView();
     }
 
 
     public addProject(name: string, displayName: string, channelId: string, roleId: string): void {
         this.connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
+
+        this.getProjectByName(name).then(project => project.updateView());
     }
 
     public createNewProject(name: string, displayName: string): void {
         var database = this;
-        // Create role and get ID
         CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
             guild.roles.create({
                 hoist: true,
@@ -151,70 +209,9 @@ export default class Database {
                         name: name,
                         type: ChannelType.GuildForum,
                         parent: categoryChannel.id
-                    }).then(channel => {
-                        database.addProject(name, displayName, channel.id, role.id);
-
-                        database.getProjectByName(name).then(project => {
-                            database.updateRole(project);
-                            Database.updateChannel(project);
-                        });
-
-                    });
+                    }).then(channel => database.addProject(name, displayName, channel.id, role.id))
                 });
             });
-        });
-    }
-
-    public static updateChannel(project: Project): void {
-        var database = this;
-
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
-            guild.channels.edit(project.channelId, {
-                permissionOverwrites: [
-                    {
-                        id: guild.roles.everyone.id,
-                        deny: [PermissionsBitField.Flags.ViewChannel]
-                    }
-                ],
-                defaultReactionEmoji: { id: null, name: "😎" }, // CONFIGURE THIS
-                name: ProjectStatus.channelIcon(project.status) + project.name,
-                availableTags: [
-                    { name: "About", moderated: true },
-                    { name: "General" },
-                    { name: "Announcement", moderated: true },
-                    { name: "Review" }
-                ],
-                topic: `Post anything related to ${project.displayName} here!`
-            }).then(function () {
-                guild.channels.fetch(project.channelId).then(channel => {
-                    (channel as ForumChannel).threads.fetchActive().then(threads => {
-                        for (const thread of threads.threads) {
-                            if (thread[1].flags.has(ChannelFlags.Pinned)) {
-                                thread[1].fetchStarterMessage().then(message => {
-                                    message.edit(project.channelMessage as MessageEditOptions);
-                                });
-
-                                return;
-                            }
-                        }
-
-                        (channel as ForumChannel).threads.create({
-                            appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
-                            message: project.channelMessage as GuildForumThreadMessageCreateOptions,
-                            name: project.displayName,
-                        }).then(threadChannel => {
-                            threadChannel.pin();
-                            threadChannel.setLocked(true);
-                        });
-                    });
-                })
-            });
-        });
-    }
-
-    public updateRole(project: Project): void {
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
-            guild.roles.edit(project.roleId, { position: 2, name: project.displayName, color: ProjectStatus.roleColor(project.status) });
         });
     }
 

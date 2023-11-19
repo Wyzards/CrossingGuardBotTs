@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 import ProjectLink from "../../ProjectLink";
+import Database from "../../Database";
 
 const data = new SlashCommandBuilder()
     .setName("addlink")

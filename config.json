@@ -1,9 +1,13 @@
 {
     "hidden_channels": [
-        "1095529250053968013",
-        "1095529306169540749",
-        "1095529356123701388",
-        "1127068846013038682"
+        "CHANNEL ID #1",
+        "CHANNEL ID #2",
+        "..."
     ],
-    "announcement_channel": "1086111140066643978"
+    "announcement_channel": "ANNOUNCEMENT CHANNEL ID",
+    "default_role_ping": "DEFAULT ANNOUNCEMENT ROLE PING",
+    "host": "host",
+    "user": "user",
+    "password": "password",
+    "database": "database"
 }

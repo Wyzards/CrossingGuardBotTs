@@ -23,8 +23,6 @@ async function execute(interaction) {
         project.ip = ipString;
         CrossingGuardBot.getInstance().database.saveProject(project);
         interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
-
-        Database.updateChannel(project);
     });
 
 }
