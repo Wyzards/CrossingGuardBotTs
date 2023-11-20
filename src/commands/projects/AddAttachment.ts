@@ -21,8 +21,6 @@ async function execute(interaction) {
 
     interaction.channel.messages.fetch(msgId)
         .then(message => {
-            console.log(JSON.stringify(message.attachments));
-
             CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
                 var newAttachments: ProjectAttachment[] = [];
 
