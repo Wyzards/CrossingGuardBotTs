@@ -1,7 +1,7 @@
 import ProjectStaff from "./ProjectStaff";
 import ProjectLink from "./ProjectLink";
 import { ProjectStatus } from "./ProjectStatus";
-import { ChannelFlags, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
+import { ChannelFlags, DefaultReactionEmoji, EmojiResolvable, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import CrossingGuardBot from "./CrossingGuardBot";
 import { ProjectStaffRank } from "./ProjectStaffRank";
 
@@ -17,9 +17,10 @@ export default class Project {
     private _ip: string; // Also stores version information. Ex: 1.19.2 - 1.20.2 > play.megido.xyz
     private _roleId: string;
     private _links: ProjectLink[];
+    private _emoji: DefaultReactionEmoji;
     private _staff: ProjectStaff[];
 
-    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[]) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[]) {
         this._id = id;
         this._channelId = channelId;
         this._name = name;
@@ -27,6 +28,7 @@ export default class Project {
         this._status = status;
         this._description = description;
         this._guildId = discordId;
+        this._emoji = emoji;
         this._ip = ip;
         this._roleId = roleId;
         this._links = links;
@@ -60,7 +62,8 @@ export default class Project {
             staffContent += "\n";
 
         return {
-            content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : "")
+            content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
+            allowedMentions: { parse: ['roles'] }
         };
     }
 
@@ -75,7 +78,7 @@ export default class Project {
                         deny: [PermissionsBitField.Flags.ViewChannel]
                     }
                 ] : []),
-                defaultReactionEmoji: { id: null, name: "😎" }, // CONFIGURE THIS
+                defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
                 name: ProjectStatus.channelIcon(project._status) + project._name,
                 availableTags: [
                     { name: "About", moderated: true },
@@ -162,6 +165,31 @@ export default class Project {
 
     public get guildId(): string {
         return this._guildId;
+    }
+
+    public set emoji(emojiIdOrUnicode: string) {
+        this._emoji = Project.parseEmojiString(emojiIdOrUnicode);
+    }
+
+    public static parseEmojiString(emojiIdOrUnicode: string): DefaultReactionEmoji {
+        if (isNaN(+emojiIdOrUnicode)) // Unicode
+            return { id: null, name: emojiIdOrUnicode };
+        else
+            return { id: emojiIdOrUnicode, name: null };
+    }
+
+    public get emoji(): DefaultReactionEmoji {
+        return this._emoji;
+    }
+
+    public get emojiString(): string {
+        if (this._emoji == null)
+            return "NULL";
+
+        if (this._emoji.name == null)
+            return this._emoji.id;
+
+        return this._emoji.name;
     }
 
     public set ip(ip: string) {
