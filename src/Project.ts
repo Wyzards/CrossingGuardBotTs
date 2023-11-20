@@ -64,10 +64,12 @@ export default class Project {
         if (this._staff.length > 0)
             staffContent += "\n";
 
+        var attachments: { attachment: string }[] = this._attachments.map(attachmentObj => { return { attachment: attachmentObj.url } });
+
         return {
             content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
             allowedMentions: { parse: ['roles'] },
-            files: [{ attachment: "https://cdn.discordapp.com/attachments/1170943589296128052/1176045062480736308/2023-11-15_12.25.18.png?ex=656d7050&is=655afb50&hm=5ea308d928374755207ef2c7a4b67b0c35c2b5f7bf96c729af04615a728535df&" }]
+            files: attachments
         };
     }
 
