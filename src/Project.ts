@@ -172,6 +172,8 @@ export default class Project {
     }
 
     public static parseEmojiString(emojiIdOrUnicode: string): DefaultReactionEmoji {
+        if (emojiIdOrUnicode == null || emojiIdOrUnicode.toUpperCase() === "NULL")
+            return null;
         if (isNaN(+emojiIdOrUnicode)) // Unicode
             return { id: null, name: emojiIdOrUnicode };
         else

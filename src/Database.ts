@@ -61,8 +61,10 @@ export default class Database {
                     throw new Error(`Could not find a project with the identifier "${identifier}"`);
                 }
 
-                var project: any = {};
+
                 projectData = projectData[0];
+                var emojiString = (projectData["emoji"] != null && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
+                var project: any = {};
                 project.id = projectData["project_id"];
                 project.channelId = projectData["channel_id"];
                 project.name = projectData["name"];
@@ -71,7 +73,7 @@ export default class Database {
                 project.description = projectData["description"];
                 project.ipString = projectData["ip"];
                 project.guildId = projectData["guild_id"];
-                project.emoji = Project.parseEmojiString(projectData["emoji"]);
+                project.emoji = Project.parseEmojiString(emojiString);
                 project.roleId = projectData["role_id"];
                 project.links = [];
                 project.staff = [];
@@ -131,8 +133,7 @@ export default class Database {
     }
 
     public saveProject(project: Project): void {
-        var projectQuery = `UPDATE projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name) != null ? "_ucs2?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
-        console.log("PROJECT QUERY ON SAVE: " + projectQuery);
+        var projectQuery = `UPDATE projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name) != null ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
         this.connection.query(projectQuery, [project.channelId, project.guildId, project.emojiString, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
         // Deletes any removed links
