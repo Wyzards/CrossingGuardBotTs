@@ -4,6 +4,7 @@ import { ProjectStatus } from "./ProjectStatus";
 import { ChannelFlags, DefaultReactionEmoji, EmojiResolvable, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import CrossingGuardBot from "./CrossingGuardBot";
 import { ProjectStaffRank } from "./ProjectStaffRank";
+import ProjectAttachment from "./ProjectAttachment";
 
 export default class Project {
 
@@ -19,8 +20,9 @@ export default class Project {
     private _links: ProjectLink[];
     private _emoji: DefaultReactionEmoji;
     private _staff: ProjectStaff[];
+    private _attachments: ProjectAttachment[];
 
-    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[]) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[]) {
         this._id = id;
         this._channelId = channelId;
         this._name = name;
@@ -33,6 +35,7 @@ export default class Project {
         this._roleId = roleId;
         this._links = links;
         this._staff = staff;
+        this._attachments = attachments;
     }
 
     public get channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
@@ -63,7 +66,8 @@ export default class Project {
 
         return {
             content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
-            allowedMentions: { parse: ['roles'] }
+            allowedMentions: { parse: ['roles'] },
+            files: [{ attachment: "https://cdn.discordapp.com/attachments/1170943589296128052/1176045062480736308/2023-11-15_12.25.18.png?ex=656d7050&is=655afb50&hm=5ea308d928374755207ef2c7a4b67b0c35c2b5f7bf96c729af04615a728535df&" }]
         };
     }
 
@@ -143,10 +147,6 @@ export default class Project {
         this._status = status;
     }
 
-    public set staff(staff: ProjectStaff[]) {
-        this._staff = staff;
-    }
-
     public get status(): ProjectStatus {
         return this._status;
     }
@@ -216,7 +216,19 @@ export default class Project {
         return this._links;
     }
 
+    public set staff(staff: ProjectStaff[]) {
+        this._staff = staff;
+    }
+
     public get staff(): ProjectStaff[] {
         return this._staff;
+    }
+
+    public set attachments(attachments: ProjectAttachment[]) {
+        this._attachments = attachments;
+    }
+
+    public get attachments(): ProjectAttachment[] {
+        return this._attachments;
     }
 }

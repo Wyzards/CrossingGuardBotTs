@@ -22,6 +22,8 @@ async function execute(interaction) {
         .then(message => {
             var description = message.content;
 
+            console.log(JSON.stringify(message.attachments));
+
             CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
                 project.description = description;
                 CrossingGuardBot.getInstance().database.saveProject(project);
