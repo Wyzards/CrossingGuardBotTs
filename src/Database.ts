@@ -12,17 +12,16 @@ import { ProjectStatus } from "./ProjectStatus";
 
 export default class Database {
 
-    private static instance: Database = null;
     public static CONFIG_PATH = "./test_config.json";
-    private connection = null;
+    private _connection: mysql.Connection | null;
 
     public constructor() {
-        var database = this;
+        this._connection = null;
+        let database = this;
 
         fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
-
-            this.connection = mysql.createConnection({
+            database._connection = mysql.createConnection({
                 host: config["host"],
                 user: config["user"],
                 password: config["password"],
@@ -33,7 +32,16 @@ export default class Database {
         });
     }
 
+    public get connection(): mysql.Connection {
+        if (!this._connection)
+            throw new Error("Database connection was never set!");
+        return this._connection;
+    }
+
     private makeTables(): void {
+        if (!this.connection)
+            throw new Error("Database connection was null upon making tables");
+
         this.connection.query("CREATE TABLE IF NOT EXISTS Projects (project_id INT NOT NULL AUTO_INCREMENT, channel_id VARCHAR(50), guild_id VARCHAR(50), emoji VARCHAR(50), name VARCHAR(50), display_name VARCHAR(50), status INT UNSIGNED NOT NULL, description VARCHAR(2000), ip varchar(30), role_id VARCHAR(50), PRIMARY KEY(project_id, name))");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Links (link_id INT UNSIGNED NOT NULL AUTO_INCREMENT, link_name VARCHAR(30), link_url VARCHAR(100), project_id INT REFERENCES projects(project_id), PRIMARY KEY(link_id))");
         this.connection.query("CREATE TABLE IF NOT EXISTS project_staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES projects(project_id), PRIMARY KEY (user_id))");
@@ -53,7 +61,7 @@ export default class Database {
         var database = this;
 
 
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+        CrossingGuardBot.getInstance().guild.then(guild => {
             guild.members.fetch(discordUserId).then(member => {
                 var isStaff = false;
 
@@ -94,18 +102,14 @@ export default class Database {
                     throw err;
                 }
 
-                var projects = [];
-                let asyncFunctions = []
+                var projects: Project[] = [];
+                let functions: Function[] = []
 
-                results.forEach(projectName => {
-                    asyncFunctions.push(addToProjects.bind(null, projectName));
+                results.forEach((projectName: { name: string; }) => {
+                    functions.push(addToProjects.bind(null, projectName));
                 });
 
-                async.parallel(asyncFunctions, function (err) {
-                    if (err) {
-                        throw err;
-                    }
-
+                Promise.all(functions).then(results => {
                     resolve(projects);
                 });
 
@@ -129,13 +133,13 @@ export default class Database {
                     throw err;
                 }
 
-                if (projectData == null) {
+                if (projectData == null || projectData.length == 0) {
                     throw new Error(`Could not find a project with the identifier "${identifier}"`);
                 }
 
 
                 projectData = projectData[0];
-                var emojiString = (projectData["emoji"] != null && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
+                var emojiString: string = (projectData["emoji"] != null && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
                 var project: any = {};
                 project.id = projectData["project_id"];
                 project.channelId = projectData["channel_id"];
@@ -159,13 +163,13 @@ export default class Database {
                     resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.emoji, project.ipString, project.roleId, project.links, project.staff, project.attachments));
                 });
 
-                function links(callback) {
+                function links(callback: Function) {
                     database.connection.query("SELECT * FROM Project_Links WHERE project_id = ?", [project.id], (err, results) => {
                         if (err) {
                             throw err;
                         }
 
-                        results.forEach(link => {
+                        results.forEach((link: { project_id: number, link_id: number, link_name: string, link_url: string }) => {
                             project.links.push(new ProjectLink(link["project_id"], link["link_id"], link["link_name"], link["link_url"]));
                         });
 
@@ -173,13 +177,13 @@ export default class Database {
                     });
                 }
 
-                function staff(callback) {
+                function staff(callback: Function) {
                     database.connection.query("SELECT * FROM Project_Staff WHERE project_id = ?", [project.id], (err, results) => {
                         if (err) {
                             throw err;
                         }
 
-                        results.forEach(staff => {
+                        results.forEach((staff: { project_id: number, user_id: string, staff_rank: ProjectStaffRank }) => {
                             project.staff.push(new ProjectStaff(staff["project_id"], staff["user_id"], staff["staff_rank"]));
                         });
 
@@ -187,13 +191,13 @@ export default class Database {
                     });
                 }
 
-                function attachments(callback) {
+                function attachments(callback: Function) {
                     database.connection.query("SELECT * FROM Project_Attachments WHERE project_id = ?", [project.id], (err, results) => {
                         if (err) {
                             throw err;
                         }
 
-                        results.forEach(attachment => {
+                        results.forEach((attachment: { project_id: number, attachment_id: number, url: string }) => {
                             project.attachments.push(new ProjectAttachment(attachment["project_id"], attachment["attachment_id"], attachment["url"]));
                         });
 
@@ -250,12 +254,15 @@ export default class Database {
 
     public createNewProject(name: string, displayName: string): void {
         var database = this;
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+        CrossingGuardBot.getInstance().guild.then(guild => {
             guild.roles.create({
                 hoist: true,
                 name: displayName
             }).then(role => {
-                guild.channels.fetch(process.env.PROJECT_CATEGORY).then(categoryChannel => {
+                guild.channels.fetch(CrossingGuardBot.PROJECT_CATEGORY_ID).then(categoryChannel => {
+                    if (!categoryChannel)
+                        throw new Error(`Category channel with ID=${CrossingGuardBot.PROJECT_CATEGORY_ID} does not exist`);
+
                     guild.channels.create({
                         name: name,
                         type: ChannelType.GuildForum,
@@ -264,12 +271,5 @@ export default class Database {
                 });
             });
         });
-    }
-
-    public static getInstance(): Database {
-        if (Database.instance == null)
-            Database.instance = new Database();
-
-        return Database.instance;
     }
 }

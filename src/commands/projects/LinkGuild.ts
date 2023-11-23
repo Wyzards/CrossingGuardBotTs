@@ -1,8 +1,5 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectLink from "../../ProjectLink";
-import { ProjectStaffRank } from "../../ProjectStaffRank";
-import ProjectStaff from "../../ProjectStaff";
 
 const data = new SlashCommandBuilder()
     .setName("linkguild")
@@ -17,9 +14,12 @@ const data = new SlashCommandBuilder()
             .setDescription("The id of the guild to link to")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
     const guildId = interaction.options.getString("guild_id");
+
+    if (!projectName || !guildId)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.guildId = guildId;

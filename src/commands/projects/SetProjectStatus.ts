@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver, ChatInputCommandInteraction } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 import { ProjectStatus } from "../../ProjectStatus";
 
@@ -21,14 +21,17 @@ const data = new SlashCommandBuilder()
                 { name: "Hidden", value: "4" }
             ));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
-    const status = +(interaction.options.getString("status"));
+    const status = interaction.options.getString("status");
+
+    if (!projectName || !status)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
-        project.status = status;
+        project.status = +status;
         CrossingGuardBot.getInstance().database.saveProject(project);
-        interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[status]}`, ephemeral: true });
+        interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[+status]}`, ephemeral: true });
     });
 
 }

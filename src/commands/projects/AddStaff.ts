@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver, ChatInputCommandInteraction } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 import { ProjectStaffRank } from "../../ProjectStaffRank";
 import ProjectStaff from "../../ProjectStaff";
@@ -24,19 +24,22 @@ const data = new SlashCommandBuilder()
                 { name: "Staff", value: "1" },
             ));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
-    const userId = interaction.options.getUser("user").id;
-    const rank: ProjectStaffRank = +interaction.options.getString("rank");
+    const user = interaction.options.getUser("user");
+    const rank = interaction.options.getString("rank");
+
+    if (!projectName || !user || !rank)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         var staff = project.staff;
-        staff.push(new ProjectStaff(project.id, userId, rank));
+        staff.push(new ProjectStaff(project.id, user.id, +rank));
         project.staff = staff;
         CrossingGuardBot.getInstance().database.saveProject(project);
-        CrossingGuardBot.getInstance().database.updateStaffRoles(userId);
+        CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
 
-        interaction.reply({ content: `Added ${interaction.options.getUser("user").toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
     });
 }
 

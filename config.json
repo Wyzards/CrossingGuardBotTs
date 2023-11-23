@@ -11,5 +11,9 @@
     "password": "password",
     "database": "database",
     "staff_role_id": 0,
-    "lead_role_id": 0
+    "lead_role_id": 0,
+    "TOKEN": "BOTTOKEN",
+    "GUILD_ID": "1085622890344480879",
+    "CLIENT_ID": "1170942439343788063",
+    "PROJECT_CATEGORY": "PROJECT_CATEGORY_ID"
 }

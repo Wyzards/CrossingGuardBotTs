@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ForumChannel, PermissionFlagsBits, CommandInteractionOptionResolver } from "discord.js";
+import { SlashCommandBuilder, ForumChannel, PermissionFlagsBits, CommandInteractionOptionResolver, ChatInputCommandInteraction } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 import Database from "../../Database";
 
@@ -15,9 +15,12 @@ const data = new SlashCommandBuilder()
             .setDescription("The ip and version for this project. Format: version > ip")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
     const ipString = interaction.options.getString("ip_string");
+
+    if (!projectName || !ipString)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.ip = ipString;

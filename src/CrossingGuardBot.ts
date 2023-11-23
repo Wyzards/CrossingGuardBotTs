@@ -1,4 +1,4 @@
-import { Client, Collection, Events, GatewayIntentBits, Message, MessageCreateOptions, MessageFlags, PartialMessage, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,10 +6,14 @@ import Database from "./Database.js";
 
 export default class CrossingGuardBot extends Client {
     private static HIDDEN_CHANNELS: Array<String> = [];
-    private static ANNOUNCEMENT_CHANNEL = "0";
-    private static DEFAULT_ROLE_PING = "";
-    public static STAFF_ROLE: Role = null;
-    public static LEAD_ROLE: Role = null;
+    private static ANNOUNCEMENT_CHANNEL_ID: string;
+    private static DEFAULT_PING_ROLE_ID: string;
+    private static TOKEN: string;
+    private static GUILD_ID: string;
+    public static CLIENT_ID: string;
+    public static PROJECT_CATEGORY_ID: string;
+    public static STAFF_ROLE: Role;
+    public static LEAD_ROLE: Role;
 
     private static instance: CrossingGuardBot;
     private _database: Database;
@@ -18,12 +22,19 @@ export default class CrossingGuardBot extends Client {
     private constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
-        this._database = Database.getInstance();
+        this._database = new Database();
         this.commands = new Collection();
 
         this.loadConfig();
         this.registerEvents();
         this.registerCommands();
+    }
+
+    public get guild(): Promise<Guild> {
+        if (CrossingGuardBot.GUILD_ID)
+            return this.guilds.fetch(CrossingGuardBot.GUILD_ID);
+        else
+            throw new Error("Guild ID was not defined in environment variables");
     }
 
     public static getInstance(): CrossingGuardBot {
@@ -94,21 +105,31 @@ export default class CrossingGuardBot extends Client {
     }
 
     private loadConfig() {
+        var bot = this;
+
         fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
 
+            CrossingGuardBot.TOKEN = config["TOKEN"];
             CrossingGuardBot.HIDDEN_CHANNELS = config["hidden_channels"];
-            CrossingGuardBot.ANNOUNCEMENT_CHANNEL = config["announcement_channel"];
-            CrossingGuardBot.DEFAULT_ROLE_PING = config["default_role_ping"];
+            CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
+            CrossingGuardBot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
+            CrossingGuardBot.GUILD_ID = config["GUILD_ID"];
+            CrossingGuardBot.CLIENT_ID = config["CLIENT_ID"];
 
-            CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+            bot.login();
+
+            CrossingGuardBot.getInstance().guild.then(guild => {
                 guild.roles.fetch(config["staff_role_id"]).then(role => {
-                    CrossingGuardBot.STAFF_ROLE = role;
+                    if (role != null)
+                        CrossingGuardBot.STAFF_ROLE = role;
                 });
                 guild.roles.fetch(config["lead_role_id"]).then(role => {
-                    CrossingGuardBot.LEAD_ROLE = role;
+                    if (role != null)
+                        CrossingGuardBot.LEAD_ROLE = role;
                 });
             });
+
         });
     }
 
@@ -117,47 +138,46 @@ export default class CrossingGuardBot extends Client {
     }
 
     public login() {
-        return super.login(process.env.TEST_TOKEN);
+        return super.login(CrossingGuardBot.TOKEN);
     }
 
     public announce(message: Message | PartialMessage, isEdit = false) {
-        let from_guild = message.flags.has(MessageFlags.IsCrosspost) ? message.reference.guildId : message.guildId;
-        let to_guild = this.guilds.cache.first();
-        var bot = this;
+        let from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
+        var to_guild = this.guilds.cache.first();
 
-        if (!to_guild || !from_guild) {
-            console.log("Guild not findable");
-            return;
-        }
+
+        if (to_guild == null || from_guild == null)
+            throw new Error(`Sending or receiving guild for announcement was not findable`);
 
         this._database.getProjectByGuild(from_guild).then(project => {
-            var roleId = CrossingGuardBot.DEFAULT_ROLE_PING;
+            var roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
 
             if (project != null)
                 roleId = project.roleId;
 
-            to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL).then(channel => {
-                const textChannel = channel as TextChannel;
+            if (to_guild !== undefined)
+                to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
+                    const textChannel = channel as TextChannel;
 
-                var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author.displayName}**\n<@&${roleId}>\n\n${message.content}`.trim();
+                    var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author != null ? message.author.displayName : "somewhere..."}**\n<@&${roleId}>\n\n${message.content}`.trim();
 
-                do {
-                    var maxSnippet = messageContent.substring(0, 2000);
-                    var lastSpace = maxSnippet.lastIndexOf(' ');
-                    var lastNewline = maxSnippet.lastIndexOf('\n');
-                    var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+                    do {
+                        var maxSnippet = messageContent.substring(0, 2000);
+                        var lastSpace = maxSnippet.lastIndexOf(' ');
+                        var lastNewline = maxSnippet.lastIndexOf('\n');
+                        var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
 
-                    var messageToSend: MessageCreateOptions = {
-                        content: sending.trim(),
-                        embeds: message.embeds.filter(embed => { return !embed.video }),
-                        files: Array.from(message.attachments.values()),
-                        allowedMentions: { parse: ['roles', 'users'] }
-                    }
+                        var messageToSend: MessageCreateOptions = {
+                            content: sending.trim(),
+                            embeds: message.embeds.filter(embed => { return !embed.video }),
+                            files: Array.from(message.attachments.values()),
+                            allowedMentions: { parse: ['roles', 'users'] }
+                        }
 
-                    messageContent = messageContent.substring(sending.length, messageContent.length);
-                    textChannel.send(messageToSend);
-                } while (messageContent.length > 0);
-            });
+                        messageContent = messageContent.substring(sending.length, messageContent.length);
+                        textChannel.send(messageToSend);
+                    } while (messageContent.length > 0);
+                });
         });
     }
 }
@@ -165,4 +185,3 @@ export default class CrossingGuardBot extends Client {
 
 
 let bot = CrossingGuardBot.getInstance();
-bot.login();

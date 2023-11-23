@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 
 const data = new SlashCommandBuilder()
@@ -14,9 +14,12 @@ const data = new SlashCommandBuilder()
             .setDescription("The name to display for this link")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
     const linkName = interaction.options.getString("name");
+
+    if (!projectName || !linkName)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.links = project.links.filter(link => link.linkName !== linkName);
@@ -27,3 +30,4 @@ async function execute(interaction) {
 }
 
 export { data, execute };
+

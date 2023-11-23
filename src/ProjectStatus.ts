@@ -1,4 +1,4 @@
-import { ColorResolvable, Emoji } from "discord.js";
+import { ColorResolvable } from "discord.js";
 
 enum ProjectStatus {
     PLAYABLE = 0,

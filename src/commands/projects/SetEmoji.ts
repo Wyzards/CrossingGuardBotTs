@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ForumChannel, PermissionFlagsBits, CommandInteractionOptionResolver } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 
 const data = new SlashCommandBuilder()
@@ -14,9 +14,12 @@ const data = new SlashCommandBuilder()
             .setDescription("The id of this emoji if custom, otherwise the unicode character")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
     const emojiIdOrUnicode = interaction.options.getString("emoji_string");
+
+    if (!projectName || !emojiIdOrUnicode)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         project.emoji = emojiIdOrUnicode;
@@ -27,3 +30,4 @@ async function execute(interaction) {
 }
 
 export { data, execute };
+

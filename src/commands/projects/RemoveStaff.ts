@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 
 const data = new SlashCommandBuilder()
@@ -14,16 +14,19 @@ const data = new SlashCommandBuilder()
             .setDescription("The staff user to remove from this project")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
-    const userId = interaction.options.getUser("user").id;
+    const user = interaction.options.getUser("user");
+
+    if (!projectName || !user)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
-        project.staff = project.staff.filter(staff => staff.discordUserId !== userId);
+        project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
         CrossingGuardBot.getInstance().database.saveProject(project);
-        CrossingGuardBot.getInstance().database.updateStaffRoles(userId);
+        CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
 
-        interaction.reply({ content: `Removed the user ${interaction.options.getUser("user").toString()} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
+        interaction.reply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
     });
 }
 

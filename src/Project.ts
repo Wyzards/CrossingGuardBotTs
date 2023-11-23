@@ -18,7 +18,7 @@ export default class Project {
     private _ip: string; // Also stores version information. Ex: 1.19.2 - 1.20.2 > play.megido.xyz
     private _roleId: string;
     private _links: ProjectLink[];
-    private _emoji: DefaultReactionEmoji;
+    private _emoji: DefaultReactionEmoji | null;
     private _staff: ProjectStaff[];
     private _attachments: ProjectAttachment[];
 
@@ -76,7 +76,7 @@ export default class Project {
     public updateView() {
         var project = this;
         // Updating channel
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+        CrossingGuardBot.getInstance().guild.then(guild => {
             guild.channels.edit(project._channelId, {
                 permissionOverwrites: (project._status == ProjectStatus.HIDDEN ? [
                     {
@@ -99,7 +99,8 @@ export default class Project {
                         for (const thread of threads.threads) {
                             if (thread[1].flags.has(ChannelFlags.Pinned)) {
                                 thread[1].fetchStarterMessage().then(message => {
-                                    message.edit(project.channelMessage as MessageEditOptions);
+                                    if (message)
+                                        message.edit(project.channelMessage as MessageEditOptions);
                                 });
 
                                 return;
@@ -120,7 +121,7 @@ export default class Project {
         });
 
         // Updating roles
-        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+        CrossingGuardBot.getInstance().guild.then(guild => {
             guild.roles.edit(project._roleId, { position: 2, name: project._displayName, color: ProjectStatus.roleColor(project._status) });
         });
     }
@@ -173,7 +174,7 @@ export default class Project {
         this._emoji = Project.parseEmojiString(emojiIdOrUnicode);
     }
 
-    public static parseEmojiString(emojiIdOrUnicode: string): DefaultReactionEmoji {
+    public static parseEmojiString(emojiIdOrUnicode: string): DefaultReactionEmoji | null {
         if (emojiIdOrUnicode == null || emojiIdOrUnicode.toUpperCase() === "NULL")
             return null;
         if (isNaN(+emojiIdOrUnicode)) // Unicode
@@ -182,7 +183,7 @@ export default class Project {
             return { id: emojiIdOrUnicode, name: null };
     }
 
-    public get emoji(): DefaultReactionEmoji {
+    public get emoji(): DefaultReactionEmoji | null {
         return this._emoji;
     }
 
@@ -190,10 +191,12 @@ export default class Project {
         if (this._emoji == null)
             return "NULL";
 
-        if (this._emoji.name == null)
+        if (this._emoji.id)
             return this._emoji.id;
+        else if (this._emoji.name)
+            return this._emoji.name;
 
-        return this._emoji.name;
+        return "NULL";
     }
 
     public set ip(ip: string) {

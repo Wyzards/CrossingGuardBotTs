@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot.js";
 
 const data = new SlashCommandBuilder()
@@ -14,9 +14,12 @@ const data = new SlashCommandBuilder()
             .setDescription("The display name for this project")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
     const displayName = interaction.options.getString("display_name");
+
+    if (!projectName || !displayName)
+        return;
 
     CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
 

@@ -1,6 +1,5 @@
-import { SlashCommandBuilder, MessageCreateOptions, PermissionFlagsBits, ForumChannel, CommandInteractionOptionResolver } from "discord.js";
+import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectLink from "../../ProjectLink";
 import { ProjectStaffRank } from "../../ProjectStaffRank";
 
 const data = new SlashCommandBuilder()
@@ -12,8 +11,11 @@ const data = new SlashCommandBuilder()
             .setDescription("The name of the project")
             .setRequired(true));
 
-async function execute(interaction) {
+async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
+
+    if (!projectName)
+        return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
         let reply = project.displayName + "'s Staff\n--------------------\n";
@@ -27,3 +29,4 @@ async function execute(interaction) {
 }
 
 export { data, execute };
+
