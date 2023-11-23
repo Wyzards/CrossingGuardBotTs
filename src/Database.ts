@@ -61,24 +61,25 @@ export default class Database {
                     for (let project of projectList) {
                         for (let staff of project.staff) {
                             if (staff.discordUserId === discordUserId) {
+                                var doReturn = false;
                                 if (staff.rank === ProjectStaffRank.LEAD) {
-                                    // Give user lead role
-                                    member.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
+                                    member.roles.add(CrossingGuardBot.LEAD_ROLE);
+                                    doReturn = true;
                                 }
 
-                                // Give user staff role
-                                member.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                                member.roles.add(CrossingGuardBot.STAFF_ROLE);
                                 isStaff = true;
-                                return;
+
+                                if (doReturn)
+                                    return;
                             }
                         }
                     }
                 });
 
                 if (!isStaff) {
-                    // Remove roles if has
-                    member.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
-                    member.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+                    member.roles.remove(CrossingGuardBot.LEAD_ROLE);
+                    member.roles.remove(CrossingGuardBot.STAFF_ROLE);
                 }
             });
         });
@@ -100,14 +101,6 @@ export default class Database {
                     asyncFunctions.push(addToProjects.bind(null, projectName));
                 });
 
-                function addToProjects(callback: Function, projectName: string) {
-                    database.getProjectByName(projectName).then(project => {
-                        projects.push(project);
-
-                        callback(null);
-                    });
-                }
-
                 async.parallel(asyncFunctions, function (err) {
                     if (err) {
                         throw err;
@@ -115,6 +108,14 @@ export default class Database {
 
                     resolve(projects);
                 });
+
+                function addToProjects(projectName: { name: string }, callback: Function) {
+                    database.getProjectByName(projectName.name).then(project => {
+                        projects.push(project);
+
+                        callback(null);
+                    });
+                }
             });
         });
     }

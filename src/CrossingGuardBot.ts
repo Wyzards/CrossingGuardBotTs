@@ -94,7 +94,6 @@ export default class CrossingGuardBot extends Client {
     }
 
     private loadConfig() {
-
         fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
 
