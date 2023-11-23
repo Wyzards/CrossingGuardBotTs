@@ -102,24 +102,15 @@ export default class Database {
                     throw err;
                 }
 
-                var projects: Project[] = [];
-                let functions: Function[] = []
-
-                results.forEach((projectName: { name: string; }) => {
-                    functions.push(addToProjects.bind(null, projectName));
-                });
-
-                Promise.all(functions).then(results => {
-                    resolve(projects);
-                });
-
-                function addToProjects(projectName: { name: string }, callback: Function) {
-                    database.getProjectByName(projectName.name).then(project => {
-                        projects.push(project);
-
-                        callback(null);
+                Promise.all(results.map((projectName: { name: string }) => {
+                    return new Promise(resolve => {
+                        database.getProjectByName(projectName["name"]).then(project => {
+                            resolve(project);
+                        });
                     });
-                }
+                })).then(results => {
+                    resolve(results as Project[]);
+                });
             });
         });
     }
