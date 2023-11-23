@@ -34,6 +34,7 @@ async function execute(interaction) {
         staff.push(new ProjectStaff(project.id, userId, rank));
         project.staff = staff;
         CrossingGuardBot.getInstance().database.saveProject(project);
+        CrossingGuardBot.getInstance().database.updateStaffRoles(userId);
 
         interaction.reply({ content: `Added ${interaction.options.getUser("user").toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
     });

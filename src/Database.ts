@@ -1,13 +1,14 @@
-import * as mysql from 'mysql';
 import * as async from "async";
+import { ChannelType } from 'discord.js';
 import * as fs from 'fs';
-import Project from "./Project";
-import ProjectStaff from "./ProjectStaff";
-import { ProjectStatus } from "./ProjectStatus";
-import ProjectLink from "./ProjectLink";
+import * as mysql from 'mysql';
 import CrossingGuardBot from './CrossingGuardBot';
-import { ChannelType, ForumChannel, PermissionsBitField, ThreadChannel, Emoji, MessageCreateOptions, ChannelFlags, GuildForumThreadCreateOptions, GuildForumThreadMessageCreateOptions, MessageEditOptions } from 'discord.js';
+import Project from "./Project";
 import ProjectAttachment from './ProjectAttachment';
+import ProjectLink from "./ProjectLink";
+import ProjectStaff from "./ProjectStaff";
+import { ProjectStaffRank } from './ProjectStaffRank';
+import { ProjectStatus } from "./ProjectStatus";
 
 export default class Database {
 
@@ -46,6 +47,76 @@ export default class Database {
 
     public getProjectByName(projectName: string): Promise<Project> {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
+    }
+
+    public updateStaffRoles(discordUserId: string) {
+        var database = this;
+
+
+        CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+            guild.members.fetch(discordUserId).then(member => {
+                var isStaff = false;
+
+                database.projectList().then(projectList => {
+                    for (let project of projectList) {
+                        for (let staff of project.staff) {
+                            if (staff.discordUserId === discordUserId) {
+                                if (staff.rank === ProjectStaffRank.LEAD) {
+                                    // Give user lead role
+                                    member.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
+                                }
+
+                                // Give user staff role
+                                member.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                                isStaff = true;
+                                return;
+                            }
+                        }
+                    }
+                });
+
+                if (!isStaff) {
+                    // Remove roles if has
+                    member.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
+                    member.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+                }
+            });
+        });
+    }
+
+    public projectList(): Promise<Project[]> {
+        var database = this;
+
+        return new Promise((resolve) => {
+            database.connection.query("SELECT name FROM projects", (err, results) => {
+                if (err) {
+                    throw err;
+                }
+
+                var projects = [];
+                let asyncFunctions = []
+
+                results.forEach(projectName => {
+                    asyncFunctions.push(addToProjects.bind(null, projectName));
+                });
+
+                function addToProjects(callback: Function, projectName: string) {
+                    database.getProjectByName(projectName).then(project => {
+                        projects.push(project);
+
+                        callback(null);
+                    });
+                }
+
+                async.parallel(asyncFunctions, function (err) {
+                    if (err) {
+                        throw err;
+                    }
+
+                    resolve(projects);
+                });
+            });
+        });
     }
 
     private getProject(query: string, identifier: string): Promise<Project> {
@@ -122,7 +193,7 @@ export default class Database {
                         }
 
                         results.forEach(attachment => {
-                            project.attachments.push(new ProjectAttachment(results["project_id"], results["attachment_id"], results["url"]));
+                            project.attachments.push(new ProjectAttachment(attachment["project_id"], attachment["attachment_id"], attachment["url"]));
                         });
 
                         callback(null);

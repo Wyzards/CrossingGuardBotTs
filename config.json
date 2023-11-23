@@ -9,5 +9,7 @@
     "host": "host",
     "user": "user",
     "password": "password",
-    "database": "database"
+    "database": "database",
+    "staff_role_id": 0,
+    "lead_role_id": 0
 }

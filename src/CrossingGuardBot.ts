@@ -1,4 +1,4 @@
-import { Client, Collection, SlashCommandBuilder, Message, MessageFlags, PartialMessage, Events, GatewayIntentBits, TextChannel, MessageCreateOptions, ClientApplication } from 'discord.js';
+import { Client, Collection, Events, GatewayIntentBits, Message, MessageCreateOptions, MessageFlags, PartialMessage, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,6 +8,8 @@ export default class CrossingGuardBot extends Client {
     private static HIDDEN_CHANNELS: Array<String> = [];
     private static ANNOUNCEMENT_CHANNEL = "0";
     private static DEFAULT_ROLE_PING = "";
+    public static STAFF_ROLE: Role = null;
+    public static LEAD_ROLE: Role = null;
 
     private static instance: CrossingGuardBot;
     private _database: Database;
@@ -92,13 +94,22 @@ export default class CrossingGuardBot extends Client {
     }
 
     private loadConfig() {
-        var bot = this;
+
         fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
 
             CrossingGuardBot.HIDDEN_CHANNELS = config["hidden_channels"];
             CrossingGuardBot.ANNOUNCEMENT_CHANNEL = config["announcement_channel"];
             CrossingGuardBot.DEFAULT_ROLE_PING = config["default_role_ping"];
+
+            CrossingGuardBot.getInstance().guilds.fetch(process.env.GUILD_ID).then(guild => {
+                guild.roles.fetch(config["staff_role_id"]).then(role => {
+                    CrossingGuardBot.STAFF_ROLE = role;
+                });
+                guild.roles.fetch(config["lead_role_id"]).then(role => {
+                    CrossingGuardBot.LEAD_ROLE = role;
+                });
+            });
         });
     }
 

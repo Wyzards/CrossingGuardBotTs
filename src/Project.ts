@@ -1,10 +1,10 @@
-import ProjectStaff from "./ProjectStaff";
-import ProjectLink from "./ProjectLink";
-import { ProjectStatus } from "./ProjectStatus";
-import { ChannelFlags, DefaultReactionEmoji, EmojiResolvable, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
+import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import CrossingGuardBot from "./CrossingGuardBot";
-import { ProjectStaffRank } from "./ProjectStaffRank";
 import ProjectAttachment from "./ProjectAttachment";
+import ProjectLink from "./ProjectLink";
+import ProjectStaff from "./ProjectStaff";
+import { ProjectStaffRank } from "./ProjectStaffRank";
+import { ProjectStatus } from "./ProjectStatus";
 
 export default class Project {
 
