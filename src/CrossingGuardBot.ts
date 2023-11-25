@@ -149,39 +149,55 @@ export default class CrossingGuardBot extends Client {
         if (to_guild == null || from_guild == null)
             throw new Error(`Sending or receiving guild for announcement was not findable`);
 
-        this._database.getProjectByGuild(from_guild).then(project => {
-            var roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
+        let projectPromise = CrossingGuardBot.getInstance().database.getProjectByGuild(from_guild);
+        if (projectPromise)
+            projectPromise.then(project => {
+                var roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
 
-            if (project != null)
-                roleId = project.roleId;
+                if (project != null)
+                    roleId = project.roleId;
 
-            if (to_guild !== undefined)
-                to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
-                    const textChannel = channel as TextChannel;
+                if (to_guild !== undefined)
+                    to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
+                        const textChannel = channel as TextChannel;
 
-                    var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author != null ? message.author.displayName : "somewhere..."}**\n<@&${roleId}>\n\n${message.content}`.trim();
+                        var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author != null ? message.author.displayName : "somewhere..."}**\n<@&${roleId}>\n\n${message.content}`.trim();
 
-                    do {
-                        var maxSnippet = messageContent.substring(0, 2000);
-                        var lastSpace = maxSnippet.lastIndexOf(' ');
-                        var lastNewline = maxSnippet.lastIndexOf('\n');
-                        var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+                        do {
+                            var maxSnippet = messageContent.substring(0, 2000);
+                            var lastSpace = maxSnippet.lastIndexOf(' ');
+                            var lastNewline = maxSnippet.lastIndexOf('\n');
+                            var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
 
-                        var messageToSend: MessageCreateOptions = {
-                            content: sending.trim(),
-                            embeds: message.embeds.filter(embed => { return !embed.video }),
-                            files: Array.from(message.attachments.values()),
-                            allowedMentions: { parse: ['roles', 'users'] }
-                        }
+                            var messageToSend: MessageCreateOptions = {
+                                content: sending.trim(),
+                                embeds: message.embeds.filter(embed => { return !embed.video }),
+                                files: Array.from(message.attachments.values()),
+                                allowedMentions: { parse: ['roles', 'users'] }
+                            }
 
-                        messageContent = messageContent.substring(sending.length, messageContent.length);
-                        textChannel.send(messageToSend);
-                    } while (messageContent.length > 0);
-                });
-        });
+                            messageContent = messageContent.substring(sending.length, messageContent.length);
+                            textChannel.send(messageToSend);
+                        } while (messageContent.length > 0);
+                    });
+            });
+        else
+            throw new Error("Failed to find a project by guild id during announcement crosspost");
     }
 }
 
 
 
 let bot = CrossingGuardBot.getInstance();
+
+function ensureError(value: unknown): Error {
+    if (value instanceof Error) return value
+
+    let stringified = '[Unable to stringify the thrown value]'
+    try {
+        stringified = JSON.stringify(value)
+    } catch { }
+
+    const error = new Error(`This value was thrown as is, not through an Error: ${stringified}`)
+    return error
+}

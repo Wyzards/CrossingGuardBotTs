@@ -29,6 +29,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
         return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
         project.status = +status;
         CrossingGuardBot.getInstance().database.saveProject(project);
         interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[+status]}`, ephemeral: true });

@@ -49,11 +49,11 @@ export default class Database {
     }
 
 
-    public getProjectByGuild(guildId: string): Promise<Project> {
+    public getProjectByGuild(guildId: string): Promise<Project | null> {
         return this.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);
     }
 
-    public getProjectByName(projectName: string): Promise<Project> {
+    public getProjectByName(projectName: string): Promise<Project | null> {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
@@ -104,7 +104,7 @@ export default class Database {
 
                 Promise.all(results.map((projectName: { name: string }) => {
                     return new Promise(resolve => {
-                        database.getProjectByName(projectName["name"]).then(project => {
+                        CrossingGuardBot.getInstance().database.getProjectByName(projectName["name"]).then(project => {
                             resolve(project);
                         });
                     });
@@ -115,7 +115,7 @@ export default class Database {
         });
     }
 
-    private getProject(query: string, identifier: string): Promise<Project> {
+    private getProject(query: string, identifier: string): Promise<Project | null> {
         var database = this;
 
         return new Promise((resolve) => {
@@ -125,7 +125,8 @@ export default class Database {
                 }
 
                 if (projectData == null || projectData.length == 0) {
-                    throw new Error(`Could not find a project with the identifier "${identifier}"`);
+                    resolve(null);
+                    return;
                 }
 
 
@@ -240,7 +241,7 @@ export default class Database {
     public addProject(name: string, displayName: string, channelId: string, roleId: string): void {
         this.connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
 
-        this.getProjectByName(name).then(project => project.updateView());
+        CrossingGuardBot.getInstance().database.getProjectByName(name).then(project => { if (project) project.updateView() });
     }
 
     public createNewProject(name: string, displayName: string): void {

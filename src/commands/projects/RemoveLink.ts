@@ -22,6 +22,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
         return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
         project.links = project.links.filter(link => link.linkName !== linkName);
         CrossingGuardBot.getInstance().database.saveProject(project);
         interaction.reply({ content: `Removed the link \`${linkName}\` from ${project.displayName}`, ephemeral: true });

@@ -22,6 +22,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
         return;
 
     CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
         project.guildId = guildId;
         CrossingGuardBot.getInstance().database.saveProject(project);
 
