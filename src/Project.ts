@@ -223,6 +223,28 @@ export default class Project {
         return this._links;
     }
 
+    public addStaff(staff: ProjectStaff): boolean {
+        // Person is already staff
+        if (this._staff.some(existingStaff => existingStaff.discordUserId === staff.discordUserId)) {
+            // Set rank
+
+            var alreadyExists = false;
+            this._staff.filter(existingStaff => existingStaff.discordUserId === staff.discordUserId).forEach(existingStaff => {
+                if (existingStaff.rank == staff.rank)
+                    alreadyExists = true;
+                else
+                    existingStaff.rank = staff.rank;
+            });
+
+            if (alreadyExists)
+                return false;
+        } else {
+            this._staff.push(staff);
+        }
+
+        return true;
+    }
+
     public set staff(staff: ProjectStaff[]) {
         this._staff = staff;
     }

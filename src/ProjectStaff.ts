@@ -20,6 +20,10 @@ export default class ProjectStaff {
         return this._discordUserId;
     }
 
+    public set rank(rank: ProjectStaffRank) {
+        this._rank = rank;
+    }
+
     public get rank(): ProjectStaffRank {
         return this._rank;
     }

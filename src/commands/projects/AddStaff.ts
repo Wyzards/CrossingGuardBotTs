@@ -38,13 +38,15 @@ async function execute(interaction: ChatInputCommandInteraction) {
             return;
         }
 
-        var staff = project.staff;
-        staff.push(new ProjectStaff(project.id, user.id, +rank));
-        project.staff = staff;
-        CrossingGuardBot.getInstance().database.saveProject(project);
-        CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
 
-        interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        if (project.addStaff(new ProjectStaff(project.id, user.id, +rank))) {
+            CrossingGuardBot.getInstance().database.saveProject(project);
+            CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
+
+            interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        } else {
+            interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        }
     });
 }
 
