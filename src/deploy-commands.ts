@@ -2,7 +2,6 @@ import { REST, Routes } from 'discord.js';
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import CrossingGuardBot from './CrossingGuardBot';
 import Database from './Database';
 
 const commands: any[] = [];
