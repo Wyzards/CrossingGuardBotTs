@@ -13,7 +13,7 @@ import { ProjectStatus } from "./ProjectStatus";
 export default class Database {
 
     private _connection: mysql.Connection | null;
-    public static CONFIG_PATH = "./test_config.json";
+    public static CONFIG_PATH = "./config.json";
 
     constructor() {
         this._connection = null;
