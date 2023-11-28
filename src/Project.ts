@@ -86,12 +86,6 @@ export default class Project {
                 ] : []),
                 defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
                 name: ProjectStatus.channelIcon(project._status) + project._name,
-                availableTags: [
-                    { name: "About", moderated: true },
-                    { name: "General" },
-                    { name: "Announcement", moderated: true },
-                    { name: "Review" }
-                ],
                 topic: `Post anything related to ${project._displayName} here!`
             }).then(channel => {
                 (channel as ForumChannel).threads.fetchActive().then(threads => {

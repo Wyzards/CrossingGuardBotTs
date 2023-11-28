@@ -258,7 +258,13 @@ export default class Database {
                     guild.channels.create({
                         name: name,
                         type: ChannelType.GuildForum,
-                        parent: categoryChannel.id
+                        parent: categoryChannel.id,
+                        availableTags: [
+                            { name: "About", moderated: true },
+                            { name: "General" },
+                            { name: "Announcement", moderated: true },
+                            { name: "Review" }
+                        ]
                     }).then(channel => database.addProject(name, displayName, channel.id, role.id))
                 });
             });
