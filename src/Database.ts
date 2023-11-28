@@ -44,8 +44,8 @@ export default class Database {
 
         this.connection.query("CREATE TABLE IF NOT EXISTS Projects (project_id INT NOT NULL AUTO_INCREMENT, channel_id VARCHAR(50), guild_id VARCHAR(50), emoji VARCHAR(50), name VARCHAR(50), display_name VARCHAR(50), status INT UNSIGNED NOT NULL, description VARCHAR(2000), ip varchar(30), role_id VARCHAR(50), PRIMARY KEY(project_id, name))");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Links (link_id INT UNSIGNED NOT NULL AUTO_INCREMENT, link_name VARCHAR(30), link_url VARCHAR(100), project_id INT REFERENCES projects(project_id), PRIMARY KEY(link_id))");
-        this.connection.query("CREATE TABLE IF NOT EXISTS project_staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES projects(project_id), PRIMARY KEY (user_id))");
-        this.connection.query("CREATE TABLE IF NOT EXISTS project_attachments (project_id INT REFERENCES projects(project_id), attachment_id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1000) NOT NULL, PRIMARY KEY (attachment_id));");
+        this.connection.query("CREATE TABLE IF NOT EXISTS Project_Staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES projects(project_id), PRIMARY KEY (user_id))");
+        this.connection.query("CREATE TABLE IF NOT EXISTS Project_Attachments (project_id INT REFERENCES projects(project_id), attachment_id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1000) NOT NULL, PRIMARY KEY (attachment_id));");
     }
 
 
@@ -97,7 +97,7 @@ export default class Database {
         var database = this;
 
         return new Promise((resolve) => {
-            database.connection.query("SELECT name FROM projects", (err, results) => {
+            database.connection.query("SELECT name FROM Projects", (err, results) => {
                 if (err) {
                     throw err;
                 }
