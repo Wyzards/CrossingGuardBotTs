@@ -1,8 +1,6 @@
 import { REST, Routes } from 'discord.js';
-import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import Database from './Database';
 
 const commands: any[] = [];
 // Grab all the command files from the commands directory you created earlier
@@ -26,7 +24,7 @@ for (const folder of commandFolders) {
 }
 
 // Construct and prepare an instance of the REST module
-var configData = fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
+var configData = fs.readFile("config.json", 'utf8', (err, data) => {
     const config = JSON.parse(data);
     const rest = new REST().setToken(config["TOKEN"]);
 

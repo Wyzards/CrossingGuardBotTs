@@ -2,7 +2,7 @@ import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageC
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import Database from "./Database.js";
+import Database from "./Database";
 
 export default class CrossingGuardBot extends Client {
     private static HIDDEN_CHANNELS: Array<String> = [];

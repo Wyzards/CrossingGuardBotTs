@@ -10,16 +10,20 @@ import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from './ProjectStaffRank';
 import { ProjectStatus } from "./ProjectStatus";
 
+const CONFIG_PATH = "./config.json";
+
+export { CONFIG_PATH };
+
 export default class Database {
 
-    public static CONFIG_PATH = "./config.json";
     private _connection: mysql.Connection | null;
+    public static CONFIG_PATH = CONFIG_PATH;
 
-    public constructor() {
+    constructor() {
         this._connection = null;
         let database = this;
 
-        fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
+        fs.readFile(CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
             database._connection = mysql.createConnection({
                 host: config["host"],
