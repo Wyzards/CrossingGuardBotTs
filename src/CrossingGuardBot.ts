@@ -76,6 +76,11 @@ export default class CrossingGuardBot extends Client {
                 bot.announce(message);
         });
 
+        this.on("rateLimit", (rateLimitInfo) => {
+            console.error(`Client -> is being rate limited. Timeout: ${rateLimitInfo.timeout}ms | Limit: ${rateLimitInfo.limit} | Method: ${rateLimitInfo.method}
+            Path: ${rateLimitInfo.path}`)
+        })
+
         this.on(Events.MessageUpdate, (oldMessage, newMessage) => {
             if (CrossingGuardBot.HIDDEN_CHANNELS.includes(newMessage.channelId))
                 bot.announce(newMessage, true);
