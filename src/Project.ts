@@ -77,7 +77,6 @@ export default class Project {
         var project = this;
         // Updating channel
         CrossingGuardBot.getInstance().guild.then(guild => {
-            console.log("CHANNEL EDIT PROJECT ID: " + project._channelId);
             guild.channels.edit(project._channelId, {
                 permissionOverwrites: (project._status == ProjectStatus.HIDDEN ? [
                     {
@@ -94,30 +93,29 @@ export default class Project {
                     { name: "Review" }
                 ],
                 topic: `Post anything related to ${project._displayName} here!`
-            }).then(function () {
-                guild.channels.fetch(project._channelId).then(channel => {
-                    (channel as ForumChannel).threads.fetchActive().then(threads => {
-                        for (const thread of threads.threads) {
-                            if (thread[1].flags.has(ChannelFlags.Pinned)) {
-                                thread[1].fetchStarterMessage().then(message => {
-                                    if (message)
-                                        message.edit(project.channelMessage as MessageEditOptions);
-                                });
+            }).then(channel => {
+                console.log("CHANNEL EDIT PROJECT: " + JSON.stringify(channel));
+                (channel as ForumChannel).threads.fetchActive().then(threads => {
+                    for (const thread of threads.threads) {
+                        if (thread[1].flags.has(ChannelFlags.Pinned)) {
+                            thread[1].fetchStarterMessage().then(message => {
+                                if (message)
+                                    message.edit(project.channelMessage as MessageEditOptions);
+                            });
 
-                                return;
-                            }
+                            return;
                         }
+                    }
 
-                        (channel as ForumChannel).threads.create({
-                            appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
-                            message: project.channelMessage as GuildForumThreadMessageCreateOptions,
-                            name: project._displayName,
-                        }).then(threadChannel => {
-                            threadChannel.pin();
-                            threadChannel.setLocked(true);
-                        });
+                    (channel as ForumChannel).threads.create({
+                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
+                        message: project.channelMessage as GuildForumThreadMessageCreateOptions,
+                        name: project._displayName,
+                    }).then(threadChannel => {
+                        threadChannel.pin();
+                        threadChannel.setLocked(true);
                     });
-                })
+                });
             });
         });
 
