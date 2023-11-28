@@ -201,7 +201,7 @@ export default class Database {
     }
 
     public saveProject(project: Project): void {
-        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name) != null ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
+        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name != null) ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
         this.connection.query(projectQuery, [project.channelId, project.guildId, project.emojiString, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
         // Deletes any removed links
