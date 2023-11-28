@@ -113,6 +113,7 @@ export default class CrossingGuardBot extends Client {
             CrossingGuardBot.TOKEN = config["TOKEN"];
             CrossingGuardBot.HIDDEN_CHANNELS = config["hidden_channels"];
             CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
+            CrossingGuardBot.PROJECT_CATEGORY_ID = config["PROJECT_CATEGORY"];
             CrossingGuardBot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
             CrossingGuardBot.GUILD_ID = config["GUILD_ID"];
             CrossingGuardBot.CLIENT_ID = config["CLIENT_ID"];
