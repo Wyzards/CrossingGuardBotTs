@@ -131,7 +131,7 @@ export default class Database {
 
 
                 projectData = projectData[0];
-                var emojiString: string = (projectData["emoji"] != null && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
+                var emojiString: string = (projectData["emoji"] != null && projectData["emoji"] != "NULL" && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
                 var project: any = {};
                 project.id = projectData["project_id"];
                 project.channelId = projectData["channel_id"];
