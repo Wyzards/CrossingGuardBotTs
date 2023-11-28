@@ -13,7 +13,7 @@ import { ProjectStatus } from "./ProjectStatus";
 export default class Database {
 
     private _connection: mysql.Connection | null;
-    public static CONFIG_PATH = "./config.json";
+    public static CONFIG_PATH = "./test_config.json";
 
     constructor() {
         this._connection = null;
@@ -201,37 +201,37 @@ export default class Database {
     }
 
     public saveProject(project: Project): void {
-        var projectQuery = `UPDATE projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name) != null ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
+        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name) != null ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
         this.connection.query(projectQuery, [project.channelId, project.guildId, project.emojiString, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
         // Deletes any removed links
         if (project.links.length > 0)
-            this.connection.query("DELETE FROM project_links WHERE project_id = ? AND link_id NOT IN (" + project.links.map(link => link.linkId).join(", ") + ")", [project.id]);
+            this.connection.query("DELETE FROM Project_Links WHERE project_id = ? AND link_id NOT IN (" + project.links.map(link => link.linkId).join(", ") + ")", [project.id]);
         else
-            this.connection.query("DELETE FROM project_links WHERE project_id = ?", [project.id]);
+            this.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id]);
 
         project.links.forEach(link => {
-            this.connection.query("INSERT INTO project_links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
+            this.connection.query("INSERT INTO Project_Links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
         });
 
         // Deletes any removed staff
         if (project.staff.length > 0)
-            this.connection.query("DELETE FROM project_staff WHERE project_id = ? AND user_id NOT IN (" + project.staff.map(staff => staff.discordUserId).join(", ") + ")", [project.id]);
+            this.connection.query("DELETE FROM Project_Staff WHERE project_id = ? AND user_id NOT IN (" + project.staff.map(staff => staff.discordUserId).join(", ") + ")", [project.id]);
         else
-            this.connection.query("DELETE FROM project_staff WHERE project_id = ?", [project.id]);
+            this.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id]);
 
         project.staff.forEach(staff => {
-            this.connection.query("INSERT INTO project_staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
+            this.connection.query("INSERT INTO Project_Staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
         });
 
         // Deletes any removed attachments
         if (project.attachments.length > 0)
-            this.connection.query("DELETE FROM project_attachments WHERE project_id = ? AND attachment_id NOT IN (" + project.attachments.map(attachment => attachment.id).join(", ") + ")", [project.id]);
+            this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ? AND attachment_id NOT IN (" + project.attachments.map(attachment => attachment.id).join(", ") + ")", [project.id]);
         else
-            this.connection.query("DELETE FROM project_attachments WHERE project_id = ?", [project.id]);
+            this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id]);
 
         project.attachments.forEach(attachment => {
-            this.connection.query("INSERT INTO project_attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.url, attachment.url]);
+            this.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.url, attachment.url]);
         });
 
         project.updateView();
