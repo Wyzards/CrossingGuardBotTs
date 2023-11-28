@@ -77,6 +77,7 @@ export default class Project {
         var project = this;
         // Updating channel
         CrossingGuardBot.getInstance().guild.then(guild => {
+            console.log("CHANNEL EDIT PROJECT ID: " + project._channelId);
             guild.channels.edit(project._channelId, {
                 permissionOverwrites: (project._status == ProjectStatus.HIDDEN ? [
                     {
