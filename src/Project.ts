@@ -94,7 +94,6 @@ export default class Project {
                 ],
                 topic: `Post anything related to ${project._displayName} here!`
             }).then(channel => {
-                console.log("CHANNEL EDIT PROJECT: " + JSON.stringify(channel));
                 (channel as ForumChannel).threads.fetchActive().then(threads => {
                     for (const thread of threads.threads) {
                         if (thread[1].flags.has(ChannelFlags.Pinned)) {
@@ -107,8 +106,12 @@ export default class Project {
                         }
                     }
 
+                    console.log(`Project: ${JSON.stringify(channel)}`);
+                    console.log(`Available Tags: ${JSON.stringify((channel as ForumChannel).availableTags)}`);
+                    console.log(`Available Tag Names: ${JSON.stringify((channel as ForumChannel).availableTags.map(tag => tag.name))}`);
+
                     (channel as ForumChannel).threads.create({
-                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name === "About")[0].id],
+                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name == "About")[0].id],
                         message: project.channelMessage as GuildForumThreadMessageCreateOptions,
                         name: project._displayName,
                     }).then(threadChannel => {
