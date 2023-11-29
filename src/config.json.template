@@ -1,0 +1,18 @@
+{
+    "TOKEN": "TOKEN"
+    "CLIENT_ID": "ID",
+    "GUILD_ID": "ID",
+    "hidden_channels": [
+        "CHANNEL1",
+        "CHANNEL2"
+    ],
+    "host": "host",
+    "user": "user",
+    "password": "password",
+    "database": "database",
+    "default_ping_role_id": "ID",
+    "lead_role_id": "ID",
+    "staff_role_id": "ID",
+    "announcement_channel_id": "ID",
+    "PROJECT_CATEGORY": "ID"
+}
