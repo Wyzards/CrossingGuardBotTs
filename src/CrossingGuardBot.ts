@@ -1,5 +1,4 @@
 import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
-import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
