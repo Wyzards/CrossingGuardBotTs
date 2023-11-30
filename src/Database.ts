@@ -25,7 +25,8 @@ export default class Database {
                 host: config["host"],
                 user: config["user"],
                 password: config["password"],
-                database: config["database"]
+                database: config["database"],
+                charset: "utf8mb4"
             });
 
             database.makeTables();
@@ -131,7 +132,7 @@ export default class Database {
 
 
                 projectData = projectData[0];
-                var emojiString: string = (projectData["emoji"] != null && projectData["emoji"] != "NULL" && isNaN(+projectData["emoji"])) ? emojiString = Buffer.from(projectData["emoji"], "utf16le").toString("utf-8") : emojiString = projectData["emoji"];
+                var emojiString: string = projectData["emoji"];
                 var project: any = {};
                 project.id = projectData["project_id"];
                 project.channelId = projectData["channel_id"];
@@ -201,7 +202,7 @@ export default class Database {
     }
 
     public saveProject(project: Project): void {
-        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ${(project.emoji != null && project.emoji.name != null) ? "_utf16le?" : "?"}, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
+        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
         this.connection.query(projectQuery, [project.channelId, project.guildId, project.emojiString, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
 
         // Deletes any removed links

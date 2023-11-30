@@ -2,7 +2,6 @@
   "dependencies": {
     "async": "^3.2.5",
     "discord.js": "^14.13.0",
-    "dotenv": "^16.3.1",
     "fs": "^0.0.1-security",
     "mysql": "^2.18.1"
   },
