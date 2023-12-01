@@ -67,7 +67,7 @@ export default class Project {
         var attachments: { attachment: string }[] = this._attachments.map(attachmentObj => { return { attachment: attachmentObj.url } });
 
         return {
-            content: this.description + "\n\n" + `\`IP | ${this._ip}\`\n\n` + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
+            content: this.description + "\n\n" + (this._ip == null ? "" : `\`IP | ${this._ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
             allowedMentions: { parse: ['roles'] },
             files: attachments
         };
