@@ -71,11 +71,11 @@ export default class Database {
                 if (staff.discordUserId === discordUserId) {
                     var doReturn = false;
                     if (staff.rank === ProjectStaffRank.LEAD) {
-                        member.roles.add(CrossingGuardBot.LEAD_ROLE);
+                        await member.roles.add(CrossingGuardBot.LEAD_ROLE);
                         doReturn = true;
                     }
 
-                    member.roles.add(CrossingGuardBot.STAFF_ROLE);
+                    await member.roles.add(CrossingGuardBot.STAFF_ROLE);
                     isStaff = true;
 
                     if (doReturn)
@@ -85,8 +85,8 @@ export default class Database {
         }
 
         if (!isStaff) {
-            member.roles.remove(CrossingGuardBot.LEAD_ROLE);
-            member.roles.remove(CrossingGuardBot.STAFF_ROLE);
+            await member.roles.remove(CrossingGuardBot.LEAD_ROLE);
+            await member.roles.remove(CrossingGuardBot.STAFF_ROLE);
         }
     }
 
