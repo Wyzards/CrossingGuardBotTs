@@ -9,13 +9,18 @@ const data = new SlashCommandBuilder()
 async function execute(interaction: ChatInputCommandInteraction) {
     var bot = CrossingGuardBot.getInstance();
 
-    bot.guild.then(guild => {
-        guild.members.list().then(members => {
-            members.forEach(member => {
-                bot.database.updateStaffRoles(member.id);
-            });
-        });
-    });
+    var guild = await bot.guild;
+    var members = await guild.members.list();
+
+    for (const [key, member] of members) {
+        await bot.database.updateStaffRoles(member.id);
+    }
+
+    var guild = await bot.guild;
+    var members = await guild.members.list();
+
+    for (const [key, member] of members)
+        await bot.database.updateStaffRoles(member.id);
 
     interaction.reply({ content: "All staff roles have been updated", ephemeral: true });
 }

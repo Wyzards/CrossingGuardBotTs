@@ -58,40 +58,36 @@ export default class Database {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
-    public updateStaffRoles(discordUserId: string) {
+    public async updateStaffRoles(discordUserId: string) {
         var database = this;
+        var guild = await CrossingGuardBot.getInstance().guild;
+        var member = await guild.members.fetch(discordUserId);
+        var projectList = await database.projectList();
 
+        var isStaff = false;
 
-        CrossingGuardBot.getInstance().guild.then(guild => {
-            guild.members.fetch(discordUserId).then(member => {
-                var isStaff = false;
-
-                database.projectList().then(projectList => {
-                    for (let project of projectList) {
-                        for (let staff of project.staff) {
-                            if (staff.discordUserId === discordUserId) {
-                                var doReturn = false;
-                                if (staff.rank === ProjectStaffRank.LEAD) {
-                                    member.roles.add(CrossingGuardBot.LEAD_ROLE);
-                                    doReturn = true;
-                                }
-
-                                member.roles.add(CrossingGuardBot.STAFF_ROLE);
-                                isStaff = true;
-
-                                if (doReturn)
-                                    return;
-                            }
-                        }
+        for (let project of projectList) {
+            for (let staff of project.staff) {
+                if (staff.discordUserId === discordUserId) {
+                    var doReturn = false;
+                    if (staff.rank === ProjectStaffRank.LEAD) {
+                        await member.roles.add(CrossingGuardBot.LEAD_ROLE);
+                        doReturn = true;
                     }
-                });
 
-                if (!isStaff) {
-                    member.roles.remove(CrossingGuardBot.LEAD_ROLE);
-                    member.roles.remove(CrossingGuardBot.STAFF_ROLE);
+                    await member.roles.add(CrossingGuardBot.STAFF_ROLE);
+                    isStaff = true;
+
+                    if (doReturn)
+                        return;
                 }
-            });
-        });
+            }
+        }
+
+        if (!isStaff) {
+            await member.roles.remove(CrossingGuardBot.LEAD_ROLE);
+            await member.roles.remove(CrossingGuardBot.STAFF_ROLE);
+        }
     }
 
     public projectList(): Promise<Project[]> {
