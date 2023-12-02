@@ -23,10 +23,15 @@ export default class CrossingGuardBot extends Client {
 
         this._database = new Database();
         this.commands = new Collection();
+        var bot = this;
 
         this.loadConfig();
         this.registerEvents();
         this.registerCommands();
+
+        setInterval(function () {
+            bot.database.connection.query("SELECT 1");
+        }, 1000 * 60 * 10);
     }
 
     public get guild(): Promise<Guild> {
