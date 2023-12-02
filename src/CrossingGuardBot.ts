@@ -88,7 +88,7 @@ export default class CrossingGuardBot extends Client {
                 await bot.database.updateStaffRoles(member.id);
         });
 
-        this.on("rateLimited", limit => {
+        this.rest.on("rateLimited", limit => {
             console.log("RATELIMITED");
             console.log(JSON.stringify(limit));
         });
