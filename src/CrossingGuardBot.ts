@@ -71,8 +71,26 @@ export default class CrossingGuardBot extends Client {
 
     private registerEvents() {
         var bot = this;
-        this.once(Events.ClientReady, c => {
+        this.once(Events.ClientReady, async c => {
             console.log(`Ready! Logged in as ${c.user.tag}`);
+
+            var guild = await bot.guild;
+            var members = await guild.members.list();
+
+            for (const [key, member] of members) {
+                await bot.database.updateStaffRoles(member.id);
+            }
+
+            var guild = await bot.guild;
+            var members = await guild.members.list();
+
+            for (const [key, member] of members)
+                await bot.database.updateStaffRoles(member.id);
+        });
+
+        this.on("rateLimited", limit => {
+            console.log("RATELIMITED");
+            console.log(JSON.stringify(limit));
         });
 
         this.on(Events.MessageCreate, message => {
