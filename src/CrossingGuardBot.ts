@@ -8,7 +8,7 @@ export default class CrossingGuardBot extends Client {
     private static ANNOUNCEMENT_CHANNEL_ID: string;
     private static DEFAULT_PING_ROLE_ID: string;
     private static TOKEN: string;
-    private static GUILD_ID: string;
+    public static GUILD_ID: string;
     public static CLIENT_ID: string;
     public static PROJECT_CATEGORY_ID: string;
     public static STAFF_ROLE: Role;
