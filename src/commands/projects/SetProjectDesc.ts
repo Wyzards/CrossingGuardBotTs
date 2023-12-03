@@ -25,8 +25,6 @@ async function execute(interaction: ChatInputCommandInteraction) {
         .then(message => {
             var description = message.content;
 
-            console.log(JSON.stringify(message.attachments));
-
             CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
                 if (!project) {
                     interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });

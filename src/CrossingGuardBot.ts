@@ -88,23 +88,12 @@ export default class CrossingGuardBot extends Client {
                 await bot.database.updateStaffRoles(member.id);
         });
 
-        this.rest.on(RESTEvents.RateLimited, (data) => {
-            console.log("RATELIMITED");
-            console.log(data);
-        });
+        this.rest.on(RESTEvents.RateLimited, console.log);
 
         this.on(Events.MessageCreate, message => {
             if (CrossingGuardBot.HIDDEN_CHANNELS.includes(message.channelId))
                 bot.announce(message);
         });
-
-        this.on(Events.Error, (rateLimitInfo) => {
-            console.log(`Client -> received an error. ${JSON.stringify(rateLimitInfo)}`);
-        })
-
-        this.on('rateLimit', (rateLimitInfo) => {
-            console.log(`Client -> is being rate limited. ${JSON.stringify(rateLimitInfo)}`);
-        })
 
         this.on(Events.MessageUpdate, (oldMessage, newMessage) => {
             if (CrossingGuardBot.HIDDEN_CHANNELS.includes(newMessage.channelId))

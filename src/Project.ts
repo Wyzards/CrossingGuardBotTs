@@ -100,10 +100,6 @@ export default class Project {
                         }
                     }
 
-                    console.log(`Project: ${JSON.stringify(channel)}`);
-                    console.log(`Available Tags: ${JSON.stringify((channel as ForumChannel).availableTags)}`);
-                    console.log(`Available Tag Names: ${JSON.stringify((channel as ForumChannel).availableTags.map(tag => tag.name))}`);
-
                     (channel as ForumChannel).threads.create({
                         appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name == "About")[0].id],
                         message: project.channelMessage as GuildForumThreadMessageCreateOptions,
