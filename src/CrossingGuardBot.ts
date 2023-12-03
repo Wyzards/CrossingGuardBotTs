@@ -1,4 +1,4 @@
-import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
@@ -88,9 +88,9 @@ export default class CrossingGuardBot extends Client {
                 await bot.database.updateStaffRoles(member.id);
         });
 
-        this.rest.on("rateLimited", limit => {
+        this.rest.on(RESTEvents.RateLimited, (data) => {
             console.log("RATELIMITED");
-            console.log(JSON.stringify(limit));
+            console.log(data);
         });
 
         this.on(Events.MessageCreate, message => {

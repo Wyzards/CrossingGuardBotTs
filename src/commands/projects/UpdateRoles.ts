@@ -11,7 +11,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
     var guild = await bot.guilds.fetch(CrossingGuardBot.GUILD_ID);
     var members = await guild.members.list();
-    var role = await guild.roles.fetch("1180712393257529484");
+    var role = await guild.roles.fetch("1171556676676104254");
 
     if (role)
         for (const [key, member] of members) {
