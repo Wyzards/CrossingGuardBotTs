@@ -1,4 +1,4 @@
-import { Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Attachment, Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
@@ -180,8 +180,18 @@ export default class CrossingGuardBot extends Client {
                 if (to_guild !== undefined)
                     to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
                         const textChannel = channel as TextChannel;
-
+                        var files: Attachment[] = [];
                         var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author != null ? message.author.displayName : "somewhere..."}**\n<@&${roleId}>\n\n${message.content}`.trim();
+
+                        Array.from(message.attachments.values()).forEach(attachment => {
+                            if (attachment.size > 26209158) {
+                                console.log("Attachment too large: " + attachment.size + "\n" + JSON.stringify(attachment));
+                                messageContent += "\n" + attachment.url;
+                            } else {
+                                files.push(attachment);
+                            }
+                        });
+
 
                         do {
                             var maxSnippet = messageContent.substring(0, 2000);
@@ -192,11 +202,15 @@ export default class CrossingGuardBot extends Client {
                             var messageToSend: MessageCreateOptions = {
                                 content: sending.trim(),
                                 embeds: message.embeds.filter(embed => { return !embed.video }),
-                                files: Array.from(message.attachments.values()),
+                                files: [],
                                 allowedMentions: { parse: ['roles', 'users'] }
                             }
 
                             messageContent = messageContent.substring(sending.length, messageContent.length);
+
+                            if (messageContent.length < 1)
+                                messageToSend.files = files;
+
                             textChannel.send(messageToSend);
                         } while (messageContent.length > 0);
                     });
