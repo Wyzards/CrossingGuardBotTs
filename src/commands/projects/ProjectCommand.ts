@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
 import { ProjectStatus } from "../../ProjectStatus";
+import ProjectAttachment from "../../ProjectAttachment";
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -95,6 +96,18 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("description_msg_id")
                             .setDescription("The id of the message description for this project")
+                            .setRequired(true)))
+            // Set Attachments Subcommand
+            .addSubcommand(subcommand =>
+                subcommand.setName("attachments")
+                    .setDescription("Set the attachments of a project")
+                    .addStringOption(option =>
+                        option.setName("name")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("msg_with_attachments_id")
+                            .setDescription("The id of the message who's attachments to copy")
                             .setRequired(true))));
 
 async function execute(interaction: ChatInputCommandInteraction) {
@@ -110,6 +123,8 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetEmoji(interaction);
         else if (subcommand == "description")
             executeSetDescription(interaction);
+        else if (subcommand == "attachments")
+            executeSetAttachments(interaction);
     }
 
     else if (subcommand == "create")
@@ -118,8 +133,37 @@ async function execute(interaction: ChatInputCommandInteraction) {
         executeAddExistingProject(interaction);
 }
 
-async function executeSetDescription(interaction: ChatInputCommandInteraction) {
+async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project_name");
+    const msgId = interaction.options.getString("msg_with_attachments_id");
+
+    if (!interaction.channel || !msgId || !projectName)
+        return;
+
+    interaction.channel.messages.fetch(msgId)
+        .then(message => {
+            CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+                if (!project) {
+                    interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+                    return;
+                }
+
+                var newAttachments: ProjectAttachment[] = [];
+
+                message.attachments.forEach(attachment => {
+                    newAttachments.push(new ProjectAttachment(project.id, 0, attachment.url));
+                });
+
+                project.attachments = newAttachments;
+                CrossingGuardBot.getInstance().database.saveProject(project);
+
+                interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
+            });
+        })
+}
+
+async function executeSetDescription(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("name");
     const descriptionMessageId = interaction.options.getString("description_msg_id");
 
     if (!projectName || !descriptionMessageId || !interaction.channel)
@@ -144,7 +188,7 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
 }
 
 async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
-    const projectName = interaction.options.getString("project_name");
+    const projectName = interaction.options.getString("name");
     const emojiIdOrUnicode = interaction.options.getString("emoji_string");
 
     if (!projectName || !emojiIdOrUnicode)
@@ -164,7 +208,7 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
 }
 
 async function executeSetStatus(interaction: ChatInputCommandInteraction) {
-    const projectName = interaction.options.getString("project_name");
+    const projectName = interaction.options.getString("name");
     const status = interaction.options.getString("status");
 
     if (!projectName || !status)
@@ -205,7 +249,7 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
 
 
 async function executeAddExistingProject(interaction: ChatInputCommandInteraction) {
-    const projectName = interaction.options.getString("project_name");
+    const projectName = interaction.options.getString("name");
     const displayName = interaction.options.getString("display_name");
     const channel = interaction.options.getChannel("channel");
     const role = interaction.options.getRole("project_role");
