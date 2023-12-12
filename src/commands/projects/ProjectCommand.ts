@@ -54,8 +54,9 @@ const data = new SlashCommandBuilder()
                         option.setName("ip_string")
                             .setDescription("The ip and version for this project. Format: version > ip")
                             .setRequired(true)))
+            // Set Status Subcommand
             .addSubcommand(subcommand =>
-                subcommand.setName("setprojectstatus")
+                subcommand.setName("status")
                     .setDescription("Set a project's status")
                     .addStringOption(option =>
                         option.setName("name")
@@ -70,7 +71,19 @@ const data = new SlashCommandBuilder()
                                 { name: "In Development", value: "1" },
                                 { name: "Archived", value: "2" },
                                 { name: "Hidden", value: "4" }
-                            ))));
+                            )))
+            // Set Emoji Subcommand
+            .addSubcommand(subcommand =>
+                subcommand.setName("emoji")
+                    .setDescription("Set a project's emoji")
+                    .addStringOption(option =>
+                        option.setName("name")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("emoji_string")
+                            .setDescription("The id of this emoji if custom, otherwise the unicode character")
+                            .setRequired(true))));
 
 async function execute(interaction: ChatInputCommandInteraction) {
     const subcommand = interaction.options.getSubcommand();
@@ -81,12 +94,34 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetIp(interaction);
         else if (subcommand == "status")
             executeSetStatus(interaction);
+        else if (subcommand == "emoji")
+            executeSetEmoji(interaction);
     }
 
     else if (subcommand == "create")
         executeCreateProject(interaction);
     else if (subcommand == "addexisting")
         executeAddExistingProject(interaction);
+}
+
+async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project_name");
+    const emojiIdOrUnicode = interaction.options.getString("emoji_string");
+
+    if (!projectName || !emojiIdOrUnicode)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        project.emoji = emojiIdOrUnicode;
+        CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\``, ephemeral: true });
+    });
+
 }
 
 async function executeSetStatus(interaction: ChatInputCommandInteraction) {
