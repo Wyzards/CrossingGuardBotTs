@@ -108,6 +108,18 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("msg_with_attachments_id")
                             .setDescription("The id of the message who's attachments to copy")
+                            .setRequired(true)))
+            // Set Discord Guild ID
+            .addSubcommand(subcommand =>
+                subcommand.setName("discord_id")
+                    .setDescription("Set this project's linked disord guild ID")
+                    .addStringOption(option =>
+                        option.setName("name")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("guild_id")
+                            .setDescription("The id of the guild to link to")
                             .setRequired(true))));
 
 async function execute(interaction: ChatInputCommandInteraction) {
@@ -125,12 +137,34 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetDescription(interaction);
         else if (subcommand == "attachments")
             executeSetAttachments(interaction);
+        else if (subcommand == "discord_id")
+            executeSetGuildID(interaction);
     }
 
     else if (subcommand == "create")
         executeCreateProject(interaction);
     else if (subcommand == "addexisting")
         executeAddExistingProject(interaction);
+}
+
+async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("name");
+    const guildId = interaction.options.getString("guild_id");
+
+    if (!projectName || !guildId)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        project.guildId = guildId;
+        CrossingGuardBot.getInstance().database.saveProject(project);
+
+        interaction.reply({ content: `Linked ${guildId} to ${project.displayName}`, ephemeral: true });
+    });
 }
 
 async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
