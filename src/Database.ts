@@ -72,7 +72,10 @@ export default class Database {
         if (!role)
             throw new Error("Role with ID was not found");
 
+        console.log("LIST: " + JSON.stringify(members));
+
         for (let [snowflake, member] of members) {
+            console.log("MEMBER: " + JSON.stringify(member));
             await member.roles.add(role);
         }
     }
