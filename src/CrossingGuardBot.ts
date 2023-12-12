@@ -185,7 +185,6 @@ export default class CrossingGuardBot extends Client {
 
                         Array.from(message.attachments.values()).forEach(attachment => {
                             if (attachment.size > 26209158) {
-                                console.log("Attachment too large: " + attachment.size + "\n" + JSON.stringify(attachment));
                                 messageContent += "\n" + attachment.url;
                             } else {
                                 files.push(attachment);
