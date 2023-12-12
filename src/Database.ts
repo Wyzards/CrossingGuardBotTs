@@ -66,7 +66,7 @@ export default class Database {
         // Delete role
 
         const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
-        const members = await guild.members.list();
+        const members = await guild.members.fetch();
         const role = await guild.roles.fetch("1184041900286681108");
 
         if (!role)
