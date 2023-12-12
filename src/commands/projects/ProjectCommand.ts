@@ -83,6 +83,18 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("emoji_string")
                             .setDescription("The id of this emoji if custom, otherwise the unicode character")
+                            .setRequired(true)))
+            // Set Description Subcommand
+            .addSubcommand(subcommand =>
+                subcommand.setName("description")
+                    .setDescription("Set a project's description")
+                    .addStringOption(option =>
+                        option.setName("name")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("description_msg_id")
+                            .setDescription("The id of the message description for this project")
                             .setRequired(true))));
 
 async function execute(interaction: ChatInputCommandInteraction) {
@@ -96,12 +108,39 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetStatus(interaction);
         else if (subcommand == "emoji")
             executeSetEmoji(interaction);
+        else if (subcommand == "description")
+            executeSetDescription(interaction);
     }
 
     else if (subcommand == "create")
         executeCreateProject(interaction);
     else if (subcommand == "addexisting")
         executeAddExistingProject(interaction);
+}
+
+async function executeSetDescription(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project_name");
+    const descriptionMessageId = interaction.options.getString("description_msg_id");
+
+    if (!projectName || !descriptionMessageId || !interaction.channel)
+        return;
+
+    interaction.channel.messages.fetch(descriptionMessageId)
+        .then(message => {
+            var description = message.content;
+
+            CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+                if (!project) {
+                    interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+                    return;
+                }
+
+                project.description = description;
+                CrossingGuardBot.getInstance().database.saveProject(project);
+                interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
+            });
+
+        })
 }
 
 async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
