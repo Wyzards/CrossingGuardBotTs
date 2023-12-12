@@ -10,6 +10,14 @@ const data = new SlashCommandBuilder()
     .setName("project")
     .setDescription("Manage, create and modify projects")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    // Delete Project Subcommand
+    .addSubcommand(subcommand =>
+        subcommand.setName("delete")
+            .setDescription("Delete a project")
+            .addStringOption(option =>
+                option.setName("project")
+                    .setDescription("The internal name for this project")
+                    .setRequired(true)))
     // New Project Subcommand
     .addSubcommand(subcommand =>
         subcommand.setName("create")
@@ -247,6 +255,26 @@ async function execute(interaction: ChatInputCommandInteraction) {
         executeCreateProject(interaction);
     else if (subcommand == "addexisting")
         executeAddExistingProject(interaction);
+    else if (subcommand == "delete")
+        executeDeleteProject(interaction);
+}
+
+async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project");
+
+    if (!projectName)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        await CrossingGuardBot.getInstance().database.deleteProject(project);
+
+        interaction.reply({ content: `Deleted ${project.displayName}`, ephemeral: true });
+    });
 }
 
 async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {

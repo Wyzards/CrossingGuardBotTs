@@ -58,6 +58,25 @@ export default class Database {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
+    public async deleteProject(project: Project) {
+        // this.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
+
+        // Delete role for anyone who is staff on only this
+        // Delete channel
+        // Delete role
+
+        const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
+        const members = await guild.members.list();
+        const role = await guild.roles.fetch("1184041900286681108");
+
+        if (!role)
+            throw new Error("Role with ID was not found");
+
+        for (let [snowflake, member] of members) {
+            await member.roles.add(role);
+        }
+    }
+
     public async updateStaffRoles(discordUserId: string) {
         var database = this;
         var guild = await CrossingGuardBot.getInstance().guild;
