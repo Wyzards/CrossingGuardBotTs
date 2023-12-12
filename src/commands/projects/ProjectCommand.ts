@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder }
 import CrossingGuardBot from "../../CrossingGuardBot";
 import { ProjectStatus } from "../../ProjectStatus";
 import ProjectAttachment from "../../ProjectAttachment";
+import ProjectLink from "../../ProjectLink";
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -39,6 +40,26 @@ const data = new SlashCommandBuilder()
                 option.setName("project_role")
                     .setDescription("The role to give people interested in this project")
                     .setRequired(true)))
+    // Links Subcommand Group
+    .addSubcommandGroup(subcommandGroup =>
+        subcommandGroup.setName("links")
+            .setDescription("Manage this project's links")
+            // Add Link Subcommand
+            .addSubcommand(subcommand =>
+                subcommand.setName("add")
+                    .setDescription("Add a link to a project")
+                    .addStringOption(option =>
+                        option.setName("project_name")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("name")
+                            .setDescription("The name to display for this link")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("url")
+                            .setDescription("The URL for this link")
+                            .setRequired(true))))
     // Set Field Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
         subcommandGroup.setName("set")
@@ -141,11 +162,40 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetGuildID(interaction);
     }
 
+    else if (subcommandGroup == "link") {
+        if (subcommand == "add")
+            executeAddLink(interaction);
+    }
+
     else if (subcommand == "create")
         executeCreateProject(interaction);
     else if (subcommand == "addexisting")
         executeAddExistingProject(interaction);
 }
+
+async function executeAddLink(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project_name");
+    const linkName = interaction.options.getString("name");
+    const linkURL = interaction.options.getString("url");
+
+    if (!projectName || !linkName || !linkURL)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        var links = project.links;
+        links.push(new ProjectLink(project.id, 0, linkName, linkURL));
+        project.links = links;
+        CrossingGuardBot.getInstance().database.saveProject(project);
+        interaction.reply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}`, ephemeral: true });
+    });
+
+}
+
 
 async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("name");
