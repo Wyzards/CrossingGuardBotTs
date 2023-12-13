@@ -67,17 +67,11 @@ export default class Database {
 
         const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
         const members = await guild.members.fetch();
-        const role = await guild.roles.fetch("1184041900286681108");
 
-        if (!role)
-            throw new Error("Role with ID was not found");
+        for (const [snowflake, member] of members)
+            await member.roles.add("1184041900286681108");
 
-        console.log("LIST: " + JSON.stringify(members));
-
-        for (let [snowflake, member] of members) {
-            console.log("MEMBER: " + JSON.stringify(member));
-            await member.roles.add(role);
-        }
+        console.log(members);
     }
 
     public async updateStaffRoles(discordUserId: string) {
@@ -93,11 +87,11 @@ export default class Database {
                 if (staff.discordUserId === discordUserId) {
                     var doReturn = false;
                     if (staff.rank === ProjectStaffRank.LEAD) {
-                        await member.roles.add(CrossingGuardBot.LEAD_ROLE);
+                        await member.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
                         doReturn = true;
                     }
 
-                    await member.roles.add(CrossingGuardBot.STAFF_ROLE);
+                    await member.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
                     isStaff = true;
 
                     if (doReturn)
@@ -107,8 +101,8 @@ export default class Database {
         }
 
         if (!isStaff) {
-            await member.roles.remove(CrossingGuardBot.LEAD_ROLE);
-            await member.roles.remove(CrossingGuardBot.STAFF_ROLE);
+            await member.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
+            await member.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
         }
     }
 
