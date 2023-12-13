@@ -11,8 +11,8 @@ export default class CrossingGuardBot extends Client {
     public static GUILD_ID: string;
     public static CLIENT_ID: string;
     public static PROJECT_CATEGORY_ID: string;
-    public static STAFF_ROLE: Role;
-    public static LEAD_ROLE: Role;
+    public static STAFF_ROLE_ID: string;
+    public static LEAD_ROLE_ID: string;
 
     private static instance: CrossingGuardBot;
     private _database: Database;
@@ -25,9 +25,9 @@ export default class CrossingGuardBot extends Client {
         this.commands = new Collection();
         var bot = this;
 
-        this.loadConfig();
         this.registerEvents();
         this.registerCommands();
+        this.loadConfig();
 
         setInterval(function () {
             bot.database.connection.query("SELECT 1");
@@ -123,10 +123,10 @@ export default class CrossingGuardBot extends Client {
         });
     }
 
-    private loadConfig() {
+    private async loadConfig() {
         var bot = this;
 
-        fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
+        fs.readFile(Database.CONFIG_PATH, 'utf8', async (err, data) => {
             const config = JSON.parse(data);
 
             CrossingGuardBot.TOKEN = config["TOKEN"];
@@ -136,29 +136,15 @@ export default class CrossingGuardBot extends Client {
             CrossingGuardBot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
             CrossingGuardBot.GUILD_ID = config["GUILD_ID"];
             CrossingGuardBot.CLIENT_ID = config["CLIENT_ID"];
+            CrossingGuardBot.LEAD_ROLE_ID = config["lead_role_id"];
+            CrossingGuardBot.STAFF_ROLE_ID = config["staff_role_id"];
 
-            bot.login();
-
-            CrossingGuardBot.getInstance().guild.then(guild => {
-                guild.roles.fetch(config["staff_role_id"]).then(role => {
-                    if (role != null)
-                        CrossingGuardBot.STAFF_ROLE = role;
-                });
-                guild.roles.fetch(config["lead_role_id"]).then(role => {
-                    if (role != null)
-                        CrossingGuardBot.LEAD_ROLE = role;
-                });
-            });
-
+            bot.login(CrossingGuardBot.TOKEN);
         });
     }
 
     public get database(): Database {
         return this._database;
-    }
-
-    public login() {
-        return super.login(CrossingGuardBot.TOKEN);
     }
 
     public announce(message: Message | PartialMessage, isEdit = false) {
