@@ -91,6 +91,8 @@ export default class Project {
                 (channel as ForumChannel).threads.fetchActive().then(threads => {
                     for (const thread of threads.threads) {
                         if (thread[1].flags.has(ChannelFlags.Pinned)) {
+                            if (thread[1].name != project.displayName)
+                                thread[1].setName(project.displayName);
                             thread[1].fetchStarterMessage().then(message => {
                                 if (message)
                                     message.edit(project.channelMessage as MessageEditOptions);
@@ -132,6 +134,10 @@ export default class Project {
 
     public get name(): string {
         return this._name;
+    }
+
+    public set displayName(displayName: string) {
+        this._displayName = displayName;
     }
 
     public get displayName(): string {

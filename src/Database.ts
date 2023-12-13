@@ -58,6 +58,11 @@ export default class Database {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
+    public setDisplayName(project: Project, displayName: string) {
+        project.displayName = displayName;
+        this.saveProject(project);
+    }
+
     public async deleteProject(project: Project) {
         const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
         const members = await guild.members.fetch();
