@@ -137,6 +137,17 @@ const data = new SlashCommandBuilder()
             .setDescription("Set one of this project's fields")
             // Set IP Subcommand
             .addSubcommand(subcommand =>
+                subcommand.setName("display_name")
+                    .setDescription("Set the display name of this project")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("display_name")
+                            .setDescription("The new display name for this project")
+                            .setRequired(true)))
+            .addSubcommand(subcommand =>
                 subcommand.setName("ip")
                     .setDescription("Set a project's ip & version")
                     .addStringOption(option =>
@@ -231,6 +242,8 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetAttachments(interaction);
         else if (subcommand == "discord_id")
             executeSetGuildID(interaction);
+        else if (subcommand == "display_name")
+            executeSetDisplayName(interaction);
     }
 
     else if (subcommandGroup == "link") {
@@ -257,6 +270,27 @@ async function execute(interaction: ChatInputCommandInteraction) {
         executeAddExistingProject(interaction);
     else if (subcommand == "delete")
         executeDeleteProject(interaction);
+}
+
+async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project");
+    const displayName = interaction.options.getString("display_name");
+
+    if (!projectName || !displayName)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        var nameBefore = project.displayName;
+
+        CrossingGuardBot.getInstance().database.setDisplayName(project, displayName);
+
+        interaction.reply({ content: `${nameBefore} has been renamed to ${displayName}`, ephemeral: true });
+    });
 }
 
 async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
