@@ -63,8 +63,6 @@ export default class Database {
         const members = await guild.members.fetch();
 
         this.connection.query("SELECT * FROM Project_Staff", (err, data) => {
-            console.log(data);
-
             for (const staff of project.staff) {
                 var rank = null;
 

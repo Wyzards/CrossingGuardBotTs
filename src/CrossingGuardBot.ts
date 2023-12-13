@@ -35,8 +35,6 @@ export default class CrossingGuardBot extends Client {
     }
 
     public get guild(): Promise<Guild> {
-        console.log("GOT GUILD");
-
         if (CrossingGuardBot.GUILD_ID)
             return this.guilds.fetch(CrossingGuardBot.GUILD_ID);
         else
@@ -141,7 +139,7 @@ export default class CrossingGuardBot extends Client {
             CrossingGuardBot.LEAD_ROLE_ID = config["lead_role_id"];
             CrossingGuardBot.STAFF_ROLE_ID = config["staff_role_id"];
 
-            bot.login(CrossingGuardBot.TOKEN).then(console.log);
+            bot.login(CrossingGuardBot.TOKEN);
         });
     }
 
