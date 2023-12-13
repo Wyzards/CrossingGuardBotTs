@@ -45,7 +45,7 @@ export default class Database {
 
         this.connection.query("CREATE TABLE IF NOT EXISTS Projects (project_id INT NOT NULL AUTO_INCREMENT, channel_id VARCHAR(50), guild_id VARCHAR(50), emoji VARCHAR(50), name VARCHAR(50), display_name VARCHAR(50), status INT UNSIGNED NOT NULL, description VARCHAR(2000), ip varchar(100), role_id VARCHAR(50), PRIMARY KEY(project_id, name)) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Links (link_id INT UNSIGNED NOT NULL AUTO_INCREMENT, link_name VARCHAR(30), link_url VARCHAR(100), project_id INT REFERENCES Projects(project_id), PRIMARY KEY(link_id))");
-        this.connection.query("CREATE TABLE IF NOT EXISTS Project_Staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES Projects(project_id), PRIMARY KEY (user_id))");
+        this.connection.query("CREATE TABLE IF NOT EXISTS Project_Staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES Projects(project_id), PRIMARY KEY (user_id, project_id))");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Attachments (project_id INT REFERENCES Projects(project_id), attachment_id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1000) NOT NULL, PRIMARY KEY (attachment_id));");
     }
 
@@ -59,19 +59,56 @@ export default class Database {
     }
 
     public async deleteProject(project: Project) {
-        // this.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
-
-        // Delete role for anyone who is staff on only this
-        // Delete channel
-        // Delete role
-
         const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
         const members = await guild.members.fetch();
 
-        for (const [snowflake, member] of members)
-            await member.roles.add("1184041900286681108");
+        this.connection.query("SELECT * FROM Project_Staff", (err, data) => {
+            console.log(data);
 
-        console.log(members);
+            for (const staff of project.staff) {
+                var rank = null;
+
+                for (const row of data) {
+                    // If is same project, ignore
+                    // Else if is same userId and head, cache head and break
+                    // If just staff, cache staff and keep going
+                    if (row["project_id"] == staff.projectId)
+                        continue;
+
+                    if (row["user_id"] == staff.discordUserId)
+                        if (+row["staff_rank"] == ProjectStaffRank.LEAD) {
+                            rank = ProjectStaffRank.LEAD;
+                            break;
+                        } else
+                            rank = +row["staff_rank"];
+                }
+
+                if (rank == null) {
+                    // Take roles
+                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+                } else {
+                    // If staff, give staff only
+                    // If lead, give staff and lead
+                    if (rank == ProjectStaffRank.LEAD)
+                        members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                }
+            }
+        })
+
+        guild.channels.fetch(project.channelId).then(channel => {
+            channel?.delete();
+        });
+
+        guild.roles.fetch(project.roleId).then(role => {
+            role?.delete();
+        });
+
+        this.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
+        this.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
+        this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
+        this.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
     }
 
     public async updateStaffRoles(discordUserId: string) {
