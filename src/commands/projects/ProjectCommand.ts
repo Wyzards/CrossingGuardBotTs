@@ -1,10 +1,10 @@
-import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteractionOptionResolver, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import { ProjectStatus } from "../../ProjectStatus";
 import ProjectAttachment from "../../ProjectAttachment";
 import ProjectLink from "../../ProjectLink";
 import ProjectStaff from "../../ProjectStaff";
 import { ProjectStaffRank } from "../../ProjectStaffRank";
+import { ProjectStatus } from "../../ProjectStatus";
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -16,7 +16,8 @@ const data = new SlashCommandBuilder()
             .setDescription("Delete a project")
             .addStringOption(option =>
                 option.setName("project")
-                    .setDescription("The internal name for this project")
+                    .setDescription("The name of the project")
+                    .setAutocomplete(true)
                     .setRequired(true)))
     // New Project Subcommand
     .addSubcommand(subcommand =>
@@ -24,7 +25,7 @@ const data = new SlashCommandBuilder()
             .setDescription("Create a new project with the given name")
             .addStringOption(option =>
                 option.setName("project")
-                    .setDescription("The internal name for this project")
+                    .setDescription("The name of the project")
                     .setRequired(true))
             .addStringOption(option =>
                 option.setName("display_name")
@@ -36,7 +37,8 @@ const data = new SlashCommandBuilder()
             .setDescription("Add an existing project with the given name")
             .addStringOption(option =>
                 option.setName("project")
-                    .setDescription("The internal name for this project")
+                    .setDescription("The name of the project")
+                    .setAutocomplete(true)
                     .setRequired(true))
             .addStringOption(option =>
                 option.setName("display_name")
@@ -61,6 +63,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("name")
@@ -76,6 +79,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("name")
@@ -88,6 +92,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))))
     // Set Field Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
@@ -100,6 +105,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addUserOption(option =>
                         option.setName("user")
@@ -119,6 +125,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addUserOption(option =>
                         option.setName("user")
@@ -131,6 +138,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))))
     .addSubcommandGroup(subcommandGroup =>
         subcommandGroup.setName("set")
@@ -142,6 +150,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("display_name")
@@ -153,6 +162,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("ip_string")
@@ -165,6 +175,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("status")
@@ -182,6 +193,7 @@ const data = new SlashCommandBuilder()
                     .setDescription("Set a project's emoji")
                     .addStringOption(option =>
                         option.setName("project")
+                            .setAutocomplete(true)
                             .setDescription("The name of the project")
                             .setRequired(true))
                     .addStringOption(option =>
@@ -195,6 +207,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("description_msg_id")
@@ -207,6 +220,7 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("msg_with_attachments_id")
@@ -219,11 +233,23 @@ const data = new SlashCommandBuilder()
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
+                            .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName("guild_id")
                             .setDescription("The id of the guild to link to")
                             .setRequired(true))));
+
+async function autocomplete(interaction: AutocompleteInteraction) {
+    await CrossingGuardBot.getInstance().database.projectList().then(async projectList => {
+        const focusedValue = interaction.options.getFocused();
+        const filtered = projectList.filter(project => project.name.startsWith(focusedValue) || project.displayName.startsWith(focusedValue));
+
+        await interaction.respond(
+            filtered.map(projectChoice => ({ name: projectChoice.displayName, value: projectChoice.name })),
+        );
+    });
+}
 
 async function execute(interaction: ChatInputCommandInteraction) {
     const subcommand = interaction.options.getSubcommand();
@@ -607,5 +633,5 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
 
-export { data, execute };
+export { data, execute, autocomplete };
 

@@ -1,4 +1,4 @@
-import { Attachment, Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, Role, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Attachment, Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, SlashCommandBuilder, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
@@ -16,7 +16,7 @@ export default class CrossingGuardBot extends Client {
 
     private static instance: CrossingGuardBot;
     private _database: Database;
-    private commands: Collection<String, { data: SlashCommandBuilder, execute: Function }>;
+    private commands: Collection<String, { data: SlashCommandBuilder, execute: Function, autocomplete?: Function }>;
 
     private constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
@@ -101,23 +101,37 @@ export default class CrossingGuardBot extends Client {
         });
 
         this.on(Events.InteractionCreate, async interaction => {
-            if (!interaction.isChatInputCommand()) return;
+            if (interaction.isChatInputCommand()) {
+                const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
 
-            const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
+                if (!command) {
+                    console.error(`No command matching ${interaction.commandName} was found.`);
+                    return;
+                }
 
-            if (!command) {
-                console.error(`No command matching ${interaction.commandName} was found.`);
-                return;
-            }
+                try {
+                    await command.execute(interaction);
+                } catch (error) {
+                    console.error(error);
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                    }
+                }
+            } else if (interaction.isAutocomplete()) {
+                const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
 
-            try {
-                await command.execute(interaction);
-            } catch (error) {
-                console.error(error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                if (!command) {
+                    console.error(`No command matching ${interaction.commandName} was found.`);
+                    return;
+                }
+
+                try {
+                    if (command.autocomplete)
+                        await command.autocomplete(interaction);
+                } catch (error) {
+                    console.error(error);
                 }
             }
         });
