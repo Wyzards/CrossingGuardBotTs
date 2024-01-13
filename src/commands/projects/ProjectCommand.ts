@@ -246,7 +246,7 @@ async function autocomplete(interaction: AutocompleteInteraction) {
         const filtered = projectList.filter(project => project.name.startsWith(focusedValue) || project.displayName.startsWith(focusedValue));
 
         await interaction.respond(
-            filtered.map(projectChoice => ({ name: projectChoice.displayName, value: projectChoice.name })),
+            filtered.slice(0, 24).map(projectChoice => ({ name: projectChoice.displayName, value: projectChoice.name })),
         );
     });
 }
