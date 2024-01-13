@@ -272,7 +272,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetDisplayName(interaction);
     }
 
-    else if (subcommandGroup == "link") {
+    else if (subcommandGroup == "links") {
         if (subcommand == "add")
             executeAddLink(interaction);
         else if (subcommand == "list")
