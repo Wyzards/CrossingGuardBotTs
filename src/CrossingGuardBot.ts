@@ -15,6 +15,7 @@ export default class CrossingGuardBot extends Client {
     public static PROJECT_CATEGORY_ID: string;
     public static STAFF_ROLE_ID: string;
     public static LEAD_ROLE_ID: string;
+    public static LAST_ANNOUNCEMENT_GUILD_ID: string;
     public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
 
     private static instance: CrossingGuardBot;
@@ -190,7 +191,7 @@ export default class CrossingGuardBot extends Client {
                         const textChannel = channel as TextChannel;
                         var files: Attachment[] = [];
                         var includePing = lastAnnouncementData == undefined || (Date.now() - lastAnnouncementData.last_ping_time > ANNOUNCEMENT_PING_COOLDOWN_MS);
-                        var includeHeading = (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != message.author?.displayName || isEdit);
+                        var includeHeading = CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID != from_guild || (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != message.author?.displayName || isEdit);
                         var announcementHeading = `**${isEdit ? "Edited from an earlier message in" : "From"} ${message.author == null ? "somewhere..." : message.author.displayName}**`;
                         var announcementPing = `<@&${roleId}>`;
 
@@ -205,6 +206,7 @@ export default class CrossingGuardBot extends Client {
                         });
 
                         CrossingGuardBot.LAST_ANNOUNCEMENT_DATA.set(from_guild, { channel_name: message.author != null ? message.author.displayName : "", last_ping_time: (includePing ? Date.now() : lastAnnouncementData ? lastAnnouncementData.last_ping_time : Date.now()) });
+                        CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
 
                         do {
                             var maxSnippet = announcementContent.substring(0, 2000);
