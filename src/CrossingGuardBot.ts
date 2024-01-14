@@ -1,7 +1,9 @@
-import { Attachment, Client, Collection, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Attachment, Client, Collection, DataResolver, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, SlashCommandBuilder, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
+
+const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
 export default class CrossingGuardBot extends Client {
     private static HIDDEN_CHANNELS: Array<String> = [];
@@ -13,6 +15,7 @@ export default class CrossingGuardBot extends Client {
     public static PROJECT_CATEGORY_ID: string;
     public static STAFF_ROLE_ID: string;
     public static LEAD_ROLE_ID: string;
+    public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
 
     private static instance: CrossingGuardBot;
     private _database: Database;
@@ -162,17 +165,22 @@ export default class CrossingGuardBot extends Client {
     }
 
     public announce(message: Message | PartialMessage, isEdit = false) {
-        let from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
-        var to_guild = this.guilds.cache.first();
+        const from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
+        const to_guild = this.guilds.cache.first();
 
 
         if (to_guild == null || from_guild == null)
             throw new Error(`Sending or receiving guild for announcement was not findable`);
 
         let projectPromise = CrossingGuardBot.getInstance().database.getProjectByGuild(from_guild);
+
         if (projectPromise)
             projectPromise.then(project => {
                 var roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
+                var lastAnnouncementData = CrossingGuardBot.LAST_ANNOUNCEMENT_DATA.get(from_guild);
+                // Can ping once every 5 minutes
+                // Distinct announcements get their own heading
+                // Can send heading without a ping
 
                 if (project != null)
                     roleId = project.roleId;
@@ -181,22 +189,28 @@ export default class CrossingGuardBot extends Client {
                     to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
                         const textChannel = channel as TextChannel;
                         var files: Attachment[] = [];
-                        var messageContent = `**${isEdit ? "Edited from an earlier message in " : "From "} ${message.author != null ? message.author.displayName : "somewhere..."}**\n<@&${roleId}>\n\n${message.content}`.trim();
+                        var includePing = lastAnnouncementData == undefined || (Date.now() - lastAnnouncementData.last_ping_time > ANNOUNCEMENT_PING_COOLDOWN_MS);
+                        var includeHeading = (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != message.author?.displayName || isEdit);
+                        var announcementHeading = `**${isEdit ? "Edited from an earlier message in" : "From"} ${message.author == null ? "somewhere..." : message.author.displayName}**`;
+                        var announcementPing = `<@&${roleId}>`;
+
+                        var announcementContent = `${includeHeading ? announcementHeading + "\n" : ""}${includePing ? announcementPing + "\n\n" : ""}${message.content}`;
 
                         Array.from(message.attachments.values()).forEach(attachment => {
                             if (attachment.size > 26209158) {
-                                messageContent += "\n" + attachment.url;
+                                announcementContent += "\n" + attachment.url;
                             } else {
                                 files.push(attachment);
                             }
                         });
 
+                        CrossingGuardBot.LAST_ANNOUNCEMENT_DATA.set(from_guild, { channel_name: message.author != null ? message.author.displayName : "", last_ping_time: (includePing ? Date.now() : lastAnnouncementData ? lastAnnouncementData.last_ping_time : Date.now()) });
 
                         do {
-                            var maxSnippet = messageContent.substring(0, 2000);
+                            var maxSnippet = announcementContent.substring(0, 2000);
                             var lastSpace = maxSnippet.lastIndexOf(' ');
                             var lastNewline = maxSnippet.lastIndexOf('\n');
-                            var sending = maxSnippet.substring(0, (messageContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+                            var sending = maxSnippet.substring(0, (announcementContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
 
                             var messageToSend: MessageCreateOptions = {
                                 content: sending.trim(),
@@ -205,13 +219,13 @@ export default class CrossingGuardBot extends Client {
                                 allowedMentions: { parse: ['roles', 'users'] }
                             }
 
-                            messageContent = messageContent.substring(sending.length, messageContent.length);
+                            announcementContent = announcementContent.substring(sending.length, announcementContent.length);
 
-                            if (messageContent.length < 1)
+                            if (announcementContent.length < 1)
                                 messageToSend.files = files;
 
                             textChannel.send(messageToSend);
-                        } while (messageContent.length > 0);
+                        } while (announcementContent.length > 0);
                     });
             });
         else
