@@ -1,14 +1,15 @@
-import { Attachment, Client, Collection, DataResolver, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, SlashCommandBuilder, TextChannel } from 'discord.js';
+import { Attachment, Client, Events, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from "./Database";
+import CommandManager from './CommandManager';
 
 const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
 export default class CrossingGuardBot extends Client {
-    private static HIDDEN_CHANNELS: Array<String> = [];
-    private static ANNOUNCEMENT_CHANNEL_ID: string;
-    private static DEFAULT_PING_ROLE_ID: string;
+    public static HIDDEN_CHANNELS: Array<String> = [];
+    public static ANNOUNCEMENT_CHANNEL_ID: string;
+    public static DEFAULT_PING_ROLE_ID: string;
     private static TOKEN: string;
     public static GUILD_ID: string;
     public static CLIENT_ID: string;
@@ -20,22 +21,26 @@ export default class CrossingGuardBot extends Client {
 
     private static instance: CrossingGuardBot;
     private _database: Database;
-    private commands: Collection<String, { data: SlashCommandBuilder, execute: Function, autocomplete?: Function }>;
+    private _commandManager;
 
     private constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
         this._database = new Database();
-        this.commands = new Collection();
+        this._commandManager = new CommandManager();
         var bot = this;
 
         this.registerEvents();
-        this.registerCommands();
+        this._commandManager.registerCommands();
         this.loadConfig();
 
         setInterval(function () {
             bot.database.connection.query("SELECT 1");
         }, 1000 * 60 * 10);
+    }
+
+    public get commandManager() {
+        return this._commandManager;
     }
 
     public get guild(): Promise<Guild> {
@@ -51,102 +56,23 @@ export default class CrossingGuardBot extends Client {
         return CrossingGuardBot.instance;
     }
 
-    private async registerCommands() {
-        const foldersPath = path.join(__dirname, 'commands');
-        const commandFolders = fs.readdirSync(foldersPath);
-
-        for (const folder of commandFolders) {
-            const commandsPath = path.join(foldersPath, folder);
-            const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-            await this.registerCommandFilePaths(commandFiles, commandsPath);
-        }
-    }
-
-
-    private async registerCommandFilePaths(commandFiles: string[], commandsPath: string) {
-        for (const file of commandFiles) {
-            const filePath = path.join(commandsPath, file);
-
-            const command = await import(filePath);
-
-            this.newMethod(command, filePath);
-        }
-    }
-
-    private newMethod(command: any, filePath: string) {
-        if ('data' in command && 'execute' in command) {
-            this.commands.set(command.data.name, command);
-        } else {
-            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-        }
-    }
-
     private registerEvents() {
-        var bot = this;
         this.once(Events.ClientReady, async c => {
-            console.log(`Ready! Logged in as ${c.user.tag}`);
 
-            var guild = await bot.guild;
-            var members = await guild.members.list();
-
-            for (const [key, member] of members) {
-                await bot.database.updateStaffRoles(member.id);
-            }
-
-            var guild = await bot.guild;
-            var members = await guild.members.list();
-
-            for (const [key, member] of members)
-                await bot.database.updateStaffRoles(member.id);
         });
 
         this.rest.on(RESTEvents.RateLimited, console.log);
 
         this.on(Events.MessageCreate, message => {
-            if (CrossingGuardBot.HIDDEN_CHANNELS.includes(message.channelId))
-                bot.announce(message);
+
         });
 
         this.on(Events.MessageUpdate, (oldMessage, newMessage) => {
-            if (CrossingGuardBot.HIDDEN_CHANNELS.includes(newMessage.channelId))
-                bot.announce(newMessage, true);
+
         });
 
         this.on(Events.InteractionCreate, async interaction => {
-            if (interaction.isChatInputCommand()) {
-                const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
 
-                if (!command) {
-                    console.error(`No command matching ${interaction.commandName} was found.`);
-                    return;
-                }
-
-                try {
-                    await command.execute(interaction);
-                } catch (error) {
-                    console.error(error);
-                    if (interaction.replied || interaction.deferred) {
-                        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-                    } else {
-                        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-                    }
-                }
-            } else if (interaction.isAutocomplete()) {
-                const command = (<CrossingGuardBot>interaction.client).commands.get(interaction.commandName);
-
-                if (!command) {
-                    console.error(`No command matching ${interaction.commandName} was found.`);
-                    return;
-                }
-
-                try {
-                    if (command.autocomplete)
-                        await command.autocomplete(interaction);
-                } catch (error) {
-                    console.error(error);
-                }
-            }
         });
     }
 
