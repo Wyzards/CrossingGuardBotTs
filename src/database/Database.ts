@@ -2,13 +2,13 @@ import * as async from "async";
 import { ChannelType } from 'discord.js';
 import * as fs from 'fs';
 import * as mysql from 'mysql';
-import CrossingGuardBot from './CrossingGuardBot';
 import Project from "./projects/Project";
 import ProjectAttachment from './projects/ProjectAttachment';
 import ProjectLink from "./projects/ProjectLink";
 import ProjectStaff from "./projects/ProjectStaff";
 import { ProjectStaffRank } from './projects/ProjectStaffRank';
 import { ProjectStatus } from "./projects/ProjectStatus";
+import CrossingGuardBot from "../bot/CrossingGuardBot";
 
 export default class Database {
 

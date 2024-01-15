@@ -1,5 +1,5 @@
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
-import CrossingGuardBot from "../CrossingGuardBot";
+import CrossingGuardBot from "../../bot/CrossingGuardBot";
 import ProjectAttachment from "./ProjectAttachment";
 import ProjectLink from "./ProjectLink";
 import ProjectStaff from "./ProjectStaff";
