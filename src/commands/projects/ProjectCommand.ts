@@ -1,10 +1,10 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteractionOptionResolver, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectAttachment from "../../ProjectAttachment";
-import ProjectLink from "../../ProjectLink";
-import ProjectStaff from "../../ProjectStaff";
-import { ProjectStaffRank } from "../../ProjectStaffRank";
-import { ProjectStatus } from "../../ProjectStatus";
+import ProjectAttachment from "../../projects/ProjectAttachment";
+import ProjectLink from "../../projects/ProjectLink";
+import ProjectStaff from "../../projects/ProjectStaff";
+import { ProjectStaffRank } from "../../projects/ProjectStaffRank";
+import { ProjectStatus } from "../../projects/ProjectStatus";
 
 const data = new SlashCommandBuilder()
     .setName("project")

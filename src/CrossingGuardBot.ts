@@ -59,17 +59,26 @@ export default class CrossingGuardBot extends Client {
             const commandsPath = path.join(foldersPath, folder);
             const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-            for (const file of commandFiles) {
-                const filePath = path.join(commandsPath, file);
+            await this.registerCommandFilePaths(commandFiles, commandsPath);
+        }
+    }
 
-                const command = await import(filePath);
 
-                if ('data' in command && 'execute' in command) {
-                    this.commands.set(command.data.name, command);
-                } else {
-                    console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-                }
-            }
+    private async registerCommandFilePaths(commandFiles: string[], commandsPath: string) {
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+
+            const command = await import(filePath);
+
+            this.newMethod(command, filePath);
+        }
+    }
+
+    private newMethod(command: any, filePath: string) {
+        if ('data' in command && 'execute' in command) {
+            this.commands.set(command.data.name, command);
+        } else {
+            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }
 

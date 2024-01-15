@@ -3,12 +3,12 @@ import { ChannelType } from 'discord.js';
 import * as fs from 'fs';
 import * as mysql from 'mysql';
 import CrossingGuardBot from './CrossingGuardBot';
-import Project from "./Project";
-import ProjectAttachment from './ProjectAttachment';
-import ProjectLink from "./ProjectLink";
-import ProjectStaff from "./ProjectStaff";
-import { ProjectStaffRank } from './ProjectStaffRank';
-import { ProjectStatus } from "./ProjectStatus";
+import Project from "./projects/Project";
+import ProjectAttachment from './projects/ProjectAttachment';
+import ProjectLink from "./projects/ProjectLink";
+import ProjectStaff from "./projects/ProjectStaff";
+import { ProjectStaffRank } from './projects/ProjectStaffRank';
+import { ProjectStatus } from "./projects/ProjectStatus";
 
 export default class Database {
 
