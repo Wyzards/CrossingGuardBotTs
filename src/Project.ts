@@ -132,6 +132,10 @@ export default class Project {
         return this._channelId;
     }
 
+    public set name(newName: string) {
+        this._name = newName;
+    }
+
     public get name(): string {
         return this._name;
     }
