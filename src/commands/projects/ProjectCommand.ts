@@ -140,10 +140,24 @@ const data = new SlashCommandBuilder()
                             .setDescription("The name of the project")
                             .setAutocomplete(true)
                             .setRequired(true))))
+    // SET Property Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
         subcommandGroup.setName("set")
             .setDescription("Set one of this project's fields")
-            // Set IP Subcommand
+            // Set internal name command
+            .addSubcommand(subcommand =>
+                subcommand.setName("name")
+                    .setDescription("Set the name of this project")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("new_name")
+                            .setDescription("The new name for this project")
+                            .setRequired(true)))
+            // Set display name Subcommand
             .addSubcommand(subcommand =>
                 subcommand.setName("display_name")
                     .setDescription("Set the display name of this project")
@@ -156,6 +170,7 @@ const data = new SlashCommandBuilder()
                         option.setName("display_name")
                             .setDescription("The new display name for this project")
                             .setRequired(true)))
+            // Set IP
             .addSubcommand(subcommand =>
                 subcommand.setName("ip")
                     .setDescription("Set a project's ip & version")
@@ -270,6 +285,8 @@ async function execute(interaction: ChatInputCommandInteraction) {
             executeSetGuildID(interaction);
         else if (subcommand == "display_name")
             executeSetDisplayName(interaction);
+        else if (subcommand == "name")
+            executeSetName(interaction);
     }
 
     else if (subcommandGroup == "links") {
@@ -298,6 +315,27 @@ async function execute(interaction: ChatInputCommandInteraction) {
         executeDeleteProject(interaction);
 }
 
+async function executeSetName(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project");
+    const newName = interaction.options.getString("new_name");
+
+    if (!projectName || !newName)
+        return;
+
+    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+        if (!project) {
+            interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+            return;
+        }
+
+        var nameBefore = project.name;
+
+        CrossingGuardBot.getInstance().database.setName(project, newName);
+
+        interaction.reply({ content: `${nameBefore} has been renamed to ${newName}`, ephemeral: true });
+    });
+}
+
 async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
@@ -315,7 +353,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
 
         CrossingGuardBot.getInstance().database.setDisplayName(project, displayName);
 
-        interaction.reply({ content: `${nameBefore} has been renamed to ${displayName}`, ephemeral: true });
+        interaction.reply({ content: `${nameBefore}'s display name has been changed to ${displayName}`, ephemeral: true });
     });
 }
 

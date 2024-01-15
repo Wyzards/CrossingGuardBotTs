@@ -58,6 +58,11 @@ export default class Database {
         return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
+    public setName(project: Project, newName: string) {
+        project.name = newName;
+        this.saveProject(project);
+    }
+
     public setDisplayName(project: Project, displayName: string) {
         project.displayName = displayName;
         this.saveProject(project);
