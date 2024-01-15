@@ -39,6 +39,21 @@ export default class CrossingGuardBot extends Client {
         }, 1000 * 60 * 10);
     }
 
+    private registerEvents() {
+        const eventsPath = path.join(__dirname, 'events');
+        const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
+        for (const file of eventFiles) {
+            const filePath = path.join(eventsPath, file);
+            const event = require(filePath);
+            if (event.once) {
+                this.once(event.name, (...args) => event.execute(...args));
+            } else {
+                this.on(event.name, (...args) => event.execute(...args));
+            }
+        }
+    }
+
     public get commandManager() {
         return this._commandManager;
     }
@@ -54,26 +69,6 @@ export default class CrossingGuardBot extends Client {
         if (CrossingGuardBot.instance == null)
             CrossingGuardBot.instance = new CrossingGuardBot();
         return CrossingGuardBot.instance;
-    }
-
-    private registerEvents() {
-        this.once(Events.ClientReady, async c => {
-
-        });
-
-        this.rest.on(RESTEvents.RateLimited, console.log);
-
-        this.on(Events.MessageCreate, message => {
-
-        });
-
-        this.on(Events.MessageUpdate, (oldMessage, newMessage) => {
-
-        });
-
-        this.on(Events.InteractionCreate, async interaction => {
-
-        });
     }
 
     private async loadConfig() {
