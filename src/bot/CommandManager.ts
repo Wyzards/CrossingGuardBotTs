@@ -28,11 +28,11 @@ class CommandManager {
 
             const command = await import(filePath);
 
-            this.newMethod(command, filePath);
+            this.registerCommandAtPath(command, filePath);
         }
     }
 
-    private newMethod(command: any, filePath: string) {
+    private registerCommandAtPath(command: any, filePath: string) {
         if ('data' in command && 'execute' in command) {
             this._commands.set(command.data.name, command);
         } else {
