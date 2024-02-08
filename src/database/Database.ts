@@ -2,15 +2,17 @@ import * as async from "async";
 import { ChannelType } from 'discord.js';
 import * as fs from 'fs';
 import * as mysql from 'mysql';
-import CrossingGuardBot from './CrossingGuardBot';
-import Project from "./Project";
-import ProjectAttachment from './ProjectAttachment';
-import ProjectLink from "./ProjectLink";
-import ProjectStaff from "./ProjectStaff";
-import { ProjectStaffRank } from './ProjectStaffRank';
-import { ProjectStatus } from "./ProjectStatus";
+import CrossingGuardBot from "../bot/CrossingGuardBot";
+import Project from "./projects/Project";
+import ProjectAttachment from './projects/ProjectAttachment';
+import ProjectLink from "./projects/ProjectLink";
+import ProjectStaff from "./projects/ProjectStaff";
+import { ProjectStaffRank } from './projects/ProjectStaffRank';
+import { ProjectStatus } from "./projects/ProjectStatus";
 
 export default class Database {
+
+    private static instance: Database;
 
     private _connection: mysql.Connection | null;
     public static CONFIG_PATH = "./config.json";
@@ -31,6 +33,13 @@ export default class Database {
 
             database.makeTables();
         });
+    }
+
+    public static getInstance() {
+        if (!Database.instance)
+            Database.instance = new Database();
+
+        return Database.instance;
     }
 
     public get connection(): mysql.Connection {
@@ -162,7 +171,7 @@ export default class Database {
 
                 Promise.all(results.map((projectName: { name: string }) => {
                     return new Promise(resolve => {
-                        CrossingGuardBot.getInstance().database.getProjectByName(projectName["name"]).then(project => {
+                        database.getProjectByName(projectName["name"]).then(project => {
                             resolve(project);
                         });
                     });
@@ -298,8 +307,7 @@ export default class Database {
 
     public addProject(name: string, displayName: string, channelId: string, roleId: string): void {
         this.connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
-
-        CrossingGuardBot.getInstance().database.getProjectByName(name).then(project => { if (project) project.updateView() });
+        this.getProjectByName(name).then(project => { if (project) project.updateView() });
     }
 
     public createNewProject(name: string, displayName: string): void {

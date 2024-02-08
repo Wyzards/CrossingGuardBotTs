@@ -1,10 +1,11 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteractionOptionResolver, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import CrossingGuardBot from "../../CrossingGuardBot";
-import ProjectAttachment from "../../ProjectAttachment";
-import ProjectLink from "../../ProjectLink";
-import ProjectStaff from "../../ProjectStaff";
-import { ProjectStaffRank } from "../../ProjectStaffRank";
-import { ProjectStatus } from "../../ProjectStatus";
+import ProjectAttachment from "../../../database/projects/ProjectAttachment";
+import ProjectLink from "../../../database/projects/ProjectLink";
+import ProjectStaff from "../../../database/projects/ProjectStaff";
+import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank";
+import { ProjectStatus } from "../../../database/projects/ProjectStatus";
+import Database from "../../../database/Database";
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -256,7 +257,7 @@ const data = new SlashCommandBuilder()
                             .setRequired(true))));
 
 async function autocomplete(interaction: AutocompleteInteraction) {
-    await CrossingGuardBot.getInstance().database.projectList().then(async projectList => {
+    await Database.getInstance().projectList().then(async projectList => {
         const focusedValue = interaction.options.getFocused();
         const filtered = projectList.filter(project => project.name.startsWith(focusedValue) || project.displayName.startsWith(focusedValue));
 
@@ -322,7 +323,7 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !newName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+    Database.getInstance().getProjectByName(projectName).then(async project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -330,7 +331,7 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
 
         var nameBefore = project.name;
 
-        CrossingGuardBot.getInstance().database.setName(project, newName);
+        Database.getInstance().setName(project, newName);
 
         interaction.reply({ content: `${nameBefore} has been renamed to ${newName}`, ephemeral: true });
     });
@@ -343,7 +344,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !displayName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+    Database.getInstance().getProjectByName(projectName).then(async project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -351,7 +352,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
 
         var nameBefore = project.displayName;
 
-        CrossingGuardBot.getInstance().database.setDisplayName(project, displayName);
+        Database.getInstance().setDisplayName(project, displayName);
 
         interaction.reply({ content: `${nameBefore}'s display name has been changed to ${displayName}`, ephemeral: true });
     });
@@ -363,13 +364,13 @@ async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(async project => {
+    Database.getInstance().getProjectByName(projectName).then(async project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
-        await CrossingGuardBot.getInstance().database.deleteProject(project);
+        await Database.getInstance().deleteProject(project);
 
         interaction.reply({ content: `Deleted ${project.displayName}`, ephemeral: true });
     });
@@ -382,15 +383,15 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName || !user)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
-        CrossingGuardBot.getInstance().database.saveProject(project);
-        CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
+        Database.getInstance().saveProject(project);
+        Database.getInstance().updateStaffRoles(user.id);
 
         interaction.reply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
     });
@@ -403,14 +404,14 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
     if (!projectName || !linkName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.links = project.links.filter(link => link.linkName !== linkName);
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
         interaction.reply({ content: `Removed the link \`${linkName}\` from ${project.displayName}`, ephemeral: true });
     });
 
@@ -422,7 +423,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -446,7 +447,7 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName || !user || !rank)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -454,8 +455,8 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
 
 
         if (project.addStaff(new ProjectStaff(project.id, user.id, +rank))) {
-            CrossingGuardBot.getInstance().database.saveProject(project);
-            CrossingGuardBot.getInstance().database.updateStaffRoles(user.id);
+            Database.getInstance().saveProject(project);
+            Database.getInstance().updateStaffRoles(user.id);
 
             interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
         } else {
@@ -470,7 +471,7 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -494,7 +495,7 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
     if (!projectName || !linkName || !linkURL)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
@@ -503,7 +504,7 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
         var links = project.links;
         links.push(new ProjectLink(project.id, 0, linkName, linkURL));
         project.links = links;
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
         interaction.reply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}`, ephemeral: true });
     });
 
@@ -517,14 +518,14 @@ async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     if (!projectName || !guildId)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.guildId = guildId;
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
 
         interaction.reply({ content: `Linked ${guildId} to ${project.displayName}`, ephemeral: true });
     });
@@ -539,7 +540,7 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
 
     interaction.channel.messages.fetch(msgId)
         .then(message => {
-            CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+            Database.getInstance().getProjectByName(projectName).then(project => {
                 if (!project) {
                     interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
                     return;
@@ -552,7 +553,7 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
                 });
 
                 project.attachments = newAttachments;
-                CrossingGuardBot.getInstance().database.saveProject(project);
+                Database.getInstance().saveProject(project);
 
                 interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
             });
@@ -570,14 +571,14 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
         .then(message => {
             var description = message.content;
 
-            CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+            Database.getInstance().getProjectByName(projectName).then(project => {
                 if (!project) {
                     interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
                     return;
                 }
 
                 project.description = description;
-                CrossingGuardBot.getInstance().database.saveProject(project);
+                Database.getInstance().saveProject(project);
                 interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
             });
 
@@ -591,14 +592,14 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
     if (!projectName || !emojiIdOrUnicode)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.emoji = emojiIdOrUnicode;
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
         interaction.reply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\``, ephemeral: true });
     });
 
@@ -611,14 +612,14 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction) {
     if (!projectName || !status)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.status = +status;
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
         interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[+status]}`, ephemeral: true });
     });
 
@@ -631,14 +632,14 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
     if (!projectName || !ipString)
         return;
 
-    CrossingGuardBot.getInstance().database.getProjectByName(projectName).then(project => {
+    Database.getInstance().getProjectByName(projectName).then(project => {
         if (!project) {
             interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
             return;
         }
 
         project.ip = ipString;
-        CrossingGuardBot.getInstance().database.saveProject(project);
+        Database.getInstance().saveProject(project);
         interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
     });
 
@@ -654,7 +655,7 @@ async function executeAddExistingProject(interaction: ChatInputCommandInteractio
     if (!projectName || !displayName || !channel || !role)
         return;
 
-    CrossingGuardBot.getInstance().database.addProject(projectName, displayName, channel.id, role.id);
+    Database.getInstance().addProject(projectName, displayName, channel.id, role.id);
 
     await interaction.reply({ content: `Project added with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
@@ -666,7 +667,7 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     if (!projectName || !displayName)
         return;
 
-    CrossingGuardBot.getInstance().database.createNewProject(projectName, displayName);
+    Database.getInstance().createNewProject(projectName, displayName);
 
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
