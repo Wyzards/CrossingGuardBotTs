@@ -1,3 +1,3 @@
 import CrossingGuardBot from "./bot/CrossingGuardBot";
 
-var bot = CrossingGuardBot.getInstance();
+const bot = CrossingGuardBot.getInstance();

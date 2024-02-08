@@ -1,4 +1,4 @@
-import { APIEmbed, Attachment, Client, Collection, Embed, Events, GatewayIntentBits, Guild, JSONEncodable, Message, MessageCreateOptions, MessageFlags, PartialMessage, RESTEvents, TextChannel } from 'discord.js';
+import { Attachment, Client, Collection, Embed, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import Database from '../database/Database';
