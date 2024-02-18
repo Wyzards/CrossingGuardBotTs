@@ -9,6 +9,8 @@ import ProjectLink from "./projects/ProjectLink";
 import ProjectStaff from "./projects/ProjectStaff";
 import { ProjectStaffRank } from './projects/ProjectStaffRank';
 import { ProjectStatus } from "./projects/ProjectStatus";
+import { ProjectType } from "./projects/ProjectType";
+import * as util from 'util';
 
 export default class Database {
 
@@ -59,80 +61,18 @@ export default class Database {
     }
 
 
-    public getProjectByGuild(guildId: string): Promise<Project | null> {
-        return this.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);
+    public static getProjectByGuild(guildId: string): Promise<Project> {
+        return Database.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);
     }
 
-    public getProjectByName(projectName: string): Promise<Project | null> {
-        return this.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
+    public static getProjectByName(projectName: string): Promise<Project> {
+        return Database.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
-    public setName(project: Project, newName: string) {
-        project.name = newName;
-        this.saveProject(project);
-    }
-
-    public setDisplayName(project: Project, displayName: string) {
-        project.displayName = displayName;
-        this.saveProject(project);
-    }
-
-    public async deleteProject(project: Project) {
-        const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
-        const members = await guild.members.fetch();
-
-        this.connection.query("SELECT * FROM Project_Staff", (err, data) => {
-            for (const staff of project.staff) {
-                var rank = null;
-
-                for (const row of data) {
-                    // If is same project, ignore
-                    // Else if is same userId and head, cache head and break
-                    // If just staff, cache staff and keep going
-                    if (row["project_id"] == staff.projectId)
-                        continue;
-
-                    if (row["user_id"] == staff.discordUserId)
-                        if (+row["staff_rank"] == ProjectStaffRank.LEAD) {
-                            rank = ProjectStaffRank.LEAD;
-                            break;
-                        } else
-                            rank = +row["staff_rank"];
-                }
-
-                if (rank == null) {
-                    // Take roles
-                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
-                } else {
-                    // If staff, give staff only
-                    // If lead, give staff and lead
-                    if (rank == ProjectStaffRank.LEAD)
-                        members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
-                }
-            }
-        })
-
-        guild.channels.fetch(project.channelId).then(channel => {
-            channel?.delete();
-        });
-
-        guild.roles.fetch(project.roleId).then(role => {
-            role?.delete();
-        });
-
-        this.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
-        this.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
-        this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
-        this.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
-    }
-
-    public async updateStaffRoles(discordUserId: string) {
-        var database = this;
-        var guild = await CrossingGuardBot.getInstance().guild;
-        var member = await guild.members.fetch(discordUserId);
-        var projectList = await database.projectList();
+    public static async updateStaffRoles(discordUserId: string) {
+        const guild = await CrossingGuardBot.getInstance().guild;
+        const member = await guild.members.fetch(discordUserId);
+        const projectList = await Database.projectList();
 
         var isStaff = false;
 
@@ -160,18 +100,16 @@ export default class Database {
         }
     }
 
-    public projectList(): Promise<Project[]> {
-        var database = this;
-
+    public static projectList(): Promise<Project[]> {
         return new Promise((resolve) => {
-            database.connection.query("SELECT name FROM Projects", (err, results) => {
+            Database.getInstance().connection.query("SELECT name FROM Projects", (err, results) => {
                 if (err) {
                     throw err;
                 }
 
                 Promise.all(results.map((projectName: { name: string }) => {
                     return new Promise(resolve => {
-                        database.getProjectByName(projectName["name"]).then(project => {
+                        Database.getProjectByName(projectName["name"]).then(project => {
                             resolve(project);
                         });
                     });
@@ -182,20 +120,16 @@ export default class Database {
         });
     }
 
-    private getProject(query: string, identifier: string): Promise<Project | null> {
-        var database = this;
+    private static getProject(query: string, identifier: string): Promise<Project> {
+        const database = Database.getInstance();
 
         return new Promise((resolve) => {
             database.connection.query(query, [identifier], (err, projectData) => {
-                if (err) {
+                if (err)
                     throw err;
-                }
 
-                if (projectData == null || projectData.length == 0) {
-                    resolve(null);
-                    return;
-                }
-
+                if (projectData == null || projectData.length == 0)
+                    throw new Error("Failed to retrieve project by identifier");
 
                 projectData = projectData[0];
                 var emojiString: string = projectData["emoji"];
@@ -213,13 +147,13 @@ export default class Database {
                 project.links = [];
                 project.staff = [];
                 project.attachments = [];
+                project.type = ProjectType[+projectData["type"]];
 
                 async.parallel([links, staff, attachments], function (err) {
-                    if (err) {
+                    if (err)
                         throw err;
-                    }
 
-                    resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.emoji, project.ipString, project.roleId, project.links, project.staff, project.attachments));
+                    resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.emoji, project.ipString, project.roleId, project.links, project.staff, project.attachments, project.type));
                 });
 
                 function links(callback: Function) {
@@ -267,73 +201,52 @@ export default class Database {
         });
     }
 
-    public saveProject(project: Project): void {
-        var projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ? WHERE project_id = ?`;
-        this.connection.query(projectQuery, [project.channelId, project.guildId, project.emojiString, project.name, project.displayName, project.status, project.description, project.ip, project.roleId, project.id]);
+    public static async addProject(name: string, displayName: string, channelId: string, roleId: string): Promise<Project> {
+        Database.getInstance().connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
+        const project = await Database.getProjectByName(name);
 
-        // Deletes any removed links
-        if (project.links.length > 0)
-            this.connection.query("DELETE FROM Project_Links WHERE project_id = ? AND link_id NOT IN (" + project.links.map(link => link.linkId).join(", ") + ")", [project.id]);
-        else
-            this.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id]);
+        if (project == null)
+            throw new Error("Unexpectedly unable to create a new project");
 
-        project.links.forEach(link => {
-            this.connection.query("INSERT INTO Project_Links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
-        });
+        project.updateView()
 
-        // Deletes any removed staff
-        if (project.staff.length > 0)
-            this.connection.query("DELETE FROM Project_Staff WHERE project_id = ? AND user_id NOT IN (" + project.staff.map(staff => staff.discordUserId).join(", ") + ")", [project.id]);
-        else
-            this.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id]);
-
-        project.staff.forEach(staff => {
-            this.connection.query("INSERT INTO Project_Staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
-        });
-
-        // Deletes any removed attachments
-        if (project.attachments.length > 0)
-            this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ? AND attachment_id NOT IN (" + project.attachments.map(attachment => attachment.id).join(", ") + ")", [project.id]);
-        else
-            this.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id]);
-
-        project.attachments.forEach(attachment => {
-            this.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.url, attachment.url]);
-        });
-
-        project.updateView();
+        return project;
     }
 
+    public static async createNewProject(name: string, displayName: string): Promise<Project> {
+        const guild = await CrossingGuardBot.getInstance().guild;
+        const role = await guild.roles.create({
+            hoist: true,
+            name: displayName
+        });
+        const category = await guild.channels.fetch(CrossingGuardBot.PROJECT_CATEGORY_ID)
 
-    public addProject(name: string, displayName: string, channelId: string, roleId: string): void {
-        this.connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
-        this.getProjectByName(name).then(project => { if (project) project.updateView() });
+        if (!category)
+            throw new Error(`Category channel does not exist`);
+
+        const channel = await guild.channels.create({
+            name: name,
+            type: ChannelType.GuildForum,
+            parent: category.id,
+            availableTags: [
+                { name: "About", moderated: true },
+                { name: "General" },
+                { name: "Announcement", moderated: true },
+                { name: "Review" }
+            ]
+        });
+
+        const project = await Database.addProject(name, displayName, channel.id, role.id);
+
+        return project;
     }
 
-    public createNewProject(name: string, displayName: string): void {
-        var database = this;
-        CrossingGuardBot.getInstance().guild.then(guild => {
-            guild.roles.create({
-                hoist: true,
-                name: displayName
-            }).then(role => {
-                guild.channels.fetch(CrossingGuardBot.PROJECT_CATEGORY_ID).then(categoryChannel => {
-                    if (!categoryChannel)
-                        throw new Error(`Category channel with ID=${CrossingGuardBot.PROJECT_CATEGORY_ID} does not exist`);
+    public static async projectExists(name: string): Promise<boolean> {
+        const query = util.promisify(Database.getInstance().connection.query).bind(Database.getInstance().connection);
+        const rows = await query(`SELECT count(*) AS count FROM Projects WHERE name = ${name}`);
 
-                    guild.channels.create({
-                        name: name,
-                        type: ChannelType.GuildForum,
-                        parent: categoryChannel.id,
-                        availableTags: [
-                            { name: "About", moderated: true },
-                            { name: "General" },
-                            { name: "Announcement", moderated: true },
-                            { name: "Review" }
-                        ]
-                    }).then(channel => database.addProject(name, displayName, channel.id, role.id))
-                });
-            });
-        });
+        console.log(rows);
+
+        return true;
     }
 }

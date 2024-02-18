@@ -6,6 +6,7 @@
         "CHANNEL1",
         "CHANNEL2"
     ],
+    
     "host": "host",
     "user": "user",
     "password": "password",

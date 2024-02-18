@@ -5,6 +5,8 @@ import ProjectLink from "./ProjectLink";
 import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from "./ProjectStaffRank";
 import { ProjectStatus } from "./ProjectStatus";
+import { ProjectType } from "./ProjectType";
+import Database from "../Database";
 
 export default class Project {
 
@@ -21,8 +23,9 @@ export default class Project {
     private _emoji: DefaultReactionEmoji | null;
     private _staff: ProjectStaff[];
     private _attachments: ProjectAttachment[];
+    private _type: ProjectType;
 
-    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[]) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType) {
         this._id = id;
         this._channelId = channelId;
         this._name = name;
@@ -36,6 +39,7 @@ export default class Project {
         this._links = links;
         this._staff = staff;
         this._attachments = attachments;
+        this._type = type;
     }
 
     public get channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
@@ -261,5 +265,105 @@ export default class Project {
 
     public get attachments(): ProjectAttachment[] {
         return this._attachments;
+    }
+
+    public get type(): ProjectType {
+        return this._type;
+    }
+
+    public save() {
+        const database = Database.getInstance();
+        const projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ?, type = ? WHERE project_id = ?`;
+
+        database.connection.query(projectQuery, [this.channelId, this.guildId, this.emojiString, this.name, this.displayName, this.status, this.description, this.ip, this.roleId, this.type, this.id]);
+
+        if (this.links.length > 0)
+            database.connection.query("DELETE FROM Project_Links WHERE project_id = ? AND link_id NOT IN (" + this.links.map(link => link.linkId).join(", ") + ")", [this.id]);
+        else
+            database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [this.id]);
+
+        for (const link of this.links)
+            database.connection.query("INSERT INTO Project_Links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
+
+        if (this.staff.length > 0)
+            database.connection.query("DELETE FROM Project_Staff WHERE project_id = ? AND user_id NOT IN (" + this.staff.map(staff => staff.discordUserId).join(", ") + ")", [this.id]);
+        else
+            database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [this.id]);
+
+        for (const staff of this.staff)
+            database.connection.query("INSERT INTO Project_Staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
+
+        if (this.attachments.length > 0)
+            database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ? AND attachment_id NOT IN (" + this.attachments.map(attachment => attachment.id).join(", ") + ")", [this.id]);
+        else
+            database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [this.id]);
+
+        for (const attachment of this.attachments)
+            database.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.url, attachment.url]);
+
+        this.updateView();
+    }
+
+    public setName(newName: string) {
+        this.name = newName;
+        this.save();
+    }
+
+    public setDisplayName(displayName: string) {
+        this.displayName = displayName;
+        this.save();
+    }
+
+    public async delete() {
+        const project = this;
+        const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
+        const members = await guild.members.fetch();
+        const database = Database.getInstance();
+
+        database.connection.query("SELECT * FROM Project_Staff", (err, data) => {
+            for (const staff of project.staff) {
+                var rank = null;
+
+                for (const row of data) {
+                    // If is same project, ignore
+                    // Else if is same userId and head, cache head and break
+                    // If just staff, cache staff and keep going
+                    if (row["project_id"] == staff.projectId)
+                        continue;
+
+                    if (row["user_id"] == staff.discordUserId)
+                        if (+row["staff_rank"] == ProjectStaffRank.LEAD) {
+                            rank = ProjectStaffRank.LEAD;
+                            break;
+                        } else
+                            rank = +row["staff_rank"];
+                }
+
+                if (rank == null) {
+                    // Take roles
+                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+                } else {
+                    // If staff, give staff only
+                    // If lead, give staff and lead
+                    if (rank == ProjectStaffRank.LEAD)
+                        members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                }
+            }
+        })
+
+        guild.channels.fetch(project.channelId).then(channel => {
+            channel?.delete();
+        });
+
+        guild.roles.fetch(project.roleId).then(role => {
+            role?.delete();
+        });
+
+        database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
+        database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
+        database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
+        database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
     }
 }

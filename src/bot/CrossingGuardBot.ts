@@ -97,31 +97,21 @@ export default class CrossingGuardBot extends Client {
         });
     }
 
-    public announce(message: Message | PartialMessage, isEdit = false) {
+    public async announce(message: Message | PartialMessage, isEdit = false) {
         const from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
         const to_guild = this.guilds.cache.first();
 
         if (to_guild == null || from_guild == null)
             throw new Error(`Sending or receiving guild for announcement was not findable`);
 
-        Database.getInstance().getProjectByGuild(from_guild).then(project => {
-            if (project == null)
-                roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
-            else
-                var roleId = project.roleId;
+        const project = await Database.getProjectByGuild(from_guild);
 
-            to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
-                const textChannel = channel as TextChannel;
+        CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
 
+        const channel = await to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID) as TextChannel;
+        const content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, project.roleId);
 
-
-                CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
-
-                var content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, roleId);
-
-                this.sendAnnouncement(content, message.embeds, message.attachments, textChannel);
-            });
-        });
+        this.sendAnnouncement(content, message.embeds, message.attachments, channel);
     }
 
     private buildAnnouncementContent(from_guild: string, content: string, isEdit: boolean, authorName: string, roleId: string): string {
