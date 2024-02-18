@@ -102,20 +102,16 @@ export default class Database {
 
     public static projectList(): Promise<Project[]> {
         return new Promise((resolve) => {
-            Database.getInstance().connection.query("SELECT name FROM Projects", (err, results) => {
+            Database.getInstance().connection.query("SELECT name FROM Projects", async (err, results) => {
                 if (err) {
                     throw err;
                 }
 
-                Promise.all(results.map((projectName: { name: string }) => {
-                    return new Promise(resolve => {
-                        Database.getProjectByName(projectName["name"]).then(project => {
-                            resolve(project);
-                        });
-                    });
-                })).then(results => {
-                    resolve(results as Project[]);
-                });
+                const allResults = await Promise.all(results.map((projectName: { name: string }) => {
+                    return Database.getProjectByName(projectName["name"]);
+                }));
+
+                resolve(allResults as Project[]);
             });
         });
     }

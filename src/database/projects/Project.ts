@@ -77,51 +77,44 @@ export default class Project {
         };
     }
 
-    public updateView() {
-        var project = this;
-        // Updating channel
-        CrossingGuardBot.getInstance().guild.then(guild => {
-            guild.channels.edit(project._channelId, {
-                permissionOverwrites: (project._status == ProjectStatus.HIDDEN ? [
-                    {
-                        id: guild.roles.everyone.id,
-                        deny: [PermissionsBitField.Flags.ViewChannel]
-                    }
-                ] : []),
-                defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
-                name: ProjectStatus.channelIcon(project._status) + project._name,
-                topic: `Post anything related to ${project._displayName} here!`
-            }).then(channel => {
-                (channel as ForumChannel).threads.fetchActive().then(threads => {
-                    for (const thread of threads.threads) {
-                        if (thread[1].flags.has(ChannelFlags.Pinned)) {
-                            if (thread[1].name != project.displayName)
-                                thread[1].setName(project.displayName);
-                            thread[1].fetchStarterMessage().then(message => {
-                                if (message)
-                                    message.edit(project.channelMessage as MessageEditOptions);
-                            });
+    public async updateView() {
+        const guild = await CrossingGuardBot.getInstance().guild;
+        const channel = await guild.channels.edit(this.channelId, {
+            permissionOverwrites: (this.status == ProjectStatus.HIDDEN ? [
+                {
+                    id: guild.roles.everyone.id,
+                    deny: [PermissionsBitField.Flags.ViewChannel]
+                }
+            ] : []),
+            defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
+            name: ProjectStatus.channelIcon(this.status) + this.name,
+            topic: `Post anything related to ${this.displayName} here!`
+        }) as ForumChannel;
 
-                            return;
-                        }
-                    }
+        const threads = await channel.threads.fetchActive();
 
-                    (channel as ForumChannel).threads.create({
-                        appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name == "About")[0].id],
-                        message: project.channelMessage as GuildForumThreadMessageCreateOptions,
-                        name: project._displayName,
-                    }).then(threadChannel => {
-                        threadChannel.pin();
-                        threadChannel.setLocked(true);
-                    });
-                });
-            });
+        for (const thread of threads.threads) {
+            if (thread[1].flags.has(ChannelFlags.Pinned)) {
+                if (thread[1].name != this.displayName)
+                    thread[1].setName(this.displayName);
+
+                const starterMessage = await thread[1].fetchStarterMessage();
+
+                if (starterMessage)
+                    starterMessage.edit(this.channelMessage as MessageEditOptions);
+            }
+        }
+
+        const threadChannel = await channel.threads.create({
+            appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name == "About")[0].id],
+            message: this.channelMessage as GuildForumThreadMessageCreateOptions,
+            name: this.displayName,
         });
 
-        // Updating roles
-        CrossingGuardBot.getInstance().guild.then(guild => {
-            guild.roles.edit(project._roleId, { position: 2, name: project._displayName, color: ProjectStatus.roleColor(project._status) });
-        });
+        threadChannel.pin();
+        threadChannel.setLocked(true);
+
+        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
     }
 
     public get id(): number {
@@ -353,13 +346,11 @@ export default class Project {
             }
         })
 
-        guild.channels.fetch(project.channelId).then(channel => {
-            channel?.delete();
-        });
+        const channel = await guild.channels.fetch(project.channelId);
+        channel?.delete();
 
-        guild.roles.fetch(project.roleId).then(role => {
-            role?.delete();
-        });
+        const role = await guild.roles.fetch(project.roleId);
+        role?.delete();
 
         database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
         database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])

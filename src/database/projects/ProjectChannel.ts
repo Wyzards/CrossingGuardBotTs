@@ -66,23 +66,24 @@ export default class ProjectChannel {
             if (thread[1].flags.has(ChannelFlags.Pinned)) {
                 if (thread[1].name != this.project.displayName)
                     thread[1].setName(this.project.displayName);
-                thread[1].fetchStarterMessage().then(message => {
-                    if (message)
-                        message.edit(this.channelMessage() as MessageEditOptions);
-                });
+
+                const starterMessage = await thread[1].fetchStarterMessage();
+
+                if (starterMessage)
+                    starterMessage.edit(this.channelMessage() as MessageEditOptions);
 
                 return;
             }
         }
 
-        projectChannel.threads.create({
+        const threadChannel = await projectChannel.threads.create({
             appliedTags: [projectChannel.availableTags.filter(tag => tag.name == "About")[0].id],
             message: this.channelMessage() as GuildForumThreadMessageCreateOptions,
             name: this.project.displayName,
-        }).then(threadChannel => {
-            threadChannel.pin();
-            threadChannel.setLocked(true);
         });
+
+        threadChannel.pin();
+        threadChannel.setLocked(true);
     }
 
     public channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
