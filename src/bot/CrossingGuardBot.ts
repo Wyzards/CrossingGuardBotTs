@@ -144,7 +144,7 @@ export default class CrossingGuardBot extends Client {
 
             var messageToSend: MessageCreateOptions = {
                 content: sending.trim(),
-                allowedMentions: { parse: ['roles', 'users'] }
+                allowedMentions: { parse: ['users'] }
             };
 
             announcementContent = announcementContent.substring(sending.length, announcementContent.length);
