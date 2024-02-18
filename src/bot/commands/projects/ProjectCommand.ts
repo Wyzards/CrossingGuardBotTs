@@ -1,5 +1,5 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteractionOptionResolver, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import CrossingGuardBot from "../../CrossingGuardBot";
+import Bot from "../../Bot";
 import ProjectAttachment from "../../../database/projects/ProjectAttachment";
 import ProjectLink from "../../../database/projects/ProjectLink";
 import ProjectStaff from "../../../database/projects/ProjectStaff";

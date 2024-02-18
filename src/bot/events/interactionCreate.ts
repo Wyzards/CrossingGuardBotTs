@@ -1,11 +1,11 @@
 import { CacheType, Events, Interaction } from "discord.js";
-import CrossingGuardBot from "../CrossingGuardBot";
+import Bot from "../Bot";
 
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction: Interaction<CacheType>) {
         if (interaction.isChatInputCommand()) {
-            const command = (<CrossingGuardBot>interaction.client).commandManager.commands.get(interaction.commandName);
+            const command = (<Bot>interaction.client).commandManager.commands.get(interaction.commandName);
 
             if (!command) {
                 console.error(`No command matching ${interaction.commandName} was found.`);
@@ -23,7 +23,7 @@ module.exports = {
                 }
             }
         } else if (interaction.isAutocomplete()) {
-            const command = (<CrossingGuardBot>interaction.client).commandManager.commands.get(interaction.commandName);
+            const command = (<Bot>interaction.client).commandManager.commands.get(interaction.commandName);
 
             if (!command) {
                 console.error(`No command matching ${interaction.commandName} was found.`);

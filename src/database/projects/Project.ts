@@ -1,12 +1,12 @@
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
-import CrossingGuardBot from "../../bot/CrossingGuardBot";
+import Bot from "../../bot/Bot";
+import Database from "../Database";
 import ProjectAttachment from "./ProjectAttachment";
 import ProjectLink from "./ProjectLink";
 import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from "./ProjectStaffRank";
 import { ProjectStatus } from "./ProjectStatus";
 import { ProjectType } from "./ProjectType";
-import Database from "../Database";
 
 export default class Project {
 
@@ -78,7 +78,7 @@ export default class Project {
     }
 
     public async updateView() {
-        const guild = await CrossingGuardBot.getInstance().guild;
+        const guild = await Bot.getInstance().guild;
         const channel = await guild.channels.edit(this.channelId, {
             permissionOverwrites: (this.status == ProjectStatus.HIDDEN ? [
                 {
@@ -92,6 +92,7 @@ export default class Project {
         }) as ForumChannel;
 
         const threads = await channel.threads.fetchActive();
+        let forumChannelThreadExists = false;
 
         for (const thread of threads.threads) {
             if (thread[1].flags.has(ChannelFlags.Pinned)) {
@@ -102,19 +103,48 @@ export default class Project {
 
                 if (starterMessage)
                     starterMessage.edit(this.channelMessage as MessageEditOptions);
+
+                forumChannelThreadExists = true;
             }
         }
 
-        const threadChannel = await channel.threads.create({
-            appliedTags: [(channel as ForumChannel).availableTags.filter(tag => tag.name == "About")[0].id],
-            message: this.channelMessage as GuildForumThreadMessageCreateOptions,
-            name: this.displayName,
-        });
+        if (!forumChannelThreadExists) {
+            const threadChannel = await channel.threads.create({
+                appliedTags: [channel.availableTags.filter(tag => tag.name == "About")[0].id],
+                message: this.channelMessage as GuildForumThreadMessageCreateOptions,
+                name: this.displayName,
+            });
 
-        threadChannel.pin();
-        threadChannel.setLocked(true);
+            threadChannel.pin();
+            threadChannel.setLocked(true);
+        }
 
         guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+
+        // Get post in discovery section
+        // Edit accordingly
+        const discoveryChannel = await Database.getDiscoveryChannel(this.type);
+        const discoveryThreads = await discoveryChannel.threads.fetchActive();
+        let discoveryThreadExists = false;
+
+        for (const discoveryThread of discoveryThreads.threads)
+            if (discoveryThread[1].name == this.displayName) {
+                const starterMessage = await discoveryThread[1].fetchStarterMessage();
+
+                if (starterMessage)
+                    starterMessage.edit(this.channelMessage as MessageEditOptions);
+
+                discoveryThreadExists = true;
+                break;
+            }
+
+        if (!discoveryThreadExists) {
+            const discoveryThread = await discoveryChannel.threads.create({
+                appliedTags: [],
+                message: this.channelMessage as GuildForumThreadMessageCreateOptions,
+                name: this.displayName,
+            });
+        }
     }
 
     public get id(): number {
@@ -309,7 +339,7 @@ export default class Project {
 
     public async delete() {
         const project = this;
-        const guild = await CrossingGuardBot.getInstance().guilds.fetch(CrossingGuardBot.GUILD_ID);
+        const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
         const members = await guild.members.fetch();
         const database = Database.getInstance();
 
@@ -334,14 +364,14 @@ export default class Project {
 
                 if (rank == null) {
                     // Take roles
-                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.remove(Bot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.remove(Bot.STAFF_ROLE_ID);
                 } else {
                     // If staff, give staff only
                     // If lead, give staff and lead
                     if (rank == ProjectStaffRank.LEAD)
-                        members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                        members.get(staff.discordUserId)?.roles.add(Bot.LEAD_ROLE_ID);
+                    members.get(staff.discordUserId)?.roles.add(Bot.STAFF_ROLE_ID);
                 }
             }
         })

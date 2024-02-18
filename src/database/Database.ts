@@ -1,8 +1,8 @@
 import * as async from "async";
-import { ChannelType } from 'discord.js';
+import { ChannelType, ForumChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as mysql from 'mysql';
-import CrossingGuardBot from "../bot/CrossingGuardBot";
+import Bot from "../bot/Bot";
 import Project from "./projects/Project";
 import ProjectAttachment from './projects/ProjectAttachment';
 import ProjectLink from "./projects/ProjectLink";
@@ -70,7 +70,7 @@ export default class Database {
     }
 
     public static async updateStaffRoles(discordUserId: string) {
-        const guild = await CrossingGuardBot.getInstance().guild;
+        const guild = await Bot.getInstance().guild;
         const member = await guild.members.fetch(discordUserId);
         const projectList = await Database.projectList();
 
@@ -81,11 +81,11 @@ export default class Database {
                 if (staff.discordUserId === discordUserId) {
                     var doReturn = false;
                     if (staff.rank === ProjectStaffRank.LEAD) {
-                        await member.roles.add(CrossingGuardBot.LEAD_ROLE_ID);
+                        await member.roles.add(Bot.LEAD_ROLE_ID);
                         doReturn = true;
                     }
 
-                    await member.roles.add(CrossingGuardBot.STAFF_ROLE_ID);
+                    await member.roles.add(Bot.STAFF_ROLE_ID);
                     isStaff = true;
 
                     if (doReturn)
@@ -95,9 +95,21 @@ export default class Database {
         }
 
         if (!isStaff) {
-            await member.roles.remove(CrossingGuardBot.LEAD_ROLE_ID);
-            await member.roles.remove(CrossingGuardBot.STAFF_ROLE_ID);
+            await member.roles.remove(Bot.LEAD_ROLE_ID);
+            await member.roles.remove(Bot.STAFF_ROLE_ID);
         }
+    }
+
+    public static async getDiscoveryChannel(projectType: ProjectType): Promise<ForumChannel> {
+        const channelId = Bot.DISCOVERY_CHANNELS.get(ProjectType[+projectType]);
+
+        if (!channelId)
+            throw new Error("There is no discovery channel for that project type!");
+
+        const guild = await Bot.getInstance().guild;
+        const channel = await guild.channels.fetch(channelId);
+
+        return channel as ForumChannel;
     }
 
     public static projectList(): Promise<Project[]> {
@@ -210,12 +222,12 @@ export default class Database {
     }
 
     public static async createNewProject(name: string, displayName: string): Promise<Project> {
-        const guild = await CrossingGuardBot.getInstance().guild;
+        const guild = await Bot.getInstance().guild;
         const role = await guild.roles.create({
             hoist: true,
             name: displayName
         });
-        const category = await guild.channels.fetch(CrossingGuardBot.PROJECT_CATEGORY_ID)
+        const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID)
 
         if (!category)
             throw new Error(`Category channel does not exist`);

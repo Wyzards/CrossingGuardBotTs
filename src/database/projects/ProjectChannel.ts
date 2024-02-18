@@ -1,5 +1,5 @@
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
-import CrossingGuardBot from "../../bot/CrossingGuardBot";
+import Bot from "../../bot/Bot";
 import Project from "./Project";
 import { ProjectStatus } from "./ProjectStatus";
 import ProjectStaff from "./ProjectStaff";
@@ -46,7 +46,7 @@ export default class ProjectChannel {
     }
 
     public async update() {
-        const guild = await CrossingGuardBot.getInstance().guild;
+        const guild = await Bot.getInstance().guild;
         const projectChannel = await guild.channels.edit(this.id,
             {
                 permissionOverwrites: (this.project.status == ProjectStatus.HIDDEN ? [
