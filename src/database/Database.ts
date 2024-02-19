@@ -10,7 +10,6 @@ import ProjectStaff from "./projects/ProjectStaff";
 import { ProjectStaffRank } from './projects/ProjectStaffRank';
 import { ProjectStatus } from "./projects/ProjectStatus";
 import { ProjectType } from "./projects/ProjectType";
-import * as util from 'util';
 
 export default class Database {
 
@@ -60,6 +59,16 @@ export default class Database {
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Attachments (project_id INT REFERENCES Projects(project_id), attachment_id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1000) NOT NULL, PRIMARY KEY (attachment_id));");
     }
 
+    public static guildBelongsToProject(guildId: string): Promise<boolean> {
+        return new Promise(resolve => {
+            Database.getInstance().connection.query("SELECT count(*) FROM Projects WHERE guild_id = ?", [guildId], (err, results) => {
+                if (err)
+                    throw err;
+
+                resolve(results[0]["count"] > 0);
+            });
+        });
+    }
 
     public static getProjectByGuild(guildId: string): Promise<Project> {
         return Database.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);

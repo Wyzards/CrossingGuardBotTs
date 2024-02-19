@@ -112,12 +112,18 @@ export default class Bot extends Client {
         if (to_guild == null || from_guild == null)
             throw new Error(`Sending or receiving guild for announcement was not findable`);
 
-        const project = await Database.getProjectByGuild(from_guild);
+
+        if (await Database.guildBelongsToProject(from_guild)) {
+            const project = await Database.getProjectByGuild(from_guild);
+            var roleId = project.roleId;
+        } else {
+            var roleId = Bot.DEFAULT_PING_ROLE_ID;
+        }
 
         Bot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
 
         const channel = await to_guild.channels.fetch(Bot.ANNOUNCEMENT_CHANNEL_ID) as TextChannel;
-        const content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, project.roleId);
+        const content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, roleId);
 
         this.sendAnnouncement(content, message.embeds, message.attachments, channel);
     }

@@ -379,6 +379,15 @@ export default class Project {
         const channel = await guild.channels.fetch(project.channelId);
         channel?.delete();
 
+        const discoveryChannel = await Database.getDiscoveryChannel(project.type);
+        const discoveryThreads = await discoveryChannel.threads.fetchActive();
+
+        for (const discoveryThread of discoveryThreads.threads)
+            if (discoveryThread[1].name == this.displayName) {
+                await discoveryThread[1].delete();
+                break;
+            }
+
         const role = await guild.roles.fetch(project.roleId);
         role?.delete();
 
