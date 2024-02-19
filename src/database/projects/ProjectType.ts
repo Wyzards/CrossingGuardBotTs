@@ -1,7 +1,7 @@
 export enum ProjectType {
 
-    MMO,
-    SMP,
-    MAP
+    MMO = "MMO",
+    SMP = "SMP",
+    MAP = "MAP"
 
 }

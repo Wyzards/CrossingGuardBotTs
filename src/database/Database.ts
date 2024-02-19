@@ -54,7 +54,7 @@ export default class Database {
         if (!this.connection)
             throw new Error("Database connection was null upon making tables");
 
-        this.connection.query("CREATE TABLE IF NOT EXISTS Projects (project_id INT NOT NULL AUTO_INCREMENT, channel_id VARCHAR(50), guild_id VARCHAR(50), emoji VARCHAR(50), name VARCHAR(50), display_name VARCHAR(50), status INT UNSIGNED NOT NULL, description VARCHAR(2000), ip varchar(100), role_id VARCHAR(50), PRIMARY KEY(project_id, name)) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
+        this.connection.query("CREATE TABLE IF NOT EXISTS Projects (project_id INT NOT NULL AUTO_INCREMENT, channel_id VARCHAR(50), guild_id VARCHAR(50), emoji VARCHAR(50), name VARCHAR(50), display_name VARCHAR(50), status INT UNSIGNED NOT NULL, description VARCHAR(2000), ip varchar(100), role_id VARCHAR(50), type VARCHAR(10), PRIMARY KEY(project_id, name)) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Links (link_id INT UNSIGNED NOT NULL AUTO_INCREMENT, link_name VARCHAR(30), link_url VARCHAR(100), project_id INT REFERENCES Projects(project_id), PRIMARY KEY(link_id))");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Staff (user_id VARCHAR(50) NOT NULL, staff_rank INT NOT NULL, project_id INT REFERENCES Projects(project_id), PRIMARY KEY (user_id, project_id))");
         this.connection.query("CREATE TABLE IF NOT EXISTS Project_Attachments (project_id INT REFERENCES Projects(project_id), attachment_id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1000) NOT NULL, PRIMARY KEY (attachment_id));");
@@ -101,7 +101,7 @@ export default class Database {
     }
 
     public static async getDiscoveryChannel(projectType: ProjectType): Promise<ForumChannel> {
-        const channelId = Bot.DISCOVERY_CHANNELS.get(ProjectType[+projectType]);
+        const channelId = Bot.DISCOVERY_CHANNELS.get(projectType);
 
         if (!channelId)
             throw new Error("There is no discovery channel for that project type!");
@@ -155,7 +155,7 @@ export default class Database {
                 project.links = [];
                 project.staff = [];
                 project.attachments = [];
-                project.type = ProjectType[+projectData["type"]];
+                project.type = ProjectType[projectData["type"] as keyof typeof ProjectType];
 
                 async.parallel([links, staff, attachments], function (err) {
                     if (err)
@@ -209,8 +209,9 @@ export default class Database {
         });
     }
 
-    public static async addProject(name: string, displayName: string, channelId: string, roleId: string): Promise<Project> {
-        Database.getInstance().connection.query("INSERT INTO Projects (name, display_name, channel_id, status, role_id) VALUES (?, ?, ?, ?, ?)", [name, displayName, channelId, ProjectStatus.HIDDEN, roleId]);
+    public static async addProject(name: string, displayName: string, channelId: string, roleId: string, type: ProjectType): Promise<Project> {
+        Database.getInstance().connection.query(`INSERT INTO Projects (name, display_name, channel_id, status, role_id, type) VALUES (?, ?, ?, ?, ?, ?)`, [name, displayName, channelId, ProjectStatus.HIDDEN, roleId, type]);
+
         const project = await Database.getProjectByName(name);
 
         if (project == null)
@@ -221,7 +222,7 @@ export default class Database {
         return project;
     }
 
-    public static async createNewProject(name: string, displayName: string): Promise<Project> {
+    public static async createNewProject(name: string, displayName: string, type: ProjectType): Promise<Project> {
         const guild = await Bot.getInstance().guild;
         const role = await guild.roles.create({
             hoist: true,
@@ -244,17 +245,19 @@ export default class Database {
             ]
         });
 
-        const project = await Database.addProject(name, displayName, channel.id, role.id);
+        const project = await Database.addProject(name, displayName, channel.id, role.id, type);
 
         return project;
     }
 
     public static async projectExists(name: string): Promise<boolean> {
-        const query = util.promisify(Database.getInstance().connection.query).bind(Database.getInstance().connection);
-        const rows = await query(`SELECT count(*) AS count FROM Projects WHERE name = ${name}`);
+        return new Promise(resolve => {
+            Database.getInstance().connection.query("SELECT count(*) AS count FROM Projects WHERE name = ?", [name], (err, results) => {
+                if (err)
+                    throw err;
 
-        console.log(rows);
-
-        return true;
+                resolve(results[0]["count"] > 0);
+            });
+        });
     }
 }

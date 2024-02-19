@@ -6,6 +6,7 @@ import ProjectStaff from "../../../database/projects/ProjectStaff";
 import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank";
 import { ProjectStatus } from "../../../database/projects/ProjectStatus";
 import Database from "../../../database/Database";
+import { ProjectType } from "../../../database/projects/ProjectType";
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -31,28 +32,16 @@ const data = new SlashCommandBuilder()
             .addStringOption(option =>
                 option.setName("display_name")
                     .setDescription("The display name for this project")
-                    .setRequired(true)))
-    // Add Existing Project Subcommand
-    .addSubcommand(subcommand =>
-        subcommand.setName("addexisting")
-            .setDescription("Add an existing project with the given name")
-            .addStringOption(option =>
-                option.setName("project")
-                    .setDescription("The name of the project")
-                    .setAutocomplete(true)
                     .setRequired(true))
             .addStringOption(option =>
-                option.setName("display_name")
-                    .setDescription("The display name for this project")
-                    .setRequired(true))
-            .addChannelOption(option =>
-                option.setName("channel")
-                    .setDescription("The the forum channel for this project")
-                    .setRequired(true))
-            .addRoleOption(option =>
-                option.setName("project_role")
-                    .setDescription("The role to give people interested in this project")
-                    .setRequired(true)))
+                option.setName("type")
+                    .setDescription("The type of RPG")
+                    .setRequired(true)
+                    .addChoices(
+                        { name: "MMO", value: "MMO" },
+                        { name: "SMP", value: "SMP" },
+                        { name: "Map", value: "MAP" }
+                    )))
     // Links Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
         subcommandGroup.setName("links")
@@ -271,7 +260,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const projectName = interaction.options.getString("project");
 
-    if (projectName && !await Database.projectExists(projectName)) {
+    if (projectName && subcommand != "create" && !await Database.projectExists(projectName)) {
         interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
         return;
     }
@@ -315,8 +304,6 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
     else if (subcommand == "create")
         executeCreateProject(interaction);
-    else if (subcommand == "addexisting")
-        executeAddExistingProject(interaction);
     else if (subcommand == "delete")
         executeDeleteProject(interaction);
 }
@@ -561,28 +548,15 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
     await interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
 }
 
-async function executeAddExistingProject(interaction: ChatInputCommandInteraction) {
-    const projectName = interaction.options.getString("project");
-    const displayName = interaction.options.getString("display_name");
-    const channel = interaction.options.getChannel("channel");
-    const role = interaction.options.getRole("project_role");
-
-    if (!projectName || !displayName || !channel || !role)
-        return;
-
-    await Database.addProject(projectName, displayName, channel.id, role.id);
-
-    await interaction.reply({ content: `Project added with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
-}
-
 async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
+    const type = interaction.options.getString("type");
 
-    if (!projectName || !displayName)
+    if (!projectName || !displayName || !type)
         return;
 
-    Database.createNewProject(projectName, displayName);
+    Database.createNewProject(projectName, displayName, ProjectType[type as keyof typeof ProjectType]);
 
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }

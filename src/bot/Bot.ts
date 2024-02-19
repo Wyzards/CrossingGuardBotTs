@@ -3,12 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from '../database/Database';
 import CommandManager from './CommandManager';
+import { ProjectType } from '../database/projects/ProjectType';
 
 const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
 export default class Bot extends Client {
     public static HIDDEN_CHANNELS: Array<String> = [];
-    public static DISCOVERY_CHANNELS: Collection<string, string>;
+    public static DISCOVERY_CHANNELS: Map<ProjectType, string>;
     public static ANNOUNCEMENT_CHANNEL_ID: string;
     public static DEFAULT_PING_ROLE_ID: string;
     private static TOKEN: string;
@@ -86,7 +87,6 @@ export default class Bot extends Client {
 
             Bot.TOKEN = config["TOKEN"];
             Bot.HIDDEN_CHANNELS = config["hidden_channels"];
-            Bot.DISCOVERY_CHANNELS = config["DISCOVERY_CHANNELS"];
             Bot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
             Bot.PROJECT_CATEGORY_ID = config["PROJECT_CATEGORY"];
             Bot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
@@ -94,6 +94,12 @@ export default class Bot extends Client {
             Bot.CLIENT_ID = config["CLIENT_ID"];
             Bot.LEAD_ROLE_ID = config["lead_role_id"];
             Bot.STAFF_ROLE_ID = config["staff_role_id"];
+            Bot.DISCOVERY_CHANNELS = new Map();
+
+            console.log(typeof config["DISCOVERY_CHANNELS"]);
+
+            for (const type of Object.keys(config["DISCOVERY_CHANNELS"]))
+                Bot.DISCOVERY_CHANNELS.set(ProjectType[type as keyof typeof ProjectType], config["DISCOVERY_CHANNELS"][type]);
 
             bot.login(Bot.TOKEN);
         });

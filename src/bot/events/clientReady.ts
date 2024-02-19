@@ -12,7 +12,7 @@ module.exports = {
         var members = await guild.members.list();
 
         for (const [key, member] of members)
-            await database.updateStaffRoles(member.id);
+            await Database.updateStaffRoles(member.id);
 
         console.log(`Ready! Logged in as ${client.user.tag}`);
     }

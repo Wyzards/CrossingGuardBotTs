@@ -139,7 +139,7 @@ export default class Project {
             }
 
         if (!discoveryThreadExists) {
-            const discoveryThread = await discoveryChannel.threads.create({
+            await discoveryChannel.threads.create({
                 appliedTags: [],
                 message: this.channelMessage as GuildForumThreadMessageCreateOptions,
                 name: this.displayName,
