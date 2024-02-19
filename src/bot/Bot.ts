@@ -102,11 +102,6 @@ export default class Bot extends Client {
                 Bot.DISCOVERY_CHANNELS.set(ProjectType[type as keyof typeof ProjectType], config["DISCOVERY_CHANNELS"][type]);
 
             bot.login(Bot.TOKEN);
-
-            const projects = await Database.projectList();
-
-            for (const project of projects)
-                project.updateView();
         });
     }
 

@@ -21,6 +21,9 @@ const data = new SlashCommandBuilder()
                     .setDescription("The name of the project")
                     .setAutocomplete(true)
                     .setRequired(true)))
+    .addSubcommand(subcommand =>
+        subcommand.setName("updateviews")
+            .setDescription("Update the views for all projects"))
     // New Project Subcommand
     .addSubcommand(subcommand =>
         subcommand.setName("create")
@@ -306,6 +309,15 @@ async function execute(interaction: ChatInputCommandInteraction) {
         executeCreateProject(interaction);
     else if (subcommand == "delete")
         executeDeleteProject(interaction);
+    else if (subcommand == "updateviews")
+        executeUpdateViews(interaction);
+}
+
+async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
+    for (const project of await Database.projectList())
+        await project.updateView();
+
+    await interaction.reply({ content: `All project views have been updated`, ephemeral: true });
 }
 
 async function executeSetName(interaction: ChatInputCommandInteraction) {
