@@ -3,11 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Database from '../database/Database';
 import CommandManager from './CommandManager';
+import { ProjectType } from '../database/projects/ProjectType';
 
 const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
-export default class CrossingGuardBot extends Client {
+export default class Bot extends Client {
     public static HIDDEN_CHANNELS: Array<String> = [];
+    public static DISCOVERY_CHANNELS: Map<ProjectType, string>;
     public static ANNOUNCEMENT_CHANNEL_ID: string;
     public static DEFAULT_PING_ROLE_ID: string;
     private static TOKEN: string;
@@ -19,7 +21,7 @@ export default class CrossingGuardBot extends Client {
     public static LAST_ANNOUNCEMENT_GUILD_ID: string;
     public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
 
-    private static instance: CrossingGuardBot;
+    private static instance: Bot;
     private _commandManager;
 
     private constructor() {
@@ -38,8 +40,8 @@ export default class CrossingGuardBot extends Client {
     }
 
     public get guild(): Promise<Guild> {
-        if (CrossingGuardBot.GUILD_ID)
-            return this.guilds.fetch(CrossingGuardBot.GUILD_ID);
+        if (Bot.GUILD_ID)
+            return this.guilds.fetch(Bot.GUILD_ID);
         else
             throw new Error("Guild ID was not defined in environment variables");
     }
@@ -71,10 +73,10 @@ export default class CrossingGuardBot extends Client {
         }
     }
 
-    public static getInstance(): CrossingGuardBot {
-        if (CrossingGuardBot.instance == null)
-            CrossingGuardBot.instance = new CrossingGuardBot();
-        return CrossingGuardBot.instance;
+    public static getInstance(): Bot {
+        if (Bot.instance == null)
+            Bot.instance = new Bot();
+        return Bot.instance;
     }
 
     private async loadConfig() {
@@ -83,54 +85,50 @@ export default class CrossingGuardBot extends Client {
         fs.readFile(Database.CONFIG_PATH, 'utf8', async (err, data) => {
             const config = JSON.parse(data);
 
-            CrossingGuardBot.TOKEN = config["TOKEN"];
-            CrossingGuardBot.HIDDEN_CHANNELS = config["hidden_channels"];
-            CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
-            CrossingGuardBot.PROJECT_CATEGORY_ID = config["PROJECT_CATEGORY"];
-            CrossingGuardBot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
-            CrossingGuardBot.GUILD_ID = config["GUILD_ID"];
-            CrossingGuardBot.CLIENT_ID = config["CLIENT_ID"];
-            CrossingGuardBot.LEAD_ROLE_ID = config["lead_role_id"];
-            CrossingGuardBot.STAFF_ROLE_ID = config["staff_role_id"];
+            Bot.TOKEN = config["TOKEN"];
+            Bot.HIDDEN_CHANNELS = config["hidden_channels"];
+            Bot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
+            Bot.PROJECT_CATEGORY_ID = config["PROJECT_CATEGORY"];
+            Bot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
+            Bot.GUILD_ID = config["GUILD_ID"];
+            Bot.CLIENT_ID = config["CLIENT_ID"];
+            Bot.LEAD_ROLE_ID = config["lead_role_id"];
+            Bot.STAFF_ROLE_ID = config["staff_role_id"];
+            Bot.DISCOVERY_CHANNELS = new Map();
 
-            bot.login(CrossingGuardBot.TOKEN);
+            console.log(typeof config["DISCOVERY_CHANNELS"]);
+
+            for (const type of Object.keys(config["DISCOVERY_CHANNELS"]))
+                Bot.DISCOVERY_CHANNELS.set(ProjectType[type as keyof typeof ProjectType], config["DISCOVERY_CHANNELS"][type]);
+
+            bot.login(Bot.TOKEN);
         });
     }
 
-    public announce(message: Message | PartialMessage, isEdit = false) {
+    public async announce(message: Message | PartialMessage, isEdit = false) {
         const from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
         const to_guild = this.guilds.cache.first();
 
         if (to_guild == null || from_guild == null)
             throw new Error(`Sending or receiving guild for announcement was not findable`);
 
-        Database.getInstance().getProjectByGuild(from_guild).then(project => {
-            if (project == null)
-                roleId = CrossingGuardBot.DEFAULT_PING_ROLE_ID;
-            else
-                var roleId = project.roleId;
+        const project = await Database.getProjectByGuild(from_guild);
 
-            to_guild.channels.fetch(CrossingGuardBot.ANNOUNCEMENT_CHANNEL_ID).then(channel => {
-                const textChannel = channel as TextChannel;
+        Bot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
 
+        const channel = await to_guild.channels.fetch(Bot.ANNOUNCEMENT_CHANNEL_ID) as TextChannel;
+        const content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, project.roleId);
 
-
-                CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
-
-                var content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, roleId);
-
-                this.sendAnnouncement(content, message.embeds, message.attachments, textChannel);
-            });
-        });
+        this.sendAnnouncement(content, message.embeds, message.attachments, channel);
     }
 
     private buildAnnouncementContent(from_guild: string, content: string, isEdit: boolean, authorName: string, roleId: string): string {
-        var lastAnnouncementData = CrossingGuardBot.LAST_ANNOUNCEMENT_DATA.get(from_guild);
+        var lastAnnouncementData = Bot.LAST_ANNOUNCEMENT_DATA.get(from_guild);
         var includePing = lastAnnouncementData == undefined || (Date.now() - lastAnnouncementData.last_ping_time > ANNOUNCEMENT_PING_COOLDOWN_MS);
-        var includeHeading = CrossingGuardBot.LAST_ANNOUNCEMENT_GUILD_ID != from_guild || (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != authorName || isEdit);
+        var includeHeading = Bot.LAST_ANNOUNCEMENT_GUILD_ID != from_guild || (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != authorName || isEdit);
         var announcementHeading = `**${isEdit ? "Edited from an earlier message in" : "From"} ${authorName}**`;
 
-        CrossingGuardBot.LAST_ANNOUNCEMENT_DATA.set(from_guild, { channel_name: authorName, last_ping_time: (includePing ? Date.now() : lastAnnouncementData ? lastAnnouncementData.last_ping_time : Date.now()) });
+        Bot.LAST_ANNOUNCEMENT_DATA.set(from_guild, { channel_name: authorName, last_ping_time: (includePing ? Date.now() : lastAnnouncementData ? lastAnnouncementData.last_ping_time : Date.now()) });
 
         return `${includeHeading ? announcementHeading + "\n" : ""}${includePing ? `<@&${roleId}>\n\n` : ""}${content}`;
     }
@@ -144,13 +142,13 @@ export default class CrossingGuardBot extends Client {
 
             var messageToSend: MessageCreateOptions = {
                 content: sending.trim(),
-                allowedMentions: { parse: ['roles', 'users'] }
+                allowedMentions: { parse: ['users'] }
             };
 
             announcementContent = announcementContent.substring(sending.length, announcementContent.length);
 
             if (announcementContent.length < 1) {
-                messageToSend.files = CrossingGuardBot.parseAttachmentFileSizes(announcementContent, attachments);
+                messageToSend.files = Bot.parseAttachmentFileSizes(announcementContent, attachments);
                 messageToSend.embeds = embeds.filter(embed => { return !embed.video; });
             }
 

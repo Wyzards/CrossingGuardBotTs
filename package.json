@@ -3,7 +3,8 @@
     "async": "^3.2.5",
     "discord.js": "^14.13.0",
     "fs": "^0.0.1-security",
-    "mysql": "^2.18.1"
+    "mysql": "^2.18.1",
+    "mysql2": "^3.9.1"
   },
   "engines": {
     "node": ">=16.9"

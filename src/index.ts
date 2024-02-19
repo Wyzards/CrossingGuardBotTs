@@ -1,3 +1,3 @@
-import CrossingGuardBot from "./bot/CrossingGuardBot";
+import Bot from "./bot/Bot";
 
-const bot = CrossingGuardBot.getInstance();
+const bot = Bot.getInstance();

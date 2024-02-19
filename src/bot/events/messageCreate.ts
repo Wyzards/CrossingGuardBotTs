@@ -1,10 +1,10 @@
 import { Events, Message } from "discord.js";
-import CrossingGuardBot from "../CrossingGuardBot";
+import Bot from "../Bot";
 
 module.exports = {
     name: Events.MessageCreate,
     execute(message: Message<boolean>) {
-        if (CrossingGuardBot.HIDDEN_CHANNELS.includes(message.channelId))
-            CrossingGuardBot.getInstance().announce(message);
+        if (Bot.HIDDEN_CHANNELS.includes(message.channelId))
+            Bot.getInstance().announce(message);
     }
 }

@@ -6,6 +6,11 @@
         "CHANNEL1",
         "CHANNEL2"
     ],
+    "DISCOVERY_CHANNELS": {
+        "MMO": "channel id",
+        "SMP": "channel id",
+        "MAP": "channel id"
+    },
     "host": "host",
     "user": "user",
     "password": "password",
