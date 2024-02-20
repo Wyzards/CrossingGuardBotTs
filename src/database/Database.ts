@@ -61,7 +61,7 @@ export default class Database {
 
     public static guildBelongsToProject(guildId: string): Promise<boolean> {
         return new Promise(resolve => {
-            Database.getInstance().connection.query("SELECT count(*) FROM Projects WHERE guild_id = ?", [guildId], (err, results) => {
+            Database.getInstance().connection.query("SELECT count(*) as count FROM Projects WHERE guild_id = ?", [guildId], (err, results) => {
                 if (err)
                     throw err;
 
