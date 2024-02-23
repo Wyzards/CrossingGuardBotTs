@@ -1,4 +1,4 @@
-import { Attachment, AttachmentPayload, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField, TextChannel } from "discord.js";
+import { AnyThreadChannel, Attachment, AttachmentPayload, BaseChannel, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 import Bot from "../../bot/Bot";
 import Database from "../Database";
 import ProjectAttachment from "./ProjectAttachment";
@@ -7,6 +7,7 @@ import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from "./ProjectStaffRank";
 import { ProjectStatus } from "./ProjectStatus";
 import { ProjectType } from "./ProjectType";
+import Result from "../Result";
 
 export default class Project {
 
@@ -73,8 +74,16 @@ export default class Project {
         return content;
     }
 
-    public sendChannelMessage(channel: TextChannel) {
-        var content = "";
+    public getStarterMessage(): BaseMessageOptions {
+        if (this.attachments.length == 0)
+            return { content: "No Attachments (delete this)" };
+        else
+            return { content: "empty", files: this.attachments.map(attachment => attachment.sendableAttachment) };
+    }
+
+    public sendChannelMessage(channel: TextBasedChannel) {
+        var content = this.channelMessageContent();
+
         do {
             var maxSnippet = content.substring(0, 2000);
             var lastSpace = maxSnippet.lastIndexOf(' ');
@@ -87,9 +96,6 @@ export default class Project {
             };
 
             content = content.substring(sending.length, content.length);
-
-            if (content.length < 1)
-                messageToSend.files = this.attachments.map(attachment => attachment.sendableAttachment);
 
             channel.send(messageToSend);
         } while (content.length > 0);
@@ -109,6 +115,17 @@ export default class Project {
             topic: `Post anything related to ${this.displayName} here!`
         }) as ForumChannel;
 
+
+        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+
+        // Get post in discovery section
+        // Edit accordingly
+
+        this.updateChannelMessage(channel);
+        this.updateDiscovery();
+    }
+
+    public async updateChannelMessage(channel: ForumChannel) {
         const threads = await channel.threads.fetchActive();
         let forumChannelThreadExists = false;
 
@@ -120,7 +137,12 @@ export default class Project {
                 const starterMessage = await thread[1].fetchStarterMessage();
 
                 if (starterMessage)
-                    starterMessage.edit(this.channelMessage as MessageEditOptions);
+                    starterMessage.edit(this.getStarterMessage());
+
+                // Delete all other messages
+                // Send all other messages
+                thread[1].bulkDelete(await thread[1].messages.fetch());
+                this.sendChannelMessage(thread[1]);
 
                 forumChannelThreadExists = true;
             }
@@ -129,42 +151,36 @@ export default class Project {
         if (!forumChannelThreadExists) {
             const threadChannel = await channel.threads.create({
                 appliedTags: [channel.availableTags.filter(tag => tag.name == "About")[0].id],
-                message: this.channelMessage as GuildForumThreadMessageCreateOptions,
+                message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
                 name: this.displayName,
             });
+
+            this.sendChannelMessage(threadChannel as TextBasedChannel);
 
             threadChannel.pin();
             threadChannel.setLocked(true);
         }
+    }
 
-        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+    public async updateDiscovery() {
+        const result = await this.getDiscoveryThread();
 
-        // Get post in discovery section
-        // Edit accordingly
-        const discoveryChannel = await Database.getDiscoveryChannel(this.type);
-        const discoveryThreads = await discoveryChannel.threads.fetchActive();
-        let discoveryThreadExists = false;
+        if (result.success) {
+            const thread = result.result;
+            const starterMessage = await thread.fetchStarterMessage();
 
-        for (const discoveryThread of discoveryThreads.threads)
-            if (discoveryThread[1].name == this.displayName) {
-                const starterMessage = await discoveryThread[1].fetchStarterMessage();
-
-                // Delete all other messages in channel
-                // Send channelMessage broken apart
-                if (starterMessage) {
-                    starterMessage.edit(this.channelMessage as MessageEditOptions);
-                }
-
-                discoveryThreadExists = true;
-                break;
-            }
-
-        if (!discoveryThreadExists) {
-            await discoveryChannel.threads.create({
+            starterMessage?.edit(this.getStarterMessage());
+            thread.bulkDelete(await thread.messages.fetch());
+            this.sendChannelMessage(thread);
+        } else {
+            const channel = await Database.getDiscoveryChannel(this.type);
+            const thread = await channel.threads.create({
                 appliedTags: [],
-                message: this.channelMessage as GuildForumThreadMessageCreateOptions,
+                message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
                 name: ProjectStatus.channelIcon(this.status) + " " + this.displayName,
             });
+
+            this.sendChannelMessage(thread as TextBasedChannel);
         }
     }
 
@@ -399,15 +415,11 @@ export default class Project {
 
         const channel = await guild.channels.fetch(project.channelId);
         channel?.delete();
+        const result = await this.getDiscoveryThread();
 
-        const discoveryChannel = await Database.getDiscoveryChannel(project.type);
-        const discoveryThreads = await discoveryChannel.threads.fetchActive();
+        if (result.success)
+            result.result.delete();
 
-        for (const discoveryThread of discoveryThreads.threads)
-            if (discoveryThread[1].name == this.displayName) {
-                await discoveryThread[1].delete();
-                break;
-            }
 
         const role = await guild.roles.fetch(project.roleId);
         role?.delete();
@@ -416,5 +428,20 @@ export default class Project {
         database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
         database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
         database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
+    }
+
+    public async getDiscoveryThread(): Promise<Result<AnyThreadChannel<boolean>>> {
+        const discoveryChannel = await Database.getDiscoveryChannel(this.type);
+        const discoveryThreads = await discoveryChannel.threads.fetchActive();
+
+        for (const discoveryThread of discoveryThreads.threads)
+            if (discoveryThread[1].name == this.discoveryChannelName)
+                return new Result(discoveryThread[1], true);
+
+        return new Result<AnyThreadChannel<boolean>>(null, false);
+    }
+
+    public get discoveryChannelName(): string {
+        return ProjectStatus.channelIcon(this.status) + " " + this.name;
     }
 }
