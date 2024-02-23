@@ -1,4 +1,4 @@
-import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
+import { Attachment, AttachmentPayload, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField, TextChannel } from "discord.js";
 import Bot from "../../bot/Bot";
 import Database from "../Database";
 import ProjectAttachment from "./ProjectAttachment";
@@ -42,7 +42,7 @@ export default class Project {
         this._type = type;
     }
 
-    public get channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
+    public channelMessageContent(): string {
         let linksContent = this._links.length > 0 ? "> **Links**\n" : "";
         let staffContent = this._staff.length > 0 ? "> **Staff**\n" : "";
         let discordLink = this._links.filter(link => link.linkName === "Discord").length ? this._links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
@@ -68,13 +68,31 @@ export default class Project {
         if (this._staff.length > 0)
             staffContent += "\n";
 
-        var attachments: { attachment: string }[] = this._attachments.map(attachmentObj => { return { attachment: attachmentObj.url } });
+        const content = this.description + "\n\n" + (this._ip == null ? "" : `\`IP | ${this._ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : "");
 
-        return {
-            content: this.description + "\n\n" + (this._ip == null ? "" : `\`IP | ${this._ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
-            allowedMentions: { parse: ['roles'] },
-            files: attachments
-        };
+        return content;
+    }
+
+    public sendChannelMessage(channel: TextChannel) {
+        var content = "";
+        do {
+            var maxSnippet = content.substring(0, 2000);
+            var lastSpace = maxSnippet.lastIndexOf(' ');
+            var lastNewline = maxSnippet.lastIndexOf('\n');
+            var sending = maxSnippet.substring(0, (content.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+
+            var messageToSend: MessageCreateOptions = {
+                content: sending.trim(),
+                allowedMentions: { parse: ['users'] }
+            };
+
+            content = content.substring(sending.length, content.length);
+
+            if (content.length < 1)
+                messageToSend.files = this.attachments.map(attachment => attachment.sendableAttachment);
+
+            channel.send(messageToSend);
+        } while (content.length > 0);
     }
 
     public async updateView() {
@@ -131,8 +149,11 @@ export default class Project {
             if (discoveryThread[1].name == this.displayName) {
                 const starterMessage = await discoveryThread[1].fetchStarterMessage();
 
-                if (starterMessage)
+                // Delete all other messages in channel
+                // Send channelMessage broken apart
+                if (starterMessage) {
                     starterMessage.edit(this.channelMessage as MessageEditOptions);
+                }
 
                 discoveryThreadExists = true;
                 break;
@@ -142,7 +163,7 @@ export default class Project {
             await discoveryChannel.threads.create({
                 appliedTags: [],
                 message: this.channelMessage as GuildForumThreadMessageCreateOptions,
-                name: this.displayName,
+                name: ProjectStatus.channelIcon(this.status) + " " + this.displayName,
             });
         }
     }

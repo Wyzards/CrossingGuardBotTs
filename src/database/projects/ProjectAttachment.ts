@@ -1,3 +1,5 @@
+import { AttachmentPayload, JSONEncodable } from "discord.js";
+
 export default class ProjectLink {
 
     private _projectId: number;
@@ -20,6 +22,10 @@ export default class ProjectLink {
 
     public get url(): string {
         return this._url;
+    }
+
+    public get sendableAttachment(): AttachmentPayload {
+        return { attachment: this.url };
     }
 
 }
