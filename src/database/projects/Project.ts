@@ -126,39 +126,29 @@ export default class Project {
     }
 
     public async updateChannelMessage(channel: ForumChannel) {
-        const threads = await channel.threads.fetchActive();
-        let forumChannelThreadExists = false;
+        const result = await this.getChannelThread();
 
-        for (const thread of threads.threads) {
-            if (thread[1].flags.has(ChannelFlags.Pinned)) {
-                if (thread[1].name != this.displayName)
-                    thread[1].setName(this.displayName);
+        if (result.success) {
+            const thread = result.result;
+            if (thread.name != this.displayName)
+                thread.setName(this.displayName);
 
-                const starterMessage = await thread[1].fetchStarterMessage();
+            const starterMessage = await thread.fetchStarterMessage();
 
-                if (starterMessage)
-                    starterMessage.edit(this.getStarterMessage());
-
-                // Delete all other messages
-                // Send all other messages
-                thread[1].bulkDelete(await thread[1].messages.fetch());
-                this.sendChannelMessage(thread[1]);
-
-                forumChannelThreadExists = true;
-            }
-        }
-
-        if (!forumChannelThreadExists) {
-            const threadChannel = await channel.threads.create({
+            thread.bulkDelete(await thread.messages.fetch());
+            starterMessage?.edit(this.getStarterMessage());
+            this.sendChannelMessage(thread);
+        } else {
+            const thread = await channel.threads.create({
                 appliedTags: [channel.availableTags.filter(tag => tag.name == "About")[0].id],
                 message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
                 name: this.displayName,
             });
 
-            this.sendChannelMessage(threadChannel as TextBasedChannel);
+            thread.pin();
+            thread.setLocked(true);
 
-            threadChannel.pin();
-            threadChannel.setLocked(true);
+            this.sendChannelMessage(thread as TextBasedChannel);
         }
     }
 
@@ -177,7 +167,7 @@ export default class Project {
             const thread = await channel.threads.create({
                 appliedTags: [],
                 message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
-                name: ProjectStatus.channelIcon(this.status) + " " + this.displayName,
+                name: this.discoveryChannelName,
             });
 
             this.sendChannelMessage(thread as TextBasedChannel);
@@ -418,7 +408,7 @@ export default class Project {
         const result = await this.getDiscoveryThread();
 
         if (result.success)
-            result.result.delete();
+            await result.result.delete();
 
 
         const role = await guild.roles.fetch(project.roleId);
@@ -437,6 +427,18 @@ export default class Project {
         for (const discoveryThread of discoveryThreads.threads)
             if (discoveryThread[1].name == this.discoveryChannelName)
                 return new Result(discoveryThread[1], true);
+
+        return new Result<AnyThreadChannel<boolean>>(null, false);
+    }
+
+    public async getChannelThread(): Promise<Result<AnyThreadChannel<boolean>>> {
+        const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
+        const channel = await guild.channels.fetch(this.channelId) as ForumChannel;
+        const threads = await channel.threads.fetchActive();
+
+        for (const thread of threads.threads)
+            if (thread[1].flags.has(ChannelFlags.Pinned))
+                return new Result(thread[1], true);
 
         return new Result<AnyThreadChannel<boolean>>(null, false);
     }

@@ -10,9 +10,10 @@ export default class Result<T> {
     }
 
     public get result(): T {
-        if (!this.success)
+        if (this.success)
+            return this._result!;
+        else
             throw new Error("Tried to retrieve from a failed result");
-        return this.result;
     }
 
     public get success(): boolean {
