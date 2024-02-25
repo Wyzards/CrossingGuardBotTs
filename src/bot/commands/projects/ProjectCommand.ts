@@ -314,10 +314,18 @@ async function execute(interaction: ChatInputCommandInteraction) {
 }
 
 async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
-    for (const project of await Database.projectList())
-        await project.updateView();
+    const projects = await Database.projectList();
+    var count = 0;
 
-    await interaction.reply({ content: `All project views have been updated`, ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
+
+    for (const project of projects) {
+        count++;
+        await project.updateView();
+        await interaction.editReply(`Edited ${count}/${projects.length} project views`);
+    }
+
+    await interaction.editReply({ content: `All project views have been updated` });
 }
 
 async function executeSetName(interaction: ChatInputCommandInteraction) {
