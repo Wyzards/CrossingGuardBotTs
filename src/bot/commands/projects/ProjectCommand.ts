@@ -325,7 +325,7 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
         await interaction.editReply(`Edited ${count}/${projects.length} project views`);
     }
 
-    await interaction.editReply({ content: `All project views have been updated` });
+    await interaction.editReply(`All project views have been updated`);
 }
 
 async function executeSetName(interaction: ChatInputCommandInteraction) {
