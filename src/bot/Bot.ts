@@ -96,8 +96,6 @@ export default class Bot extends Client {
             Bot.STAFF_ROLE_ID = config["staff_role_id"];
             Bot.DISCOVERY_CHANNELS = new Map();
 
-            console.log(typeof config["DISCOVERY_CHANNELS"]);
-
             for (const type of Object.keys(config["DISCOVERY_CHANNELS"]))
                 Bot.DISCOVERY_CHANNELS.set(ProjectType[type as keyof typeof ProjectType], config["DISCOVERY_CHANNELS"][type]);
 
@@ -154,7 +152,7 @@ export default class Bot extends Client {
             announcementContent = announcementContent.substring(sending.length, announcementContent.length);
 
             if (announcementContent.length < 1) {
-                messageToSend.files = Bot.parseAttachmentFileSizes(announcementContent, attachments);
+                messageToSend.files = Bot.parseAttachmentFileSizes(announcementContent, Array.from(attachments.values()));
                 messageToSend.embeds = embeds.filter(embed => { return !embed.video; });
             }
 
@@ -162,7 +160,7 @@ export default class Bot extends Client {
         } while (announcementContent.length > 0);
     }
 
-    private static parseAttachmentFileSizes(announcementContent: string, attachments: Collection<String, Attachment>): Attachment[] {
+    public static parseAttachmentFileSizes(announcementContent: string, attachments: Attachment[]): Attachment[] {
         var files = [];
 
         for (const attachment of Array.from(attachments.values())) {
