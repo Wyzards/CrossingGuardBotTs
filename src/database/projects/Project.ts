@@ -1,4 +1,4 @@
-import { AnyThreadChannel, Attachment, AttachmentPayload, BaseChannel, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, PermissionsBitField, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
+import { AnyThreadChannel, Attachment, AttachmentPayload, BaseChannel, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, MessageFlags, PermissionsBitField, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 import Bot from "../../bot/Bot";
 import Database from "../Database";
 import ProjectAttachment from "./ProjectAttachment";
@@ -44,8 +44,8 @@ export default class Project {
     }
 
     public channelMessageContent(): string {
-        let linksContent = this._links.length > 0 ? "> **Links**\n" : "";
-        let staffContent = this._staff.length > 0 ? "> **Staff**\n" : "";
+        let linksContent = this._links.length > 0 ? "# Links\n" : "";
+        let staffContent = this._staff.length > 0 ? "# Staff\n" : "";
         let discordLink = this._links.filter(link => link.linkName === "Discord").length ? this._links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
 
         this._links.forEach(link => {
@@ -69,22 +69,22 @@ export default class Project {
         if (this._staff.length > 0)
             staffContent += "\n";
 
-        const content = this.description + "\n\n" + (this._ip == null ? "" : `\`IP | ${this._ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : "");
+        const content = (this.attachments.length > 0 ? this.description + "\n\n" : "") + (this._ip == null ? "" : `\`IP | ${this._ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : "");
 
         return content;
     }
 
     public getStarterMessage(): BaseMessageOptions {
         if (this.attachments.length == 0)
-            return { content: "No Attachments (delete this)" };
+            return { content: this.description == null ? "# " + this.displayName : this.description };
         else
-            return { content: "empty", files: this.attachments.map(attachment => attachment.sendableAttachment) };
+            return { content: "", files: this.attachments.map(attachment => attachment.sendableAttachment) };
     }
 
     public sendChannelMessage(channel: TextBasedChannel) {
         var content = this.channelMessageContent();
 
-        do {
+        while (content.length > 0) {
             var maxSnippet = content.substring(0, 2000);
             var lastSpace = maxSnippet.lastIndexOf(' ');
             var lastNewline = maxSnippet.lastIndexOf('\n');
@@ -92,13 +92,14 @@ export default class Project {
 
             var messageToSend: MessageCreateOptions = {
                 content: sending.trim(),
-                allowedMentions: { parse: ['users'] }
+                allowedMentions: { parse: [] },
+                flags: MessageFlags.SuppressEmbeds
             };
 
             content = content.substring(sending.length, content.length);
 
             channel.send(messageToSend);
-        } while (content.length > 0);
+        }
     }
 
     public async updateView() {
@@ -134,9 +135,14 @@ export default class Project {
                 thread.setName(this.displayName);
 
             const starterMessage = await thread.fetchStarterMessage();
+            const messages = await thread.messages.fetch();
 
-            thread.bulkDelete(await thread.messages.fetch());
-            starterMessage?.edit(this.getStarterMessage());
+            if (starterMessage) {
+                starterMessage.edit(this.getStarterMessage());
+                messages.delete(starterMessage.id);
+            }
+
+            thread.bulkDelete(messages);
             this.sendChannelMessage(thread);
         } else {
             const thread = await channel.threads.create({
@@ -158,9 +164,14 @@ export default class Project {
         if (result.success) {
             const thread = result.result;
             const starterMessage = await thread.fetchStarterMessage();
+            const messages = await thread.messages.fetch();
 
-            starterMessage?.edit(this.getStarterMessage());
-            thread.bulkDelete(await thread.messages.fetch());
+            if (starterMessage) {
+                starterMessage.edit(this.getStarterMessage());
+                messages.delete(starterMessage.id);
+            }
+
+            thread.bulkDelete(messages);
             this.sendChannelMessage(thread);
         } else {
             const channel = await Database.getDiscoveryChannel(this.type);
@@ -444,6 +455,6 @@ export default class Project {
     }
 
     public get discoveryChannelName(): string {
-        return ProjectStatus.channelIcon(this.status) + " " + this.name;
+        return ProjectStatus.channelIcon(this.status) + " " + this.displayName;
     }
 }
