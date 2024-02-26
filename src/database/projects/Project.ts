@@ -142,10 +142,8 @@ export default class Project {
                 messages.delete(starterMessage.id);
             }
 
-            await thread.bulkDelete(messages, true);
-
             for (const message of messages.values())
-                if (!message.bulkDeletable)
+                if (!message.system)
                     await thread.messages.delete(message);
 
             this.sendChannelMessage(thread);
@@ -176,10 +174,8 @@ export default class Project {
                 messages.delete(starterMessage.id);
             }
 
-            await thread.bulkDelete(messages, true);
-
             for (const message of messages.values())
-                if (!message.bulkDeletable)
+                if (!message.system)
                     await thread.messages.delete(message);
 
             this.sendChannelMessage(thread);
