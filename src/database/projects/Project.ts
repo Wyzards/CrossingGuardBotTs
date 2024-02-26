@@ -142,7 +142,12 @@ export default class Project {
                 messages.delete(starterMessage.id);
             }
 
-            thread.bulkDelete(messages);
+            await thread.bulkDelete(messages, true);
+
+            for (const message of messages.values())
+                if (!message.bulkDeletable)
+                    await thread.messages.delete(message);
+
             this.sendChannelMessage(thread);
         } else {
             const thread = await channel.threads.create({
@@ -171,7 +176,12 @@ export default class Project {
                 messages.delete(starterMessage.id);
             }
 
-            thread.bulkDelete(messages);
+            await thread.bulkDelete(messages, true);
+
+            for (const message of messages.values())
+                if (!message.bulkDeletable)
+                    await thread.messages.delete(message);
+
             this.sendChannelMessage(thread);
         } else {
             const channel = await Database.getDiscoveryChannel(this.type);

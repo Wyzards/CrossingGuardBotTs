@@ -6,4 +6,4 @@ module.exports = {
     execute(rateLimitData: RateLimitData) {
         console.log(rateLimitData);
     }
-}
+} 
