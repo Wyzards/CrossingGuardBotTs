@@ -1,4 +1,5 @@
 import { ColorResolvable } from "discord.js";
+import Result from "../Result";
 
 enum ProjectStatus {
     PLAYABLE = 0,
@@ -32,6 +33,17 @@ namespace ProjectStatus {
                 return "🔴";
             default:
                 return "⚫";
+        }
+    }
+
+    export function discoveryTag(status: ProjectStatus): Result<string> {
+        switch (status) {
+            case ProjectStatus.PLAYABLE:
+                return new Result("Playable", true);
+            case ProjectStatus.IN_DEVELOPMENT:
+                return new Result("In Development", true);
+            default:
+                return new Result<string>(null, false);
         }
     }
 }

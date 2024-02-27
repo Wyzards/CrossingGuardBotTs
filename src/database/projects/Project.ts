@@ -1,13 +1,13 @@
-import { AnyThreadChannel, Attachment, AttachmentPayload, BaseChannel, BaseMessageOptions, ChannelFlags, Collection, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageEditOptions, MessageFlags, PermissionsBitField, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
+import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTag, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
 import Bot from "../../bot/Bot";
 import Database from "../Database";
+import Result from "../Result";
 import ProjectAttachment from "./ProjectAttachment";
 import ProjectLink from "./ProjectLink";
 import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from "./ProjectStaffRank";
 import { ProjectStatus } from "./ProjectStatus";
 import { ProjectType } from "./ProjectType";
-import Result from "../Result";
 
 export default class Project {
 
@@ -104,7 +104,38 @@ export default class Project {
 
     public async updateView() {
         const guild = await Bot.getInstance().guild;
-        const channel = await guild.channels.edit(this.channelId, {
+
+
+        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+
+
+        this.updateChannel();
+        this.updateDiscovery();
+    }
+
+    public async getChannel(): Promise<Result<ForumChannel>> {
+        const guild = await Bot.getInstance().guild;
+        const channel = await guild.channels.fetch(this.channelId);
+
+        if (channel == null)
+            return new Result<ForumChannel>(null, false);
+        else
+            return new Result(channel as ForumChannel, true);
+    }
+
+    public async updateChannel() {
+        const guild = await Bot.getInstance().guild;
+        const channelResult = await this.getChannel();
+        var projectChannel: ForumChannel;
+
+        if (channelResult.exists) {
+            projectChannel = channelResult.result;
+        } else {
+            const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
+            projectChannel = await Project.makeBlankChannel(this.name, category);
+        }
+
+        await projectChannel.edit({
             permissionOverwrites: (this.status == ProjectStatus.HIDDEN ? [
                 {
                     id: guild.roles.everyone.id,
@@ -114,23 +145,12 @@ export default class Project {
             defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
             name: ProjectStatus.channelIcon(this.status) + this.name,
             topic: `Post anything related to ${this.displayName} here!`
-        }) as ForumChannel;
+        });
 
+        const pinnedThreadResult = await Project.getPinnedInForum(projectChannel);
 
-        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
-
-        // Get post in discovery section
-        // Edit accordingly
-
-        this.updateChannelMessage(channel);
-        this.updateDiscovery();
-    }
-
-    public async updateChannelMessage(channel: ForumChannel) {
-        const result = await this.getChannelThread();
-
-        if (result.success) {
-            const thread = result.result;
+        if (pinnedThreadResult.exists) {
+            const thread = pinnedThreadResult.result;
             if (thread.name != this.displayName)
                 thread.setName(this.displayName);
 
@@ -148,8 +168,8 @@ export default class Project {
 
             this.sendChannelMessage(thread);
         } else {
-            const thread = await channel.threads.create({
-                appliedTags: [channel.availableTags.filter(tag => tag.name == "About")[0].id],
+            const thread = await projectChannel.threads.create({
+                appliedTags: [projectChannel.availableTags.find(tag => tag.name == "About")!.id],
                 message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
                 name: this.displayName,
             });
@@ -161,34 +181,63 @@ export default class Project {
         }
     }
 
+    public static async getDiscoveryChannel(): Promise<ForumChannel> {
+        const guild = await Bot.getInstance().guild;
+        const channel = await guild.channels.fetch(Bot.DISCOVERY_CHANNEL_ID);
+
+        return channel as ForumChannel;
+    }
+
     public async updateDiscovery() {
-        const result = await this.getDiscoveryThread();
+        const discoveryThreadResult = await this.getDiscoveryThread();
+        var discoveryThread: AnyThreadChannel<boolean>;
 
-        if (result.success) {
-            const thread = result.result;
-            const starterMessage = await thread.fetchStarterMessage();
-            const messages = await thread.messages.fetch();
-
-            if (starterMessage) {
-                starterMessage.edit(this.getStarterMessage());
-                messages.delete(starterMessage.id);
-            }
-
-            for (const message of messages.values())
-                if (!message.system)
-                    await thread.messages.delete(message);
-
-            this.sendChannelMessage(thread);
+        if (discoveryThreadResult.exists) {
+            discoveryThread = discoveryThreadResult.result;
+            await discoveryThread.edit({ appliedTags: await this.getDiscoveryTags() });
         } else {
-            const channel = await Database.getDiscoveryChannel(this.type);
-            const thread = await channel.threads.create({
-                appliedTags: [],
-                message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
-                name: this.discoveryChannelName,
-            });
-
-            this.sendChannelMessage(thread as TextBasedChannel);
+            discoveryThread = await this.createDiscoveryThread();
         }
+
+        const starterMessage = await discoveryThread.fetchStarterMessage();
+        const messages = await discoveryThread.messages.fetch();
+
+        if (starterMessage) {
+            starterMessage.edit(this.getStarterMessage());
+            messages.delete(starterMessage.id);
+        }
+
+        for (const message of messages.values())
+            if (!message.system)
+                await discoveryThread.messages.delete(message);
+
+        this.sendChannelMessage(discoveryThread);
+    }
+
+    public async createDiscoveryThread() {
+        const discoveryChannel = await Project.getDiscoveryChannel();
+        const discoveryThread = await discoveryChannel.threads.create({
+            appliedTags: await this.getDiscoveryTags(),
+            message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
+            name: this.discoveryChannelName,
+        }) as AnyThreadChannel<boolean>;
+
+        return discoveryThread;
+    }
+
+    public async getDiscoveryTags(): Promise<string[]> {
+        const tags = [];
+        const availableTags = (await Project.getDiscoveryChannel()).availableTags;
+        const statusTagResult = ProjectStatus.discoveryTag(this.status);
+        const projectTypeTagResult = ProjectType.discoveryTag(this.type);
+
+        if (statusTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
+
+        if (projectTypeTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+
+        return tags;
     }
 
     public get id(): number {
@@ -424,7 +473,7 @@ export default class Project {
         channel?.delete();
         const result = await this.getDiscoveryThread();
 
-        if (result.success)
+        if (result.exists)
             await result.result.delete();
 
 
@@ -438,7 +487,7 @@ export default class Project {
     }
 
     public async getDiscoveryThread(): Promise<Result<AnyThreadChannel<boolean>>> {
-        const discoveryChannel = await Database.getDiscoveryChannel(this.type);
+        const discoveryChannel = await Project.getDiscoveryChannel();
         const discoveryThreads = await discoveryChannel.threads.fetchActive();
 
         for (const discoveryThread of discoveryThreads.threads)
@@ -448,10 +497,8 @@ export default class Project {
         return new Result<AnyThreadChannel<boolean>>(null, false);
     }
 
-    public async getChannelThread(): Promise<Result<AnyThreadChannel<boolean>>> {
-        const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
-        const channel = await guild.channels.fetch(this.channelId) as ForumChannel;
-        const threads = await channel.threads.fetchActive();
+    public static async getPinnedInForum(forum: ForumChannel): Promise<Result<AnyThreadChannel<boolean>>> {
+        const threads = await forum.threads.fetchActive();
 
         for (const thread of threads.threads)
             if (thread[1].flags.has(ChannelFlags.Pinned))
@@ -462,5 +509,21 @@ export default class Project {
 
     public get discoveryChannelName(): string {
         return ProjectStatus.channelIcon(this.status) + " " + this.displayName;
+    }
+
+    public static async makeBlankChannel(name: string, category: CategoryChannel) {
+        const guild = await Bot.getInstance().guild;
+
+        return await guild.channels.create({
+            name: name,
+            type: ChannelType.GuildForum,
+            parent: category.id,
+            availableTags: [
+                { name: "About", moderated: true },
+                { name: "General" },
+                { name: "Announcement", moderated: true },
+                { name: "Review" }
+            ]
+        });
     }
 }
