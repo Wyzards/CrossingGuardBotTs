@@ -575,7 +575,7 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     if (!projectName || !displayName || !type)
         return;
 
-    Database.createNewProject(projectName, displayName, ProjectType[type as keyof typeof ProjectType]);
+    Database.createNewProject(projectName, displayName, ProjectType.fromString(type).result);
 
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }

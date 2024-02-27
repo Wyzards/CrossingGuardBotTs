@@ -1,5 +1,5 @@
 import * as async from "async";
-import { ChannelType, ForumChannel } from 'discord.js';
+import { CategoryChannel, ChannelType, ForumChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as mysql from 'mysql';
 import Bot from "../bot/Bot";
@@ -107,18 +107,6 @@ export default class Database {
             await member.roles.remove(Bot.LEAD_ROLE_ID);
             await member.roles.remove(Bot.STAFF_ROLE_ID);
         }
-    }
-
-    public static async getDiscoveryChannel(projectType: ProjectType): Promise<ForumChannel> {
-        const channelId = Bot.DISCOVERY_CHANNELS.get(projectType);
-
-        if (!channelId)
-            throw new Error("There is no discovery channel for that project type!");
-
-        const guild = await Bot.getInstance().guild;
-        const channel = await guild.channels.fetch(channelId);
-
-        return channel as ForumChannel;
     }
 
     public static projectList(): Promise<Project[]> {
@@ -231,29 +219,19 @@ export default class Database {
         return project;
     }
 
+
     public static async createNewProject(name: string, displayName: string, type: ProjectType): Promise<Project> {
         const guild = await Bot.getInstance().guild;
         const role = await guild.roles.create({
             hoist: true,
             name: displayName
         });
-        const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID)
+        const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
 
         if (!category)
             throw new Error(`Category channel does not exist`);
 
-        const channel = await guild.channels.create({
-            name: name,
-            type: ChannelType.GuildForum,
-            parent: category.id,
-            availableTags: [
-                { name: "About", moderated: true },
-                { name: "General" },
-                { name: "Announcement", moderated: true },
-                { name: "Review" }
-            ]
-        });
-
+        const channel = await Project.makeBlankChannel(name, category);
         const project = await Database.addProject(name, displayName, channel.id, role.id, type);
 
         return project;
