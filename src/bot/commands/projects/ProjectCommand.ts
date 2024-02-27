@@ -323,7 +323,6 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
         count++;
         await project.updateView();
         await interaction.editReply(`Edited ${count}/${projects.length} project views`);
-        await interaction.followUp({ content: `Edited ${project.discoveryChannelName}`, ephemeral: true });
     }
 }
 
