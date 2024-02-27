@@ -143,7 +143,7 @@ export default class Project {
                 }
             ] : []),
             defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
-            name: ProjectStatus.channelIcon(this.status) + this.name,
+            name: ProjectStatus.channelIcon(this.status) + "｜" + this.name,
             topic: `Post anything related to ${this.displayName} here!`
         });
 
