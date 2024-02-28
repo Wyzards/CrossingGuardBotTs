@@ -484,7 +484,7 @@ export default class Project {
         // database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
         // database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
         // database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
-        database.connection.query("UPDATE TABLE Projects SET deleted=? WHERE project_id = ?", [true, this.id]);
+        database.connection.query("UPDATE Projects SET deleted = ? WHERE project_id = ?", [true, this.id]);
     }
 
     public async getDiscoveryThread(): Promise<Result<AnyThreadChannel<boolean>>> {
