@@ -11,7 +11,7 @@ import { ProjectType } from "../../../database/projects/ProjectType";
 const data = new SlashCommandBuilder()
     .setName("project")
     .setDescription("Manage, create and modify projects")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
     // Delete Project Subcommand
     .addSubcommand(subcommand =>
         subcommand.setName("delete")
