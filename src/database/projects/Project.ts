@@ -436,23 +436,23 @@ export default class Project {
         const members = await guild.members.fetch();
         const database = Database.getInstance();
 
-        database.connection.query("SELECT * FROM Project_Staff", (err, data) => {
+        database.connection.query("SELECT * FROM Project_Staff", (err, staffData) => {
             for (const staff of project.staff) {
                 var rank = null;
 
-                for (const row of data) {
+                for (const staffEntry of staffData) {
                     // If is same project, ignore
                     // Else if is same userId and head, cache head and break
                     // If just staff, cache staff and keep going
-                    if (row["project_id"] == staff.projectId)
+                    if (staffEntry["project_id"] == staff.projectId)
                         continue;
 
-                    if (row["user_id"] == staff.discordUserId)
-                        if (+row["staff_rank"] == ProjectStaffRank.LEAD) {
+                    if (staffEntry["user_id"] == staff.discordUserId)
+                        if (+staffEntry["staff_rank"] == ProjectStaffRank.LEAD) {
                             rank = ProjectStaffRank.LEAD;
                             break;
                         } else
-                            rank = +row["staff_rank"];
+                            rank = +staffEntry["staff_rank"];
                 }
 
                 if (rank == null) {
@@ -471,19 +471,20 @@ export default class Project {
 
         const channel = await guild.channels.fetch(project.channelId);
         channel?.delete();
-        const result = await this.getDiscoveryThread();
+        const discoveryThreadResult = await this.getDiscoveryThread();
 
-        if (result.exists)
-            await result.result.delete();
+        if (discoveryThreadResult.exists)
+            await discoveryThreadResult.result.delete();
 
 
         const role = await guild.roles.fetch(project.roleId);
         role?.delete();
 
-        database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
-        database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
-        database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
-        database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
+        // database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
+        // database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
+        // database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
+        // database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
+        database.connection.query("UPDATE TABLE Projects SET deleted=? WHERE project_id = ?", [true, this.id]);
     }
 
     public async getDiscoveryThread(): Promise<Result<AnyThreadChannel<boolean>>> {
