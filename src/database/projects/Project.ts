@@ -140,6 +140,10 @@ export default class Project {
                 {
                     id: guild.roles.everyone.id,
                     deny: [PermissionsBitField.Flags.ViewChannel]
+                },
+                {
+                    id: "1212483271821234216",
+                    allow: [PermissionsBitField.Flags.ViewChannel]
                 }
             ] : []),
             defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
