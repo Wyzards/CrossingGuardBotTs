@@ -492,18 +492,35 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     if (!interaction.channel || !msgId || !projectName)
         return;
 
-    const message = await interaction.channel.messages.fetch(msgId);
-    const project = await Database.getProjectByName(projectName);
+    if (isNaN(Number(msgId))) {
+        await interaction.reply({ content: "You must provide a valid message ID for the description", ephemeral: true });
+        return;
+    }
 
-    var newAttachments: ProjectAttachment[] = [];
+    try {
+        const message = await interaction.channel.messages.fetch(msgId);
+        const project = await Database.getProjectByName(projectName);
 
-    for (const attachment of message.attachments.values())
-        newAttachments.push(new ProjectAttachment(project.id, 0, attachment.url));
+        var newAttachments: ProjectAttachment[] = [];
 
-    project.attachments = newAttachments;
-    project.save();
+        for (const attachment of message.attachments.values())
+            newAttachments.push(new ProjectAttachment(project.id, 0, attachment.url));
 
-    await interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
+        project.attachments = newAttachments;
+        project.save();
+
+        await interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.message == "Unknown Message") {
+                await interaction.reply({ content: "You must input the ID of a valid message for this command", ephemeral: true })
+                return;
+            }
+        }
+
+        await interaction.reply({ content: "An internal error occurred. Yell at Theeef!", ephemeral: true });
+        console.error(error);
+    }
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {
@@ -513,14 +530,31 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
     if (!projectName || !descriptionMessageId || !interaction.channel)
         return;
 
-    const message = await interaction.channel.messages.fetch(descriptionMessageId);
-    const description = message.content;
-    const project = await Database.getProjectByName(projectName);
+    if (isNaN(Number(descriptionMessageId))) {
+        await interaction.reply({ content: "You must provide a valid message ID for the description", ephemeral: true });
+        return;
+    }
 
-    project.description = description;
-    project.save();
+    try {
+        const message = await interaction.channel.messages.fetch(descriptionMessageId)
+        const description = message.content;
+        const project = await Database.getProjectByName(projectName);
 
-    await interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
+        project.description = description;
+        project.save();
+
+        await interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (error.message == "Unknown Message") {
+                await interaction.reply({ content: "You must input the ID of a valid message for this command", ephemeral: true })
+                return;
+            }
+        }
+
+        await interaction.reply({ content: "An internal error occurred. Yell at Theeef!", ephemeral: true });
+        console.error(error);
+    }
 }
 
 async function executeSetEmoji(interaction: ChatInputCommandInteraction) {

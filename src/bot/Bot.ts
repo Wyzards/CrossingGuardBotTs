@@ -19,6 +19,7 @@ export default class Bot extends Client {
     public static LEAD_ROLE_ID: string;
     public static LAST_ANNOUNCEMENT_GUILD_ID: string;
     public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
+    public static INTAKE_ROLE_ID: string;
 
     private static instance: Bot;
     private _commandManager;
@@ -93,6 +94,7 @@ export default class Bot extends Client {
             Bot.LEAD_ROLE_ID = config["lead_role_id"];
             Bot.STAFF_ROLE_ID = config["staff_role_id"];
             Bot.DISCOVERY_CHANNEL_ID = config["DISCOVERY_CHANNEL_ID"]
+            Bot.INTAKE_ROLE_ID = config["INTAKE_ROLE_ID"];
 
             bot.login(Bot.TOKEN);
         });
