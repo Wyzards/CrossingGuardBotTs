@@ -15,5 +15,6 @@
     "lead_role_id": "ID",
     "staff_role_id": "ID",
     "announcement_channel_id": "ID",
-    "PROJECT_CATEGORY": "ID"
+    "PROJECT_CATEGORY": "ID",
+    "INTAKE_ROLE_ID": "ID"
 }

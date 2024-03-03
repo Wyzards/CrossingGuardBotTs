@@ -142,7 +142,7 @@ export default class Project {
                     deny: [PermissionsBitField.Flags.ViewChannel]
                 },
                 {
-                    id: "1212483271821234216",
+                    id: Bot.INTAKE_ROLE_ID,
                     allow: [PermissionsBitField.Flags.ViewChannel]
                 }
             ] : []),
