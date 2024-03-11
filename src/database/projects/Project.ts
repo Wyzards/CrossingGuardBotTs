@@ -193,6 +193,9 @@ export default class Project {
     }
 
     public async updateDiscovery() {
+        if (this.status == ProjectStatus.HIDDEN)
+            return;
+
         const discoveryThreadResult = await this.getDiscoveryThread();
         var discoveryThread: AnyThreadChannel<boolean>;
 
