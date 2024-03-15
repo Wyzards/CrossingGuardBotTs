@@ -333,7 +333,14 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !newName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const projectWithSameName = await Database.getProjectByName(projectName);
+
+    if (projectWithSameName.exists) {
+        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
+        return;
+    }
+
+    const project = (await Database.getProjectByName(projectName)).result;
     const nameBefore = project.name;
 
     project.setName(newName);
@@ -348,7 +355,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !displayName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     var nameBefore = project.displayName;
 
@@ -363,7 +370,7 @@ async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     project.delete();
 
@@ -377,7 +384,7 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName || !user)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
     project.save();
@@ -393,7 +400,7 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
     if (!projectName || !linkName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     project.links = project.links.filter(link => link.linkName !== linkName);
     project.save();
@@ -407,7 +414,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     let reply = project.displayName + "'s Staff\n--------------------\n";
 
@@ -425,7 +432,7 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName || !user || !rank)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     if (project.addStaff(new ProjectStaff(project.id, user.id, +rank))) {
         project.save();
@@ -443,7 +450,7 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
     let reply = project.displayName + "'s Links\n--------------------\n";
 
     for (const link of project.links)
@@ -460,7 +467,7 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
     if (!projectName || !linkName || !linkURL)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
     project.links.push(new ProjectLink(project.id, 0, linkName, linkURL));
     // MAY CAUSE ERROR, MAY NEED TO GET LINKS, PUSH, THEN SET
 
@@ -477,7 +484,7 @@ async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     if (!projectName || !guildId)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     project.guildId = guildId;
     project.save();
@@ -499,7 +506,7 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
 
     try {
         const message = await interaction.channel.messages.fetch(msgId);
-        const project = await Database.getProjectByName(projectName);
+        const project = (await Database.getProjectByName(projectName)).result;
 
         var newAttachments: ProjectAttachment[] = [];
 
@@ -538,7 +545,7 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
     try {
         const message = await interaction.channel.messages.fetch(descriptionMessageId)
         const description = message.content;
-        const project = await Database.getProjectByName(projectName);
+        const project = (await Database.getProjectByName(projectName)).result;
 
         project.description = description;
         project.save();
@@ -564,7 +571,7 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
     if (!projectName || !emojiIdOrUnicode)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
     project.emoji = emojiIdOrUnicode;
     project.save();
 
@@ -578,7 +585,7 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction) {
     if (!projectName || !status)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
     project.status = +status;
     project.save();
 
@@ -592,7 +599,7 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
     if (!projectName || !ipString)
         return;
 
-    const project = await Database.getProjectByName(projectName);
+    const project = (await Database.getProjectByName(projectName)).result;
 
     project.ip = ipString;
     project.save();
@@ -607,6 +614,13 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
 
     if (!projectName || !displayName || !type)
         return;
+
+    const projectWithSameName = await Database.getProjectByName(projectName);
+
+    if (projectWithSameName.exists) {
+        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
+        return;
+    }
 
     Database.createNewProject(projectName, displayName, ProjectType.fromString(type).result);
 

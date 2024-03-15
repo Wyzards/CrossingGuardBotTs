@@ -10,6 +10,7 @@ import ProjectStaff from "./projects/ProjectStaff";
 import { ProjectStaffRank } from './projects/ProjectStaffRank';
 import { ProjectStatus } from "./projects/ProjectStatus";
 import { ProjectType } from "./projects/ProjectType";
+import Result from "./Result";
 
 export default class Database {
 
@@ -70,11 +71,11 @@ export default class Database {
         });
     }
 
-    public static getProjectByGuild(guildId: string): Promise<Project> {
+    public static getProjectByGuild(guildId: string): Promise<Result<Project>> {
         return Database.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);
     }
 
-    public static getProjectByName(projectName: string): Promise<Project> {
+    public static getProjectByName(projectName: string): Promise<Result<Project>> {
         return Database.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
     }
 
@@ -110,14 +111,14 @@ export default class Database {
     }
 
     public static projectList(): Promise<Project[]> {
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             Database.getInstance().connection.query("SELECT name FROM Projects WHERE NOT deleted", async (err, results) => {
                 if (err) {
                     throw err;
                 }
 
-                const allResults = await Promise.all(results.map((projectName: { name: string }) => {
-                    return Database.getProjectByName(projectName["name"]);
+                const allResults = await Promise.all(results.map(async (projectName: { name: string }) => {
+                    return (await Database.getProjectByName(projectName["name"])).result;
                 }));
 
                 resolve(allResults as Project[]);
@@ -125,7 +126,7 @@ export default class Database {
         });
     }
 
-    private static getProject(query: string, identifier: string): Promise<Project> {
+    private static getProject(query: string, identifier: string): Promise<Result<Project>> {
         const database = Database.getInstance();
 
         return new Promise((resolve) => {
@@ -133,8 +134,10 @@ export default class Database {
                 if (err)
                     throw err;
 
-                if (projectData == null || projectData.length == 0)
-                    throw new Error("Failed to retrieve project by identifier");
+                if (projectData == null || projectData.length == 0) {
+                    resolve(new Result<Project>(null, false));
+                    return;
+                }
 
                 projectData = projectData[0];
                 var emojiString: string = projectData["emoji"];
@@ -158,7 +161,7 @@ export default class Database {
                     if (err)
                         throw err;
 
-                    resolve(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.emoji, project.ipString, project.roleId, project.links, project.staff, project.attachments, project.type));
+                    resolve(new Result(new Project(project.id, project.channelId, project.name, project.displayName, project.status, project.description, project.guildId, project.emoji, project.ipString, project.roleId, project.links, project.staff, project.attachments, project.type), true));
                 });
 
                 function links(callback: Function) {
@@ -209,7 +212,7 @@ export default class Database {
     public static async addProject(name: string, displayName: string, channelId: string, roleId: string, type: ProjectType): Promise<Project> {
         Database.getInstance().connection.query(`INSERT INTO Projects (name, display_name, channel_id, status, role_id, type) VALUES (?, ?, ?, ?, ?, ?)`, [name, displayName, channelId, ProjectStatus.HIDDEN, roleId, type]);
 
-        const project = await Database.getProjectByName(name);
+        const project = (await Database.getProjectByName(name)).result;
 
         if (project == null)
             throw new Error("Unexpectedly unable to create a new project");
