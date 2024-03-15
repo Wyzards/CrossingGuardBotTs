@@ -109,7 +109,7 @@ export default class Bot extends Client {
 
 
         if (await Database.guildBelongsToProject(from_guild)) {
-            const project = await Database.getProjectByGuild(from_guild);
+            const project = (await Database.getProjectByGuild(from_guild)).result;
             var roleId = project.roleId;
         } else {
             var roleId = Bot.DEFAULT_PING_ROLE_ID;
