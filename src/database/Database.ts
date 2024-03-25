@@ -209,7 +209,7 @@ export default class Database {
         });
     }
 
-    public static async addProject(name: string, displayName: string, channelId: string, roleId: string, type: ProjectType): Promise<Project> {
+    public static async addProject(name: string, displayName: string, channelId: string | null, roleId: string, type: ProjectType): Promise<Project> {
         Database.getInstance().connection.query(`INSERT INTO Projects (name, display_name, channel_id, status, role_id, type) VALUES (?, ?, ?, ?, ?, ?)`, [name, displayName, channelId, ProjectStatus.HIDDEN, roleId, type]);
 
         const project = (await Database.getProjectByName(name)).result;
@@ -234,8 +234,13 @@ export default class Database {
         if (!category)
             throw new Error(`Category channel does not exist`);
 
-        const channel = await Project.makeBlankChannel(name, category);
-        const project = await Database.addProject(name, displayName, channel.id, role.id, type);
+
+        if (type == ProjectType.MAP) {
+            var project = await Database.addProject(name, displayName, null, role.id, type);
+        } else {
+            const channel = await Project.makeBlankChannel(name, category);
+            var project = await Database.addProject(name, displayName, channel.id, role.id, type);
+        }
 
         return project;
     }

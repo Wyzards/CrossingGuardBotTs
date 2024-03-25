@@ -76,7 +76,7 @@ export default class Project {
 
     public getStarterMessage(): BaseMessageOptions {
         if (this.attachments.length == 0)
-            return { content: this.description == null ? "# " + this.displayName : this.description };
+            return { content: this.description == null ? "# " + this.displayName : this.description, files: [] };
         else
             return { content: "", files: this.attachments.map(attachment => attachment.sendableAttachment) };
     }
@@ -108,8 +108,8 @@ export default class Project {
 
         guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
 
-
-        this.updateChannel();
+        if (this.type != ProjectType.MAP)
+            this.updateChannel();
         this.updateDiscovery();
     }
 
@@ -130,6 +130,11 @@ export default class Project {
 
         if (channelResult.exists) {
             projectChannel = channelResult.result;
+
+            if (this.type == ProjectType.MAP) {
+                await projectChannel.delete();
+                return;
+            }
         } else {
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
@@ -190,7 +195,7 @@ export default class Project {
     }
 
     public get threadName() {
-        return this.displayName + (this.status == ProjectStatus.PLAYABLE ? ` >>> ${this.ip}` : "");
+        return this.displayName + (this.status == ProjectStatus.PLAYABLE && this.ip != null ? ` >>> ${this.ip}` : "");
     }
 
     public static async getDiscoveryChannel(): Promise<ForumChannel> {
@@ -482,10 +487,15 @@ export default class Project {
                     members.get(staff.discordUserId)?.roles.add(Bot.STAFF_ROLE_ID);
                 }
             }
-        })
+        });
 
-        const channel = await guild.channels.fetch(project.channelId);
-        channel?.delete();
+        if (this.type != ProjectType.MAP) {
+            const channel = await this.getChannel();
+
+            if (channel.exists)
+                channel.result.delete();
+        }
+
         const discoveryThreadResult = await this.getDiscoveryThread();
 
         if (discoveryThreadResult.exists)
