@@ -1,6 +1,7 @@
 import { Collection, SlashCommandBuilder } from "discord.js";
-import path from "path";
 import * as fs from "fs";
+import path from "path";
+import { pathToFileURL } from 'url';
 
 class CommandManager {
 
@@ -11,7 +12,7 @@ class CommandManager {
     }
 
     public async registerCommands() {
-        const foldersPath = path.join(__dirname, 'commands');
+        const foldersPath = path.join(process.cwd(), 'dist/bot/commands');
         const commandFolders = fs.readdirSync(foldersPath);
 
         for (const folder of commandFolders) {
@@ -26,7 +27,7 @@ class CommandManager {
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
 
-            const command = await import(filePath);
+            const command = await import(pathToFileURL(filePath).toString());
 
             this.registerCommandAtPath(command, filePath);
         }

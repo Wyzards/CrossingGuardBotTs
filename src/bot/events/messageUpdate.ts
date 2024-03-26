@@ -1,10 +1,12 @@
 import { Events, Message, PartialMessage, TextChannel } from "discord.js";
-import Bot from "../Bot";
+import Bot from "../Bot.js";
 
-module.exports = {
-    name: Events.MessageUpdate,
-    execute(oldMessage: Message<boolean> | PartialMessage, newMessage: Message<boolean> | PartialMessage) {
-        if ((newMessage.channel as TextChannel).name.startsWith("hidden-announce"))
-            Bot.getInstance().announce(newMessage, true);
-    }
+const name = Events.MessageUpdate;
+const execute = async function (oldMessage: Message<boolean> | PartialMessage, newMessage: Message<boolean> | PartialMessage) {
+    if ((newMessage.channel as TextChannel).name.startsWith("hidden-announce"))
+        Bot.getInstance().announce(newMessage, true);
+}
+
+export {
+    name, execute
 }

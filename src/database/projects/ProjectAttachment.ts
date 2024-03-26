@@ -4,12 +4,12 @@ export default class ProjectLink {
 
     private _projectId: number;
     private _id: number;
-    private _url: string;
+    private _path: string;
 
     public constructor(projectId: number, id: number, url: string) {
         this._projectId = projectId;
         this._id = id;
-        this._url = url;
+        this._path = url;
     }
 
     public get projectId(): number {
@@ -20,12 +20,12 @@ export default class ProjectLink {
         return this._id;
     }
 
-    public get url(): string {
-        return this._url;
+    public get filePath(): string {
+        return this._path;
     }
 
     public get sendableAttachment(): AttachmentPayload {
-        return { attachment: this.url };
+        return { attachment: `dist/database/projects/images/${this.filePath}` };
     }
 
 }

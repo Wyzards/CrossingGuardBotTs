@@ -1,10 +1,12 @@
 import { Events, Message, TextChannel } from "discord.js";
-import Bot from "../Bot";
+import Bot from "../Bot.js";
 
-module.exports = {
-    name: Events.MessageCreate,
-    execute(message: Message<boolean>) {
-        if ((message.channel as TextChannel).name.startsWith("hidden-announce"))
-            Bot.getInstance().announce(message);
-    }
+const name = Events.MessageCreate;
+const execute = async function (message: Message<boolean>) {
+    if ((message.channel as TextChannel).name.startsWith("hidden-announce"))
+        Bot.getInstance().announce(message);
+}
+
+export {
+    name, execute
 }

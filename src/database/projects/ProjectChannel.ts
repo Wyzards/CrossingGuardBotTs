@@ -112,7 +112,7 @@ export default class ProjectChannel {
         if (this.project.staff.length > 0)
             staffContent += "\n";
 
-        var attachments: { attachment: string }[] = this.project.attachments.map(attachmentObj => { return { attachment: attachmentObj.url } });
+        var attachments: { attachment: string }[] = this.project.attachments.map(attachmentObj => { return { attachment: attachmentObj.filePath } });
 
         return {
             content: this.project.description + "\n\n" + (this.project.ip == null ? "" : `\`IP | ${this.project.ip}\`\n\n`) + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : ""),
