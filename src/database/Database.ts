@@ -1,22 +1,22 @@
-import * as async from "async";
-import { CategoryChannel, ChannelType, ForumChannel } from 'discord.js';
+import { CategoryChannel } from 'discord.js';
 import * as fs from 'fs';
-import * as mysql from 'mysql';
-import Bot from "../bot/Bot";
-import Project from "./projects/Project";
-import ProjectAttachment from './projects/ProjectAttachment';
-import ProjectLink from "./projects/ProjectLink";
-import ProjectStaff from "./projects/ProjectStaff";
-import { ProjectStaffRank } from './projects/ProjectStaffRank';
-import { ProjectStatus } from "./projects/ProjectStatus";
-import { ProjectType } from "./projects/ProjectType";
-import Result from "./Result";
+import Project from "./projects/Project.js";
+import { ProjectStaffRank } from "./projects/ProjectStaffRank.js";
+import Bot from "../bot/Bot.js";
+import { ProjectType } from "./projects/ProjectType.js";
+import ProjectLink from "./projects/ProjectLink.js";
+import ProjectStaff from "./projects/ProjectStaff.js";
+import ProjectAttachment from "./projects/ProjectAttachment.js";
+import { ProjectStatus } from "./projects/ProjectStatus.js";
+import { Connection, createConnection } from 'mysql';
+import async from 'async';
+import Result from './Result.js';
 
 export default class Database {
 
     private static instance: Database;
 
-    private _connection: mysql.Connection | null;
+    private _connection: Connection | null;
     public static CONFIG_PATH = "./config.json";
 
     constructor() {
@@ -25,7 +25,7 @@ export default class Database {
 
         fs.readFile(Database.CONFIG_PATH, 'utf8', (err, data) => {
             const config = JSON.parse(data);
-            database._connection = mysql.createConnection({
+            database._connection = createConnection({
                 host: config["host"],
                 user: config["user"],
                 password: config["password"],
@@ -44,7 +44,7 @@ export default class Database {
         return Database.instance;
     }
 
-    public get connection(): mysql.Connection {
+    public get connection(): Connection {
         if (!this._connection)
             throw new Error("Database connection was never set!");
         return this._connection;
@@ -62,7 +62,7 @@ export default class Database {
 
     public static guildBelongsToProject(guildId: string): Promise<boolean> {
         return new Promise(resolve => {
-            Database.getInstance().connection.query("SELECT count(*) as count FROM Projects WHERE guild_id = ?", [guildId], (err, results) => {
+            Database.getInstance().connection.query("SELECT count(*) as count FROM Projects WHERE guild_id = ?", [guildId], (err: any, results: { [x: string]: number; }[]) => {
                 if (err)
                     throw err;
 
@@ -112,7 +112,7 @@ export default class Database {
 
     public static projectList(): Promise<Project[]> {
         return new Promise(async (resolve) => {
-            Database.getInstance().connection.query("SELECT name FROM Projects WHERE NOT deleted", async (err, results) => {
+            Database.getInstance().connection.query("SELECT name FROM Projects WHERE NOT deleted", async (err: any, results: { name: string; }[]) => {
                 if (err) {
                     throw err;
                 }
@@ -130,16 +130,17 @@ export default class Database {
         const database = Database.getInstance();
 
         return new Promise((resolve) => {
-            database.connection.query(query, [identifier], (err, projectData) => {
+            database.connection.query(query, [identifier], (err: any, projectResult: string | any[] | null) => {
                 if (err)
                     throw err;
 
-                if (projectData == null || projectData.length == 0) {
+                if (projectResult == null || projectResult.length == 0) {
                     resolve(new Result<Project>(null, false));
                     return;
                 }
 
-                projectData = projectData[0];
+                const projectData = projectResult[0];
+
                 var emojiString: string = projectData["emoji"];
                 var project: any = {};
                 project.id = projectData["project_id"];
@@ -157,7 +158,7 @@ export default class Database {
                 project.attachments = [];
                 project.type = ProjectType[projectData["type"] as keyof typeof ProjectType];
 
-                async.parallel([links, staff, attachments], function (err) {
+                async.parallel([links, staff, attachments], function (err: any) {
                     if (err)
                         throw err;
 
@@ -165,7 +166,7 @@ export default class Database {
                 });
 
                 function links(callback: Function) {
-                    database.connection.query("SELECT * FROM Project_Links WHERE project_id = ?", [project.id], (err, results) => {
+                    database.connection.query("SELECT * FROM Project_Links WHERE project_id = ?", [project.id], (err: any, results: { project_id: number; link_id: number; link_name: string; link_url: string; }[]) => {
                         if (err) {
                             throw err;
                         }
@@ -179,7 +180,7 @@ export default class Database {
                 }
 
                 function staff(callback: Function) {
-                    database.connection.query("SELECT * FROM Project_Staff WHERE project_id = ?", [project.id], (err, results) => {
+                    database.connection.query("SELECT * FROM Project_Staff WHERE project_id = ?", [project.id], (err: any, results: { project_id: number; user_id: string; staff_rank: ProjectStaffRank; }[]) => {
                         if (err) {
                             throw err;
                         }
@@ -193,7 +194,7 @@ export default class Database {
                 }
 
                 function attachments(callback: Function) {
-                    database.connection.query("SELECT * FROM Project_Attachments WHERE project_id = ?", [project.id], (err, results) => {
+                    database.connection.query("SELECT * FROM Project_Attachments WHERE project_id = ?", [project.id], (err: any, results: { project_id: number; attachment_id: number; url: string; }[]) => {
                         if (err) {
                             throw err;
                         }
@@ -247,7 +248,7 @@ export default class Database {
 
     public static async projectExists(name: string): Promise<boolean> {
         return new Promise(resolve => {
-            Database.getInstance().connection.query("SELECT count(*) AS count FROM Projects WHERE name = ?", [name], (err, results) => {
+            Database.getInstance().connection.query("SELECT count(*) AS count FROM Projects WHERE name = ?", [name], (err: any, results: { [x: string]: number; }[]) => {
                 if (err)
                     throw err;
 

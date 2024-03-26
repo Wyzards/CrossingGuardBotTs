@@ -1,9 +1,11 @@
 import { RESTEvents, RateLimitData } from "discord.js";
 
 
-module.exports = {
-    name: RESTEvents.RateLimited,
-    execute(rateLimitData: RateLimitData) {
-        console.log(rateLimitData);
-    }
-} 
+const name = RESTEvents.RateLimited;
+const execute = async function (rateLimitData: RateLimitData) {
+    console.log(rateLimitData);
+}
+
+export {
+    name, execute
+}

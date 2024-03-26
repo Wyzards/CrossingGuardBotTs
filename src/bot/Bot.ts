@@ -1,9 +1,9 @@
 import { Attachment, Client, Collection, Embed, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, TextChannel } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import Database from '../database/Database';
-import CommandManager from './CommandManager';
-import { ProjectType } from '../database/projects/ProjectType';
+import { pathToFileURL } from 'url';
+import Database from '../database/Database.js';
+import CommandManager from './CommandManager.js';
 
 const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
@@ -54,18 +54,18 @@ export default class Bot extends Client {
         }, 1000 * 60 * 10);
     }
 
-    private registerEvents() {
-        const eventsPath = path.join(__dirname, 'events');
+    private async registerEvents() {
+        const eventsPath = path.join(process.cwd(), 'dist/bot/events');
         const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
         for (const file of eventFiles) {
-            this._registerEventFileAtPath(eventsPath, file);
+            await this._registerEventFileAtPath(eventsPath, file);
         }
     }
 
-    private _registerEventFileAtPath(eventsPath: string, file: string) {
+    private async _registerEventFileAtPath(eventsPath: string, file: string) {
         const filePath = path.join(eventsPath, file);
-        const event = require(filePath);
+        const event = await import(pathToFileURL(filePath).toString());
         if (event.once) {
             this.once(event.name, (...args) => event.execute(...args));
         } else {
@@ -96,7 +96,7 @@ export default class Bot extends Client {
             Bot.DISCOVERY_CHANNEL_ID = config["DISCOVERY_CHANNEL_ID"]
             Bot.INTAKE_ROLE_ID = config["INTAKE_ROLE_ID"];
 
-            bot.login(Bot.TOKEN);
+            await bot.login(Bot.TOKEN);
         });
     }
 

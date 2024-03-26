@@ -1,5 +1,5 @@
 import { ColorResolvable } from "discord.js";
-import Result from "../Result";
+import Result from "../Result.js";
 
 enum ProjectStatus {
     PLAYABLE = 0,

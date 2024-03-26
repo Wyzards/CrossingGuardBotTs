@@ -1,13 +1,13 @@
-import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTag, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
-import Bot from "../../bot/Bot";
-import Database from "../Database";
-import Result from "../Result";
-import ProjectAttachment from "./ProjectAttachment";
-import ProjectLink from "./ProjectLink";
-import ProjectStaff from "./ProjectStaff";
-import { ProjectStaffRank } from "./ProjectStaffRank";
-import { ProjectStatus } from "./ProjectStatus";
-import { ProjectType } from "./ProjectType";
+import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
+import { ProjectStatus } from "./ProjectStatus.js";
+import ProjectLink from "./ProjectLink.js";
+import ProjectStaff from "./ProjectStaff.js";
+import ProjectAttachment from "./ProjectAttachment.js";
+import { ProjectType } from "./ProjectType.js";
+import { ProjectStaffRank } from "./ProjectStaffRank.js";
+import Bot from "../../bot/Bot.js";
+import Result from "../Result.js";
+import Database from "../Database.js";
 
 export default class Project {
 
@@ -435,7 +435,7 @@ export default class Project {
             database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [this.id]);
 
         for (const attachment of this.attachments)
-            database.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.url, attachment.url]);
+            database.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.filePath, attachment.filePath]);
 
         this.updateView();
     }
@@ -456,7 +456,7 @@ export default class Project {
         const members = await guild.members.fetch();
         const database = Database.getInstance();
 
-        database.connection.query("SELECT * FROM Project_Staff", (err, staffData) => {
+        database.connection.query("SELECT * FROM Project_Staff", (err: any, staffData: any) => {
             for (const staff of project.staff) {
                 var rank = null;
 

@@ -1,12 +1,14 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, CommandInteractionOptionResolver, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import Bot from "../../Bot";
-import ProjectAttachment from "../../../database/projects/ProjectAttachment";
-import ProjectLink from "../../../database/projects/ProjectLink";
-import ProjectStaff from "../../../database/projects/ProjectStaff";
-import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank";
-import { ProjectStatus } from "../../../database/projects/ProjectStatus";
-import Database from "../../../database/Database";
-import { ProjectType } from "../../../database/projects/ProjectType";
+import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import * as fs from 'fs';
+import * as path from 'path';
+import Database from "../../../database/Database.js";
+import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
+import ProjectLink from "../../../database/projects/ProjectLink.js";
+import ProjectStaff from "../../../database/projects/ProjectStaff.js";
+import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank.js";
+import { ProjectStatus } from "../../../database/projects/ProjectStatus.js";
+import { ProjectType } from "../../../database/projects/ProjectType.js";
+import * as client from 'https';
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -509,9 +511,19 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
         const project = (await Database.getProjectByName(projectName)).result;
 
         var newAttachments: ProjectAttachment[] = [];
+        const imageDirectory = path.join(process.cwd(), `dist/database/projects/images`);
 
-        for (const attachment of message.attachments.values())
-            newAttachments.push(new ProjectAttachment(project.id, 0, attachment.url));
+        for (const attachment of message.attachments.values()) {
+            // Download image
+            if (!fs.existsSync(imageDirectory)) {
+                fs.mkdirSync(imageDirectory);
+            }
+
+            const downloadedImage = await downloadImage(attachment.url, path.join(imageDirectory, attachment.name));
+
+            // Create attachment
+            newAttachments.push(new ProjectAttachment(project.id, 0, attachment.name));
+        }
 
         project.attachments = newAttachments;
         project.save();
@@ -528,6 +540,23 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
         await interaction.reply({ content: "An internal error occurred. Yell at Theeef!", ephemeral: true });
         console.error(error);
     }
+}
+
+function downloadImage(url: string, filepath: string) {
+    return new Promise((resolve, reject) => {
+        client.get(url, (res) => {
+            if (res.statusCode === 200) {
+                res.pipe(fs.createWriteStream(filepath))
+                    .on('error', reject)
+                    .once('close', () => resolve(filepath));
+            } else {
+                // Consume response data to free up memory
+                res.resume();
+                reject(new Error(`Request Failed With a Status Code: ${res.statusCode}`));
+
+            }
+        });
+    });
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {
@@ -627,5 +656,5 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
 
-export { data, execute, autocomplete };
+export { autocomplete, data, execute };
 

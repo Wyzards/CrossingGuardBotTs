@@ -1,3 +1,3 @@
-import Bot from "./bot/Bot";
+import Bot from "./bot/Bot.js";
 
-const bot = Bot.getInstance();
+Bot.getInstance();
