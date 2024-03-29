@@ -9,7 +9,7 @@ enum ProjectType {
 }
 
 namespace ProjectType {
-    export function discoveryTag(type: ProjectType): Result<string> {
+    export function prettyName(type: ProjectType): Result<string> {
         switch (type) {
             case ProjectType.MMO:
                 return new Result("MMO", true);

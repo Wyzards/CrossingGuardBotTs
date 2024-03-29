@@ -36,7 +36,7 @@ namespace ProjectStatus {
         }
     }
 
-    export function discoveryTag(status: ProjectStatus): Result<string> {
+    export function prettyName(status: ProjectStatus): Result<string> {
         switch (status) {
             case ProjectStatus.PLAYABLE:
                 return new Result("Playable", true);
