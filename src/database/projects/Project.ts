@@ -265,11 +265,16 @@ export default class Project {
 
     public async getAvailableChannelTags(): Promise<GuildForumTagData[]> {
         const tags: GuildForumTagData[] = [];
+        const typeResult = ProjectType.prettyName(this.type);
+        const statusResult = ProjectStatus.prettyName(this.status);
 
-        tags.push({ name: ProjectType.prettyName(this.type).result, moderated: true });
-        tags.push({ name: ProjectStatus.prettyName(this.status).result, moderated: true });
+        if (typeResult.exists)
+            tags.push({ name: typeResult.result, moderated: true });
+
+        if (statusResult.exists)
+            tags.push({ name: statusResult.result, moderated: true });
+
         return tags;
-
     }
 
     public async getTagsForPinnedChannelThread(): Promise<string[]> {
