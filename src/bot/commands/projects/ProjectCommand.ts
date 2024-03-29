@@ -165,6 +165,23 @@ const data = new SlashCommandBuilder()
                         option.setName("display_name")
                             .setDescription("The new display name for this project")
                             .setRequired(true)))
+            .addSubcommand(subcommand =>
+                subcommand.setName("type")
+                    .setDescription("Set a project's type")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("type")
+                            .setDescription("The type of project")
+                            .setRequired(true)
+                            .addChoices(
+                                { name: "MMO", value: "MMO" },
+                                { name: "SMP", value: "SMP" },
+                                { name: "Map", value: "MAP" },
+                            )))
             // Set IP
             .addSubcommand(subcommand =>
                 subcommand.setName("ip")
@@ -271,7 +288,9 @@ async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     if (subcommandGroup == "set") {
-        if (subcommand == "ip")
+        if (subcommand == "type")
+            executeSetType(interaction);
+        else if (subcommand == "ip")
             executeSetIp(interaction);
         else if (subcommand == "status")
             executeSetStatus(interaction);
@@ -557,6 +576,26 @@ function downloadImage(url: string, filepath: string) {
             }
         });
     });
+}
+
+async function executeSetType(interaction: ChatInputCommandInteraction) {
+    const projectName = interaction.options.getString("project");
+    const type = interaction.options.getString("type");
+
+    if (!projectName || !type)
+        return;
+
+    const project = (await Database.getProjectByName(projectName)).result;
+    const projectTypeResult = ProjectType.fromString(type);
+
+    if (projectTypeResult.exists) {
+        project.type = ProjectType.fromString(type).result;
+        project.save();
+
+        await interaction.reply({ content: `${project.displayName}'s type was set to ${projectTypeResult.result}`, ephemeral: true });
+    } else {
+        await interaction.reply({ content: `The project type ${type} does not exist`, ephemeral: true });
+    }
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {

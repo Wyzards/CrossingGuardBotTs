@@ -1,4 +1,4 @@
-import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
+import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
 import { ProjectStatus } from "./ProjectStatus.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
@@ -8,6 +8,7 @@ import { ProjectStaffRank } from "./ProjectStaffRank.js";
 import Bot from "../../bot/Bot.js";
 import Result from "../Result.js";
 import Database from "../Database.js";
+import { Snowflake } from "@sapphire/snowflake";
 
 export default class Project {
 
@@ -141,6 +142,7 @@ export default class Project {
         }
 
         await projectChannel.edit({
+            availableTags: await this.getAvailableChannelTags(),
             permissionOverwrites: (this.status == ProjectStatus.HIDDEN ? [
                 {
                     id: guild.roles.everyone.id,
@@ -178,12 +180,13 @@ export default class Project {
                         await thread.messages.delete(message);
 
                 this.sendChannelMessage(thread);
+                thread.setAppliedTags(await this.getTagsForPinnedChannelThread());
                 return;
             }
         }
 
         const thread = await projectChannel.threads.create({
-            appliedTags: [projectChannel.availableTags.find(tag => tag.name == "About")!.id],
+            appliedTags: await this.getTagsForPinnedChannelThread(),
             message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
             name: this.threadName,
         });
@@ -214,7 +217,7 @@ export default class Project {
 
         if (discoveryThreadResult.exists) {
             discoveryThread = discoveryThreadResult.result;
-            await discoveryThread.edit({ appliedTags: await this.getDiscoveryTags() });
+            await discoveryThread.edit({ appliedTags: await this.getDiscoveryThreadAppliedTags() });
         } else {
             discoveryThread = await this.createDiscoveryThread();
         }
@@ -237,7 +240,7 @@ export default class Project {
     public async createDiscoveryThread() {
         const discoveryChannel = await Project.getDiscoveryChannel();
         const discoveryThread = await discoveryChannel.threads.create({
-            appliedTags: await this.getDiscoveryTags(),
+            appliedTags: await this.getDiscoveryThreadAppliedTags(),
             message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
             name: this.discoveryChannelName,
         }) as AnyThreadChannel<boolean>;
@@ -245,11 +248,40 @@ export default class Project {
         return discoveryThread;
     }
 
-    public async getDiscoveryTags(): Promise<string[]> {
+    public async getDiscoveryThreadAppliedTags(): Promise<string[]> {
         const tags = [];
         const availableTags = (await Project.getDiscoveryChannel()).availableTags;
-        const statusTagResult = ProjectStatus.discoveryTag(this.status);
-        const projectTypeTagResult = ProjectType.discoveryTag(this.type);
+        const statusTagResult = ProjectStatus.prettyName(this.status);
+        const projectTypeTagResult = ProjectType.prettyName(this.type);
+
+        if (statusTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
+
+        if (projectTypeTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+
+        return tags;
+    }
+
+    public async getAvailableChannelTags(): Promise<GuildForumTagData[]> {
+        const tags: GuildForumTagData[] = [];
+
+        tags.push({ name: ProjectType.prettyName(this.type).result, moderated: true });
+        tags.push({ name: ProjectStatus.prettyName(this.status).result, moderated: true });
+        return tags;
+
+    }
+
+    public async getTagsForPinnedChannelThread(): Promise<string[]> {
+        const tags = [];
+        const channelResult = await this.getChannel();
+
+        if (!channelResult.exists)
+            throw new Error("Tried to get applied tags for the pinned thread of a project that has no channel. Is it a map?");
+
+        const availableTags = channelResult.result.availableTags;
+        const statusTagResult = ProjectStatus.prettyName(this.status);
+        const projectTypeTagResult = ProjectType.prettyName(this.type);
 
         if (statusTagResult.exists)
             tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
@@ -270,6 +302,10 @@ export default class Project {
 
     public get channelId(): string {
         return this._channelId;
+    }
+
+    public set type(type: ProjectType) {
+        this._type = type;
     }
 
     public set name(newName: string) {
@@ -544,12 +580,7 @@ export default class Project {
             name: name,
             type: ChannelType.GuildForum,
             parent: category.id,
-            availableTags: [
-                { name: "About", moderated: true },
-                { name: "General" },
-                { name: "Announcement", moderated: true },
-                { name: "Review" }
-            ]
+            availableTags: []
         });
     }
 }
