@@ -1,11 +1,12 @@
-import { Attachment, Client, Collection, Embed, GatewayIntentBits, Guild, Message, MessageCreateOptions, MessageFlags, PartialMessage, TextChannel } from 'discord.js';
+import { Client, GatewayIntentBits, Guild, Message } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import Database from '../database/Database.js';
+import Project from '../database/projects/Project.js';
 import CommandManager from './CommandManager.js';
+import AnnouncementManager from './announcements/AnnouncementManager.js';
 
-const ANNOUNCEMENT_PING_COOLDOWN_MS = 1000 * 60 * 5;
 
 export default class Bot extends Client {
     public static DISCOVERY_CHANNEL_ID: string;
@@ -20,14 +21,17 @@ export default class Bot extends Client {
     public static LAST_ANNOUNCEMENT_GUILD_ID: string;
     public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
     public static INTAKE_ROLE_ID: string;
+    public static ANNOUNCEMENT_COOLDOWN = 60000 * 5;
 
     private static instance: Bot;
-    private _commandManager;
+    private _commandManager: CommandManager;
+    private _announcementManager: AnnouncementManager;
 
     private constructor() {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
         this._commandManager = new CommandManager();
+        this._announcementManager = new AnnouncementManager();
 
         this.registerEvents();
         this.commandManager.registerCommands();
@@ -37,6 +41,14 @@ export default class Bot extends Client {
 
     public get commandManager() {
         return this._commandManager;
+    }
+
+    public get announcementManager() {
+        return this._announcementManager;
+    }
+
+    public static get guild(): Promise<Guild> {
+        return Bot.getInstance().guild;
     }
 
     public get guild(): Promise<Guild> {
@@ -100,74 +112,11 @@ export default class Bot extends Client {
         });
     }
 
-    public async announce(message: Message | PartialMessage, isEdit = false) {
-        const from_guild = message.flags.has(MessageFlags.IsCrosspost) && message.reference != null ? message.reference.guildId : message.guildId;
-        const to_guild = this.guilds.cache.first();
+    public async announceProjectUpdate(project: Project, message: Message) {
 
-        if (to_guild == null || from_guild == null)
-            throw new Error(`Sending or receiving guild for announcement was not findable`);
-
-
-        if (await Database.guildBelongsToProject(from_guild)) {
-            const project = (await Database.getProjectByGuild(from_guild)).result;
-            var roleId = project.roleId;
-        } else {
-            var roleId = Bot.DEFAULT_PING_ROLE_ID;
-        }
-
-        Bot.LAST_ANNOUNCEMENT_GUILD_ID = from_guild;
-
-        const channel = await to_guild.channels.fetch(Bot.ANNOUNCEMENT_CHANNEL_ID) as TextChannel;
-        const content = this.buildAnnouncementContent(from_guild, message.content == null ? "" : message.content, isEdit, message.author == null ? "somewhere..." : message.author.displayName, roleId);
-
-        this.sendAnnouncement(content, message.embeds, message.attachments, channel);
     }
 
-    private buildAnnouncementContent(from_guild: string, content: string, isEdit: boolean, authorName: string, roleId: string): string {
-        var lastAnnouncementData = Bot.LAST_ANNOUNCEMENT_DATA.get(from_guild);
-        var includePing = lastAnnouncementData == undefined || (Date.now() - lastAnnouncementData.last_ping_time > ANNOUNCEMENT_PING_COOLDOWN_MS);
-        var includeHeading = Bot.LAST_ANNOUNCEMENT_GUILD_ID != from_guild || (includePing && !isEdit) || lastAnnouncementData == undefined || (lastAnnouncementData.channel_name != authorName || isEdit);
-        var announcementHeading = `**${isEdit ? "Edited from an earlier message in" : "From"} ${authorName}**`;
+    public async editProjectUpdateAnnouncement(project: Project,) {
 
-        Bot.LAST_ANNOUNCEMENT_DATA.set(from_guild, { channel_name: authorName, last_ping_time: (includePing ? Date.now() : lastAnnouncementData ? lastAnnouncementData.last_ping_time : Date.now()) });
-
-        return `${includeHeading ? announcementHeading + "\n" : ""}${includePing ? `<@&${roleId}>\n\n` : ""}${content}`;
-    }
-
-    private sendAnnouncement(announcementContent: string, embeds: Embed[], attachments: Collection<string, Attachment>, textChannel: TextChannel) {
-        do {
-            var maxSnippet = announcementContent.substring(0, 2000);
-            var lastSpace = maxSnippet.lastIndexOf(' ');
-            var lastNewline = maxSnippet.lastIndexOf('\n');
-            var sending = maxSnippet.substring(0, (announcementContent.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
-
-            var messageToSend: MessageCreateOptions = {
-                content: sending.trim(),
-                allowedMentions: { parse: ['users'] }
-            };
-
-            announcementContent = announcementContent.substring(sending.length, announcementContent.length);
-
-            if (announcementContent.length < 1) {
-                messageToSend.files = Bot.parseAttachmentFileSizes(announcementContent, Array.from(attachments.values()));
-                messageToSend.embeds = embeds.filter(embed => { return !embed.video; });
-            }
-
-            textChannel.send(messageToSend);
-        } while (announcementContent.length > 0);
-    }
-
-    public static parseAttachmentFileSizes(announcementContent: string, attachments: Attachment[]): Attachment[] {
-        var files = [];
-
-        for (const attachment of Array.from(attachments.values())) {
-            if (attachment.size > 26209158) {
-                announcementContent += "\n" + attachment.url;
-            } else {
-                files.push(attachment);
-            }
-        }
-
-        return files;
     }
 }
