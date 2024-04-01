@@ -2,6 +2,7 @@ import { Message } from "discord.js";
 import AnnouncementOperation from "./AnnouncementOperation.js";
 import AnnouncementOperationType from "./AnnouncementOperationType.js";
 import AnnouncementMessage from "./AnnouncementMessage.js";
+import Bot from "../Bot.js";
 
 export default class AnnouncementQueue {
 
