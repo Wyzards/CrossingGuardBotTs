@@ -27,13 +27,12 @@ export default class AnnouncementQueue {
         this.stack.push(operation);
 
         const queue = this;
-        const tenSeconds = 1000 * 10; // TODO: Make this configurable
 
         setTimeout(() => {
             if (queue.stack.length > 0 && queue.stack[queue.stack.length - 1].id == operation.id) {
                 this.resolveStack();
             }
-        }, tenSeconds);
+        }, Bot.ANNOUNCEMENT_COOLDOWN);
     }
 
     public async resolveStack() {

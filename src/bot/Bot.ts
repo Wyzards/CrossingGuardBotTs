@@ -21,6 +21,7 @@ export default class Bot extends Client {
     public static LAST_ANNOUNCEMENT_GUILD_ID: string;
     public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
     public static INTAKE_ROLE_ID: string;
+    public static ANNOUNCEMENT_COOLDOWN = 60000 * 5;
 
     private static instance: Bot;
     private _commandManager: CommandManager;
