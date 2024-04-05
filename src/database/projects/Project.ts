@@ -1,4 +1,4 @@
-import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
+import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionFlagsBits, PermissionsBitField, TextBasedChannel } from "discord.js";
 import { ProjectStatus } from "./ProjectStatus.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
@@ -155,7 +155,8 @@ export default class Project {
             ] : []),
             defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
             name: ProjectStatus.channelIcon(this.status) + "｜" + this.name,
-            topic: `Post anything related to ${this.displayName} here!`
+            topic: `Post anything related to ${this.displayName} here!`,
+            flags: []
         });
 
         const pinnedThreadResult = await Project.getPinnedInForum(projectChannel);
