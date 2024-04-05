@@ -211,7 +211,6 @@ const data = new SlashCommandBuilder()
                             .addChoices(
                                 { name: "Playable", value: "0" },
                                 { name: "In Development", value: "1" },
-                                { name: "Archived", value: "2" },
                                 { name: "Hidden", value: "4" }
                             )))
             // Set Emoji Subcommand

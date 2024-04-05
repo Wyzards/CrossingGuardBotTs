@@ -57,7 +57,6 @@ export default class AnnouncementQueue {
         });
 
         if (messageUpdates.length > 0) {
-
             for (const messageUpdate of messageUpdates) {
                 await messageUpdate.update();
             }
