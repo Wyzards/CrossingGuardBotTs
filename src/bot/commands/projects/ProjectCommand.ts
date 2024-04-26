@@ -353,6 +353,11 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !newName)
         return;
 
+    if (newName.toLowerCase() != newName || newName.includes(" ")) {
+        await interaction.reply({ content: `Your submitted project name (${newName}) is invalid as it contains uppercase characters or whitespaces` });
+        return;
+    }
+
     const projectWithSameName = await Database.getProjectByName(projectName);
 
     if (projectWithSameName.exists) {
@@ -681,6 +686,11 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
 
     if (!projectName || !displayName || !type)
         return;
+
+    if (projectName.toLowerCase() != projectName || projectName.includes(" ")) {
+        await interaction.reply({ content: `Your submitted project name (${projectName}) is invalid as it contains uppercase characters or whitespaces` });
+        return;
+    }
 
     const projectWithSameName = await Database.getProjectByName(projectName);
 
