@@ -115,7 +115,7 @@ export default class Project {
 
     public async getChannel(): Promise<Result<ForumChannel>> {
         const guild = await Bot.getInstance().guild;
-        const channel = await guild.channels.fetch(this.channelId);
+        const channel = this.channelId == null ? null : await guild.channels.fetch(this.channelId);
 
         if (channel == null)
             return new Result<ForumChannel>(null, false);
@@ -135,23 +135,21 @@ export default class Project {
             projectChannel = await Project.makeBlankChannel(this.name, category);
         }
 
-        await projectChannel.edit({
-            availableTags: await this.getAvailableChannelTags(),
-            permissionOverwrites: (this.status == ProjectStatus.HIDDEN ? [
-                {
-                    id: guild.roles.everyone.id,
-                    deny: [PermissionsBitField.Flags.ViewChannel]
-                },
-                {
-                    id: Bot.INTAKE_ROLE_ID,
-                    allow: [PermissionsBitField.Flags.ViewChannel]
-                }
-            ] : []),
-            defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
-            name: ProjectStatus.channelIcon(this.status) + "｜" + this.name,
-            topic: `Post anything related to ${this.displayName} here!`,
-            flags: []
-        });
+        await projectChannel.setAvailableTags(await this.getAvailableChannelTags());
+        await projectChannel.permissionOverwrites.set(this.status == ProjectStatus.HIDDEN ? [
+            {
+                id: guild.roles.everyone.id,
+                deny: [PermissionsBitField.Flags.ViewChannel]
+            },
+            {
+                id: Bot.INTAKE_ROLE_ID,
+                allow: [PermissionsBitField.Flags.ViewChannel]
+            }
+        ] : [])
+        await projectChannel.setDefaultReactionEmoji(this.emoji == null ? { id: null, name: "⚔️" } : this.emoji);
+        await projectChannel.setName(ProjectStatus.channelIcon(this.status) + "｜" + this.name);
+        await projectChannel.setTopic(`Post anything related to ${this.displayName} here!`)
+        // MAY BE AN ISSUE NOT SETTING FLAGS HERE?
 
         const pinnedThreadResult = await Project.getPinnedInForum(projectChannel);
 
