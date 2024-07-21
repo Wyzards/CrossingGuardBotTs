@@ -368,7 +368,7 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
     const nameBefore = project.name;
 
-    project.setName(newName);
+    await project.setName(newName);
 
     await interaction.reply({ content: `${nameBefore} has been renamed to ${newName}`, ephemeral: true });
 }
@@ -384,7 +384,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
 
     var nameBefore = project.displayName;
 
-    project.setDisplayName(displayName);
+    await project.setDisplayName(displayName);
 
     await interaction.reply({ content: `${nameBefore}'s display name has been changed to ${displayName}`, ephemeral: true });
 }
@@ -688,7 +688,7 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
 
     if (projectName.toLowerCase() != projectName || projectName.includes(" ")) {
-        await interaction.reply({ content: `Your submitted project name (${projectName}) is invalid as it contains uppercase characters or whitespaces`, ephemeral: true});
+        await interaction.reply({ content: `Your submitted project name (${projectName}) is invalid as it contains uppercase characters or whitespaces`, ephemeral: true });
         return;
     }
 

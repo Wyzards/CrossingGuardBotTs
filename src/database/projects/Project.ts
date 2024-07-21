@@ -134,7 +134,7 @@ export default class Project {
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
             this._channelId = projectChannel.id;
-            this.save()
+            await this.save()
         }
 
         await projectChannel.setAvailableTags(await this.getAvailableChannelTags());
@@ -443,7 +443,7 @@ export default class Project {
         return this._type;
     }
 
-    public save() {
+    public async save() {
         const database = Database.getInstance();
         const projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ?, type = ? WHERE project_id = ?`;
 
@@ -473,17 +473,17 @@ export default class Project {
         for (const attachment of this.attachments)
             database.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.filePath, attachment.filePath]);
 
-        this.updateView();
+        await this.updateView();
     }
 
-    public setName(newName: string) {
+    public async setName(newName: string) {
         this.name = newName;
-        this.save();
+        await this.save();
     }
 
-    public setDisplayName(displayName: string) {
+    public async setDisplayName(displayName: string) {
         this.displayName = displayName;
-        this.save();
+        await this.save();
     }
 
     public async delete() {
