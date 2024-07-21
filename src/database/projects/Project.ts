@@ -133,6 +133,8 @@ export default class Project {
         } else {
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
+            this._channelId = projectChannel.id;
+            this.save()
         }
 
         await projectChannel.setAvailableTags(await this.getAvailableChannelTags());

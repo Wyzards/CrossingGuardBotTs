@@ -1,11 +1,7 @@
 {
-    "TOKEN": "TOKEN"
+    "TOKEN": "TOKEN",
     "CLIENT_ID": "ID",
     "GUILD_ID": "ID",
-    "hidden_channels": [
-        "CHANNEL1",
-        "CHANNEL2"
-    ],
     "DISCOVERY_CHANNEL_ID": "ID",
     "host": "host",
     "user": "user",
