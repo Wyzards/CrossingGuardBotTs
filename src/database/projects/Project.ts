@@ -180,14 +180,15 @@ export default class Project {
             }
         }
 
+        // Creating pinned thread if it doesn't already exist
         const thread = await projectChannel.threads.create({
             appliedTags: await this.getTagsForPinnedChannelThread(),
             message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
             name: this.threadName,
         });
 
-        thread.pin();
-        thread.setLocked(true);
+        await thread.pin();
+        await thread.setLocked(true);
 
         this.sendChannelMessage(thread as TextBasedChannel);
     }
