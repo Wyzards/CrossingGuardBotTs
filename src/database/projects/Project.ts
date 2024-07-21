@@ -109,8 +109,7 @@ export default class Project {
 
         guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
 
-        if (this.type != ProjectType.MAP)
-            this.updateChannel();
+        this.updateChannel();
         this.updateDiscovery();
     }
 
@@ -131,11 +130,6 @@ export default class Project {
 
         if (channelResult.exists) {
             projectChannel = channelResult.result;
-
-            if (this.type == ProjectType.MAP) {
-                await projectChannel.delete();
-                return;
-            }
         } else {
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
