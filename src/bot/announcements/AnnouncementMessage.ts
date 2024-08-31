@@ -1,4 +1,4 @@
-import { Attachment, Collection, Embed, Message, MessageCreateOptions, MessageEditOptions, TextChannel } from "discord.js";
+import { Attachment, AttachmentBuilder, Collection, Embed, Message, MessageCreateOptions, MessageEditOptions, TextChannel } from "discord.js";
 import AnnouncementManager from "./AnnouncementManager.js";
 import Project from "../../database/projects/Project.js";
 import Bot from "../Bot.js";
@@ -28,7 +28,21 @@ export default class AnnouncementMessage {
             content = `**From ${this.hiddenMessage.author.displayName}**\n<@&${roleID}>\n\n${this.hiddenMessage.content}`;
 
         for (const messageToSend of AnnouncementMessage.splitMessageContent(this.hiddenMessage.id, content, this.hiddenMessage.embeds, Array.from(this.hiddenMessage.attachments.values()), false))
-            await announcementChannel.send(messageToSend as MessageCreateOptions);
+            try {
+                await announcementChannel.send(messageToSend as MessageCreateOptions);
+            } catch (error) {
+                const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
+                if (error instanceof Error) {
+                    const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
+                    await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
+                } else {
+                    try {
+                        await adminChannel.send({ content: JSON.stringify(error) })
+                    } catch (e) {
+                        await adminChannel.send({ content: "An error occurred but there was another error while stringifying that error... Ironic." });
+                    }
+                }
+            }
     }
 
     public async update() {
