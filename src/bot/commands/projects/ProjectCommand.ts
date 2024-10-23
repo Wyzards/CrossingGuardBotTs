@@ -25,7 +25,11 @@ const data = new SlashCommandBuilder()
                     .setRequired(true)))
     .addSubcommand(subcommand =>
         subcommand.setName("updateviews")
-            .setDescription("Update the views for all projects"))
+            .setDescription("Update the views for all projects")
+            .addStringOption(option =>
+                option.setName("project")
+                    .setDescription("The name of the project")
+                    .setAutocomplete(true)))
     // New Project Subcommand
     .addSubcommand(subcommand =>
         subcommand.setName("create")
@@ -335,14 +339,19 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
 async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
     const projects = await Database.projectList();
+    const projectName = interaction.options.getString("project"); // Can be null
+
     var count = 0;
 
     await interaction.deferReply({ ephemeral: true });
 
     for (const project of projects) {
+        if (projectName != null && project.name != projectName)
+            continue;
+
         count++;
         await project.updateView();
-        await interaction.editReply(`Edited ${count}/${projects.length} project views`);
+        await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
 }
 
