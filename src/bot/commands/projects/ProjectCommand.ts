@@ -367,7 +367,7 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const projectWithSameName = await Database.getProjectByName(projectName);
+    const projectWithSameName = await Database.getProjectByName(newName);
 
     if (projectWithSameName.exists) {
         await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
