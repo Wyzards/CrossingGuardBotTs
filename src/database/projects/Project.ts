@@ -554,7 +554,7 @@ export default class Project {
         const discoveryThreads = await discoveryChannel.threads.fetchActive();
 
         for (const discoveryThread of discoveryThreads.threads)
-            if (discoveryThread[1].name.contains(this.displayName))
+            if (discoveryThread[1].name.includes(this.displayName))
                 return new Result(discoveryThread[1], true);
 
         return new Result<AnyThreadChannel<boolean>>(null, false);
