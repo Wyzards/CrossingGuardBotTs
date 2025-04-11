@@ -4,7 +4,8 @@ enum ProjectType {
 
     MMO = "MMO",
     SMP = "SMP",
-    MAP = "MAP"
+    MAP = "MAP",
+    RPG = "RPG
 
 }
 
@@ -17,6 +18,8 @@ namespace ProjectType {
                 return new Result("SMP", true);
             case ProjectType.MAP:
                 return new Result("Map", true);
+            case ProjectType.RPG:
+                return new Result("RPG", true);
             default:
                 return new Result<string>(null, false);
         }
@@ -30,6 +33,8 @@ namespace ProjectType {
                 return new Result(ProjectType.SMP, true);
             case "MAP":
                 return new Result(ProjectType.MAP, true);
+            case "RPG":
+                return new Result(ProjectType.RPG, true);
             default: return new Result<ProjectType>(null, false);
         }
     }
