@@ -5,7 +5,7 @@ enum ProjectType {
     MMO = "MMO",
     SMP = "SMP",
     MAP = "MAP",
-    RPG = "RPG,
+    RPG = "RPG"
 
 }
 
