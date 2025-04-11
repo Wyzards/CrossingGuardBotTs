@@ -49,7 +49,8 @@ const data = new SlashCommandBuilder()
                     .addChoices(
                         { name: "MMO", value: "MMO" },
                         { name: "SMP", value: "SMP" },
-                        { name: "Map", value: "MAP" }
+                        { name: "Map", value: "MAP" },
+                        { name: "RPG", value: "RPG"
                     )))
     // Links Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
