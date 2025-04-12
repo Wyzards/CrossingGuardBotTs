@@ -46,7 +46,6 @@ const data = new SlashCommandBuilder()
                 option.setName("type")
                     .setDescription("The type of RPG")
                     .setRequired(true)
-                    .setAutocomplete(true)
                     .addChoices(
                         { name: "MMO", value: "MMO" },
                         { name: "SMP", value: "SMP" },
