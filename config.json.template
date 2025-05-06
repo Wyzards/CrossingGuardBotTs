@@ -13,5 +13,6 @@
     "announcement_channel_id": "ID",
     "admin_channel_id": "ID,
     "PROJECT_CATEGORY": "ID",
-    "INTAKE_ROLE_ID": "ID"
+    "INTAKE_ROLE_ID": "ID",
+    "MAPS_FORUM_CHANNEL_ID": "ID"
 }

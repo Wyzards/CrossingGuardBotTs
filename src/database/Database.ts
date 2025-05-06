@@ -218,7 +218,7 @@ export default class Database {
         if (project == null)
             throw new Error("Unexpectedly unable to create a new project");
 
-        project.updateView()
+        await project.updateView()
 
         return project;
     }

@@ -11,6 +11,7 @@ import AnnouncementManager from './announcements/AnnouncementManager.js';
 export default class Bot extends Client {
     public static ADMIN_CHANNEL_ID: string;
     public static DISCOVERY_CHANNEL_ID: string;
+    public static MAPS_FORUM_CHANNEL_ID: string;
     public static ANNOUNCEMENT_CHANNEL_ID: string;
     public static DEFAULT_PING_ROLE_ID: string;
     private static TOKEN: string;
@@ -107,6 +108,7 @@ export default class Bot extends Client {
             Bot.LEAD_ROLE_ID = config["lead_role_id"];
             Bot.STAFF_ROLE_ID = config["staff_role_id"];
             Bot.DISCOVERY_CHANNEL_ID = config["DISCOVERY_CHANNEL_ID"]
+            Bot.MAPS_FORUM_CHANNEL_ID = config["MAPS_FORUM_CHANNEL_ID"]
             Bot.INTAKE_ROLE_ID = config["INTAKE_ROLE_ID"];
             Bot.ADMIN_CHANNEL_ID = config["ADMIN_CHANNEL_ID"]
 

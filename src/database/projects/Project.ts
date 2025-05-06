@@ -13,7 +13,7 @@ import { Snowflake } from "@sapphire/snowflake";
 export default class Project {
 
     private readonly _id: number;
-    private _channelId: string;
+    private _channelId: string | null;
     private _name: string;
     private _displayName: string;
     private _status: ProjectStatus;
@@ -107,10 +107,11 @@ export default class Project {
         const guild = await Bot.getInstance().guild;
 
 
-        guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+        await guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
 
-        this.updateChannel();
-        this.updateDiscovery();
+        await this.updateChannel();
+        await this.updateDiscovery();
+        await this.updateMapsThread(); // If not a map, will delete a matching maps thread then do nothing
     }
 
     public async getChannel(): Promise<Result<ForumChannel>> {
@@ -130,7 +131,17 @@ export default class Project {
 
         if (channelResult.exists) {
             projectChannel = channelResult.result;
+
+            if (this.type == ProjectType.MAP) {
+                await projectChannel.delete();
+                this.channelId = null;
+                await this.save();
+                return;
+            }
         } else {
+            if (this.type == ProjectType.MAP)
+                return;
+
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
             this._channelId = projectChannel.id;
@@ -197,11 +208,55 @@ export default class Project {
         return this.displayName + (this.status == ProjectStatus.PLAYABLE && this.ip != null ? ` >>> ${this.ip}` : "");
     }
 
+    public static async getMapsChannel(): Promise<ForumChannel> {
+        const guild = await Bot.getInstance().guild;
+        const channel = await guild.channels.fetch(Bot.MAPS_FORUM_CHANNEL_ID);
+
+        return channel as ForumChannel;
+    }
+
     public static async getDiscoveryChannel(): Promise<ForumChannel> {
         const guild = await Bot.getInstance().guild;
         const channel = await guild.channels.fetch(Bot.DISCOVERY_CHANNEL_ID);
 
         return channel as ForumChannel;
+    }
+
+    public async updateMapsThread() {
+        if (this.status == ProjectStatus.HIDDEN)
+            return;
+
+        const mapsThreadResult = await this.getMapsThread();
+        var mapsThread: AnyThreadChannel<boolean>;
+
+        if (mapsThreadResult.exists) {
+            mapsThread = mapsThreadResult.result;
+            await mapsThread.edit({ appliedTags: await this.getMapsThreadAppliedTags() });
+
+            if (this.type != ProjectType.MAP) {
+                await mapsThread.delete();
+                return;
+            }
+        } else {
+            if (this.type != ProjectType.MAP)
+                return;
+
+            mapsThread = await this.createMapsThread();
+        }
+
+        const starterMessage = await mapsThread.fetchStarterMessage();
+        const messages = await mapsThread.messages.fetch();
+
+        if (starterMessage) {
+            starterMessage.edit(this.getStarterMessage());
+            messages.delete(starterMessage.id);
+        }
+
+        for (const message of messages.values())
+            if (!message.system)
+                await mapsThread.messages.delete(message);
+
+        this.sendChannelMessage(mapsThread);
     }
 
     public async updateDiscovery() {
@@ -244,9 +299,35 @@ export default class Project {
         return discoveryThread;
     }
 
+    public async createMapsThread() {
+        const mapsChannel = await Project.getMapsChannel();
+        const mapsThread = await mapsChannel.threads.create({
+            appliedTags: await this.getMapsThreadAppliedTags(),
+            message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
+            name: this.discoveryChannelName, // Correct, uses same format as discovery channel
+        }) as AnyThreadChannel<boolean>;
+
+        return mapsThread;
+    }
+
     public async getDiscoveryThreadAppliedTags(): Promise<string[]> {
         const tags = [];
         const availableTags = (await Project.getDiscoveryChannel()).availableTags;
+        const statusTagResult = ProjectStatus.prettyName(this.status);
+        const projectTypeTagResult = ProjectType.prettyName(this.type);
+
+        if (statusTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
+
+        if (projectTypeTagResult.exists)
+            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+
+        return tags;
+    }
+
+    public async getMapsThreadAppliedTags(): Promise<string[]> {
+        const tags = [];
+        const availableTags = (await Project.getMapsChannel()).availableTags;
         const statusTagResult = ProjectStatus.prettyName(this.status);
         const projectTypeTagResult = ProjectType.prettyName(this.type);
 
@@ -297,11 +378,11 @@ export default class Project {
         return this._id;
     }
 
-    public set channelId(id: string) {
+    public set channelId(id: string | null) {
         this._channelId = id;
     }
 
-    public get channelId(): string {
+    public get channelId(): string | null {
         return this._channelId;
     }
 
@@ -547,6 +628,17 @@ export default class Project {
         // database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
         // database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
         database.connection.query("UPDATE Projects SET deleted = ? WHERE project_id = ?", [true, this.id]);
+    }
+
+    public async getMapsThread(): Promise<Result<AnyThreadChannel<boolean>>> {
+        const mapsChannel = await Project.getMapsChannel();
+        const mapThreads = await mapsChannel.threads.fetchActive();
+
+        for (const mapThread of mapThreads.threads)
+            if (mapThread[1].name == this.discoveryChannelName) // Same format as discovery channel
+                return new Result(mapThread[1], true);
+
+        return new Result<AnyThreadChannel<boolean>>(null, false);
     }
 
     public async getDiscoveryThread(): Promise<Result<AnyThreadChannel<boolean>>> {
