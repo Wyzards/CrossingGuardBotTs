@@ -1,7 +1,7 @@
-import { Attachment, AttachmentBuilder, Collection, Embed, Message, MessageCreateOptions, MessageEditOptions, TextChannel } from "discord.js";
-import AnnouncementManager from "./AnnouncementManager.js";
+import { Attachment, AttachmentBuilder, Embed, Message, DiscordAPIError, MessageCreateOptions, MessageEditOptions, TextChannel } from "discord.js";
 import Project from "../../database/projects/Project.js";
 import Bot from "../Bot.js";
+import AnnouncementManager from "./AnnouncementManager.js";
 
 export default class AnnouncementMessage {
 
@@ -27,22 +27,43 @@ export default class AnnouncementMessage {
         if (includeHeading)
             content = `**From ${this.hiddenMessage.author.displayName}**\n<@&${roleID}>\n\n${this.hiddenMessage.content}`;
 
-        for (const messageToSend of AnnouncementMessage.splitMessageContent(this.hiddenMessage.id, content, this.hiddenMessage.embeds, Array.from(this.hiddenMessage.attachments.values()), false))
-            try {
-                await announcementChannel.send(messageToSend as MessageCreateOptions);
-            } catch (error) {
-                const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
-                if (error instanceof Error) {
-                    const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
-                    await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
-                } else {
-                    try {
-                        await adminChannel.send({ content: JSON.stringify(error) })
-                    } catch (e) {
-                        await adminChannel.send({ content: "An error occurred but there was another error while stringifying that error... Ironic." });
+        for (const messageToSend of AnnouncementMessage.splitMessageContent(this.hiddenMessage.id, content, this.hiddenMessage.embeds, Array.from(this.hiddenMessage.attachments.values()), false)) {
+            let messageSent = false;
+
+            do {
+                try {
+                    await announcementChannel.send(messageToSend as MessageCreateOptions);
+                    messageSent = true;
+                } catch (error) {
+                    // If error code == 40005 (file size error, caused by announcement sent from nitro user bypassing default file attachment size limit)
+                    if (error instanceof DiscordAPIError && error.code == 40005 && messageToSend.files != null) {
+                        // Get attachments, sorted by file size
+                        const attachments = messageToSend.files.filter((file): file is Attachment => file instanceof Attachment);
+                        const largestAttachment = attachments.reduce((largest, current) => current.size > largest.size ? current : largest);
+                        // Take the largest attachment, remove from attachments list
+                        messageToSend.files = messageToSend.files.filter(file => file != largestAttachment);
+                        // append url to content
+                        messageToSend.content += "\n" + largestAttachment.url;
+                        // Try send again
+                        continue;
+                    }
+
+                    // If it wasn't a file size error...
+                    // Send announcement send error to architect/admin channel
+                    const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
+                    if (error instanceof Error) {
+                        const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
+                        await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
+                    } else {
+                        try {
+                            await adminChannel.send({ content: JSON.stringify(error) })
+                        } catch (e) {
+                            await adminChannel.send({ content: "An error occurred but there was another error while stringifying that error... Ironic." });
+                        }
                     }
                 }
-            }
+            } while (!messageSent);
+        }
     }
 
     public async update() {
@@ -91,7 +112,7 @@ export default class AnnouncementMessage {
             content = content.substring(sending.length, content.length);
 
             if (content.length < 1) {
-                messageToSend.files = AnnouncementMessage.parseAttachmentFileSizes(content, Array.from(attachments.values()));
+                messageToSend.files = Array.from(attachments.values());
                 messageToSend.embeds = embeds.filter(embed => { return !embed.video; });
             }
 
@@ -108,19 +129,4 @@ export default class AnnouncementMessage {
     public get hiddenMessage() {
         return this._hiddenMessage;
     }
-
-    public static parseAttachmentFileSizes(announcementContent: string, attachments: Attachment[]): Attachment[] {
-        var files = [];
-
-        for (const attachment of Array.from(attachments.values())) {
-            if (attachment.size > 26209158) {
-                announcementContent += "\n" + attachment.url;
-            } else {
-                files.push(attachment);
-            }
-        }
-
-        return files;
-    }
-
 }
