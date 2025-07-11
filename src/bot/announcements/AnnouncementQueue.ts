@@ -42,12 +42,12 @@ export default class AnnouncementQueue {
 
         for (const operation of this.stack) {
             if (operation.type == AnnouncementOperationType.Create) {
-                newMessages.set(operation.message.hiddenMessage.id, operation.message);
+                newMessages.set(operation.message.announcementMsgInHidden.id, operation.message);
             } else if (operation.type == AnnouncementOperationType.Update) {
                 if (await operation.message.hasBeenSent()) {
                     messageUpdates.push(operation.message);
                 } else {
-                    newMessages.set(operation.message.hiddenMessage.id, operation.message);
+                    newMessages.set(operation.message.announcementMsgInHidden.id, operation.message);
                 }
             }
         }

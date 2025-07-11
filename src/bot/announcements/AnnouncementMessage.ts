@@ -5,16 +5,16 @@ import AnnouncementManager from "./AnnouncementManager.js";
 
 export default class AnnouncementMessage {
 
-    private _hiddenMessage;
+    private _announcementMsgToHiddenChannel;
     private _project;
 
-    public constructor(project: Project | null, hiddenMessage: Message) {
+    public constructor(project: Project | null, announcementMsg: Message) {
         this._project = project;
-        this._hiddenMessage = hiddenMessage;
+        this._announcementMsgToHiddenChannel = announcementMsg;
     }
 
     public async hasBeenSent() {
-        const associatedMessages = await AnnouncementManager.findAnnouncementMessages(this.hiddenMessage);
+        const associatedMessages = await AnnouncementManager.findAnnouncementMessages(this.announcementMsgInHidden);
 
         return associatedMessages.length > 0;
     }
@@ -22,12 +22,14 @@ export default class AnnouncementMessage {
     public async send(includeHeading: boolean) {
         const announcementChannel = await AnnouncementManager.getAnnouncementChannel();
         const roleID = this.project == null ? Bot.DEFAULT_PING_ROLE_ID : this.project.roleId;
-        var content = this.hiddenMessage.content;
+        var content = this.announcementMsgInHidden.content;
 
         if (includeHeading)
-            content = `**From ${this.hiddenMessage.author.displayName}**\n<@&${roleID}>\n\n${this.hiddenMessage.content}`;
+            content = `**From ${this.announcementMsgInHidden.author.displayName}**\n<@&${roleID}>\n\n${this.announcementMsgInHidden.content}`;
 
-        for (const messageToSend of AnnouncementMessage.splitMessageContent(this.hiddenMessage.id, content, this.hiddenMessage.embeds, Array.from(this.hiddenMessage.attachments.values()), false)) {
+
+        var messages = AnnouncementMessage.splitMessageContent(this.announcementMsgInHidden.id, content, this.announcementMsgInHidden.embeds, Array.from(this.announcementMsgInHidden.attachments.values()), false);
+        for (const messageToSend of messages) {
             let messageSent = false;
 
             do {
@@ -43,17 +45,26 @@ export default class AnnouncementMessage {
                         // Take the largest attachment, remove from attachments list
                         messageToSend.files = messageToSend.files.filter(file => file != largestAttachment);
                         // append url to content
+
                         messageToSend.content += "\n" + largestAttachment.url;
+
                         // Try send again
                         continue;
                     }
 
+                    const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
+
+                    if (error instanceof DiscordAPIError && error.code == 50035) {
+                        const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
+                        await adminChannel.send({ content: "Message body length edge case error occurred while sending an announcement:", files: [attachment] })
+                    }
+
                     // If it wasn't a file size error...
                     // Send announcement send error to architect/admin channel
-                    const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
                     if (error instanceof Error) {
                         const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
                         await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
+                        messageSent = true;
                     } else {
                         try {
                             await adminChannel.send({ content: JSON.stringify(error) })
@@ -68,25 +79,25 @@ export default class AnnouncementMessage {
 
     public async update() {
         const roleID = this.project == null ? Bot.DEFAULT_PING_ROLE_ID : this.project.roleId;
-        var content = this.hiddenMessage.content;
-        const heading = `**From ${this.hiddenMessage.author.displayName}**\n<@&${roleID}>\n\n`;
+        var content = this.announcementMsgInHidden.content;
+        const heading = `**From ${this.announcementMsgInHidden.author.displayName}**\n<@&${roleID}>\n\n`;
 
 
-        const oldMessages = await AnnouncementManager.findAnnouncementMessages(this.hiddenMessage);
+        const oldMessages = await AnnouncementManager.findAnnouncementMessages(this.announcementMsgInHidden);
 
         var includeHeading = oldMessages.length > 0 && oldMessages[0].content.startsWith(heading);
 
         if (includeHeading)
-            content = heading + this.hiddenMessage.content;
+            content = heading + this.announcementMsgInHidden.content;
 
-        const newMessages = AnnouncementMessage.splitMessageContent(this.hiddenMessage.id, content, this.hiddenMessage.embeds, Array.from(this.hiddenMessage.attachments.values()), true);
+        const newMessages = AnnouncementMessage.splitMessageContent(this.announcementMsgInHidden.id, content, this.announcementMsgInHidden.embeds, Array.from(this.announcementMsgInHidden.attachments.values()), true);
 
         for (var i = 0; i < oldMessages.length; i++) {
             oldMessages[i].edit(newMessages[i] as MessageEditOptions);
         }
     }
 
-    public static splitMessageContent(hiddenMessageId: string, content: string, embeds: Embed[], attachments: Attachment[], isEdit: boolean) {
+    public static splitMessageContent(announcementMsgInHiddenId: string, content: string, embeds: Embed[], attachments: Attachment[], isEdit: boolean) {
         const messages = [];
 
         do {
@@ -105,7 +116,7 @@ export default class AnnouncementMessage {
                 messageToSend = {
                     content: sending.trim(),
                     allowedMentions: { parse: ['users'] },
-                    nonce: hiddenMessageId
+                    nonce: announcementMsgInHiddenId
                 };
             }
 
@@ -126,7 +137,7 @@ export default class AnnouncementMessage {
         return this._project;
     }
 
-    public get hiddenMessage() {
-        return this._hiddenMessage;
+    public get announcementMsgInHidden() {
+        return this._announcementMsgToHiddenChannel;
     }
 }
