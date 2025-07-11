@@ -10,7 +10,7 @@ export default class AnnouncementOperation {
     public constructor(type: AnnouncementOperationType, message: AnnouncementMessage) {
         this._type = type;
         this._message = message;
-        this._id = message.hiddenMessage.id + type;
+        this._id = message.announcementMsgInHidden.id + type;
     }
 
     public get id() {
