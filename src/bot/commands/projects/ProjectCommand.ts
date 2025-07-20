@@ -50,7 +50,7 @@ const data = new SlashCommandBuilder()
                         { name: "MMO", value: "MMO" },
                         { name: "SMP", value: "SMP" },
                         { name: "Map", value: "MAP" },
-                        { name: "RPG", value: "RPG" }
+                        { name: "RPG", value: "RPG" },
                         { name: "Other", value: "Other" }
                     )))
     // Links Subcommand Group
