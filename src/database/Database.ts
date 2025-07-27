@@ -255,13 +255,6 @@ export default class Database {
     }
 
     public static async projectExists(name: string): Promise<boolean> {
-        return new Promise(resolve => {
-            Database.getInstance().connection.query("SELECT count(*) AS count FROM Projects WHERE name = ?", [name], (err: any, results: { [x: string]: number; }[]) => {
-                if (err)
-                    throw err;
-
-                resolve(results[0]["count"] > 0);
-            });
-        });
+        return (await Database.getProjectByName(name)).exists;
     }
 }
