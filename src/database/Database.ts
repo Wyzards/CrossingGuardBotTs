@@ -72,11 +72,19 @@ export default class Database {
     }
 
     public static getProjectByGuild(guildId: string): Promise<Result<Project>> {
-        return Database.getProject("SELECT * FROM Projects WHERE guild_id = ?", guildId);
+        return Database.getProject("SELECT * FROM Projects WHERE guild_id = ?", [guildId]);
     }
 
     public static getProjectByName(projectName: string): Promise<Result<Project>> {
-        return Database.getProject("SELECT * FROM Projects WHERE name = ?", projectName);
+        const query = `
+        SELECT * FROM Projects 
+        WHERE name = ? 
+        OR display_name = ? 
+        ORDER BY CASE WHEN name = ? THEN 0 ELSE 1 END 
+        LIMIT 1
+    `;
+
+        return Database.getProject(query, [projectName, projectName, projectName]);
     }
 
     public static async updateStaffRoles(discordUserId: string) {
@@ -126,11 +134,11 @@ export default class Database {
         });
     }
 
-    private static getProject(query: string, identifier: string): Promise<Result<Project>> {
+    private static getProject(query: string, identifiers: string[]): Promise<Result<Project>> {
         const database = Database.getInstance();
 
         return new Promise((resolve) => {
-            database.connection.query(query, [identifier], (err: any, projectResult: string | any[] | null) => {
+            database.connection.query(query, identifiers, (err: any, projectResult: string | any[] | null) => {
                 if (err)
                     throw err;
 
