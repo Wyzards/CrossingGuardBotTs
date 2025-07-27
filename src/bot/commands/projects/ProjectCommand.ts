@@ -277,7 +277,7 @@ const data = new SlashCommandBuilder()
 async function autocomplete(interaction: AutocompleteInteraction) {
     const projects = await Database.projectList();
     const focusedValue = interaction.options.getFocused();
-    const filtered = projects.filter(project => project.name.startsWith(focusedValue) || project.displayName.startsWith(focusedValue));
+    const filtered = projects.filter(project => project.name.includes(focusedValue) || project.displayName.includes(focusedValue));
 
     await interaction.respond(
         filtered.slice(0, 24).map(projectChoice => ({ name: projectChoice.displayName, value: projectChoice.name })),
