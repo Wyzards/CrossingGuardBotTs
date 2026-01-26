@@ -4,3 +4,5 @@ test_config.json
 config.json
 .vscode/
 images/
+.env
+.npmrc

@@ -1,8 +1,10 @@
 {
 	"type": "module",
 	"dependencies": {
+		"@wyzards/crossroadsclientts": "^1.0.3",
 		"async": "^3.2.5",
 		"discord.js": "^14.13.0",
+		"dotenv": "^17.2.3",
 		"node-fetch": "^3.3.2",
 		"pm2": "^5.4.2"
 	},

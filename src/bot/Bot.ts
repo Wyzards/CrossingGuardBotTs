@@ -37,7 +37,7 @@ export default class Bot extends Client {
 
         this.registerEvents();
         this.commandManager.registerCommands();
-        this.loadConfig();
+        this.loadEnv();
         this.heartbeat();
     }
 
@@ -93,27 +93,19 @@ export default class Bot extends Client {
         return Bot.instance;
     }
 
-    private async loadConfig() {
-        var bot = this;
-
-        fs.readFile(Database.CONFIG_PATH, 'utf8', async (err, data) => {
-            const config = JSON.parse(data);
-
-            Bot.TOKEN = config["TOKEN"];
-            Bot.ANNOUNCEMENT_CHANNEL_ID = config["announcement_channel_id"];
-            Bot.PROJECT_CATEGORY_ID = config["PROJECT_CATEGORY"];
-            Bot.DEFAULT_PING_ROLE_ID = config["default_ping_role_id"];
-            Bot.GUILD_ID = config["GUILD_ID"];
-            Bot.CLIENT_ID = config["CLIENT_ID"];
-            Bot.LEAD_ROLE_ID = config["lead_role_id"];
-            Bot.STAFF_ROLE_ID = config["staff_role_id"];
-            Bot.DISCOVERY_CHANNEL_ID = config["DISCOVERY_CHANNEL_ID"]
-            Bot.MAPS_FORUM_CHANNEL_ID = config["MAPS_FORUM_CHANNEL_ID"]
-            Bot.INTAKE_ROLE_ID = config["INTAKE_ROLE_ID"];
-            Bot.ADMIN_CHANNEL_ID = config["ADMIN_CHANNEL_ID"]
-
-            await bot.login(Bot.TOKEN);
-        });
+    private async loadEnv() {
+        Bot.TOKEN = process.env.TOKEN!;
+        Bot.ANNOUNCEMENT_CHANNEL_ID = process.env.ANNOUNCEMENT_CHANNEL_ID!;
+        Bot.PROJECT_CATEGORY_ID = process.env.PROJECT_CATEGORY!;
+        Bot.DEFAULT_PING_ROLE_ID = process.env.DEFAULT_PING_ROLE_ID!;
+        Bot.GUILD_ID = process.env.GUILD_ID!;
+        Bot.CLIENT_ID = process.env.CLIENT_ID!;
+        Bot.LEAD_ROLE_ID = process.env.LEAD_ROLE_ID!;
+        Bot.STAFF_ROLE_ID = process.env.STAFF_ROLE_ID!;
+        Bot.DISCOVERY_CHANNEL_ID = process.env.DISCOVERY_CHANNEL_ID!
+        Bot.MAPS_FORUM_CHANNEL_ID = process.env.MAPS_FORUM_CHANNEL_ID!
+        Bot.INTAKE_ROLE_ID = process.env.INTAKE_ROLE_ID!;
+        Bot.ADMIN_CHANNEL_ID = process.env.ADMIN_CHANNEL_ID!
     }
 
     public async announceProjectUpdate(project: Project, message: Message) {

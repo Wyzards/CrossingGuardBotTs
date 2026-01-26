@@ -9,6 +9,9 @@ import Bot from "../../bot/Bot.js";
 import Result from "../Result.js";
 import Database from "../Database.js";
 import { Snowflake } from "@sapphire/snowflake";
+import { ProjectCreateDto } from "./ProjectCreateDto.js";
+import { UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectRepository } from "../../repositories/ProjectRepository.js";
 
 export default class Project {
 
@@ -43,6 +46,45 @@ export default class Project {
         this._attachments = attachments;
         this._type = type;
     }
+
+    /**
+ * Factory for creating a Project instance from API / database response.
+ * Assumes the response includes the ID and all necessary fields.
+ */
+    public static fromApi(apiDto: any): Project {
+        return new Project(
+            apiDto.project_id,
+            apiDto.channel_id,
+            apiDto.name,
+            apiDto.display_name,
+            apiDto.status as ProjectStatus,
+            apiDto.description,
+            apiDto.guild_id,
+            apiDto.emoji ?? null,
+            apiDto.ip ?? "",
+            apiDto.role_id,
+            apiDto.links ?? [],
+            apiDto.staff ?? [],
+            apiDto.attachments ?? [],
+            apiDto.type as ProjectType
+        );
+    }
+
+    public toUpdatePayload(): UpdateProjectPayload {
+        return {
+            channel_id: this.channelId ?? undefined,
+            guild_id: this.guildId ?? undefined,
+            emoji: this.emoji?.id ?? this.emoji?.name ?? undefined,
+            name: this.name,
+            display_name: this.displayName,
+            status: this.status?.toString(),  // Or convert to whatever API expects
+            description: this.description,
+            ip: this.ip,
+            role_id: this.roleId,
+            type: this.type?.toString(),      // Or convert to API string representation
+        };
+    }
+
 
     public channelMessageContent(): string {
         let linksContent = this._links.length > 0 ? "# Links\n" : "";
@@ -135,7 +177,7 @@ export default class Project {
             if (this.type == ProjectType.MAP) {
                 await projectChannel.delete();
                 this.channelId = null;
-                await this.save();
+                await Database.getProjectRepo().save(this);
                 return;
             }
         } else {
@@ -145,7 +187,7 @@ export default class Project {
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
             projectChannel = await Project.makeBlankChannel(this.name, category);
             this._channelId = projectChannel.id;
-            await this.save()
+            await Database.getProjectRepo().save(this);
         }
 
         await projectChannel.setAvailableTags(await this.getAvailableChannelTags());
@@ -525,87 +567,22 @@ export default class Project {
         return this._type;
     }
 
-    public async save() {
-        const database = Database.getInstance();
-        const projectQuery = `UPDATE Projects SET channel_id = ?, guild_id = ?, emoji = ?, name = ?, display_name = ?, status = ?, description = ?, ip = ?, role_id = ?, type = ? WHERE project_id = ?`;
-
-        database.connection.query(projectQuery, [this.channelId, this.guildId, this.emojiString, this.name, this.displayName, this.status, this.description, this.ip, this.roleId, this.type, this.id]);
-
-        if (this.links.length > 0)
-            database.connection.query("DELETE FROM Project_Links WHERE project_id = ? AND link_id NOT IN (" + this.links.map(link => link.linkId).join(", ") + ")", [this.id]);
-        else
-            database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [this.id]);
-
-        for (const link of this.links)
-            database.connection.query("INSERT INTO Project_Links VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE link_name = ?, link_url = ?, project_id = ?", [link.linkId, link.linkName, link.linkUrl, link.projectId, link.linkName, link.linkUrl, link.projectId]);
-
-        if (this.staff.length > 0)
-            database.connection.query("DELETE FROM Project_Staff WHERE project_id = ? AND user_id NOT IN (" + this.staff.map(staff => staff.discordUserId).join(", ") + ")", [this.id]);
-        else
-            database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [this.id]);
-
-        for (const staff of this.staff)
-            database.connection.query("INSERT INTO Project_Staff VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE staff_rank = ?", [staff.discordUserId, staff.rank, staff.projectId, staff.rank]);
-
-        if (this.attachments.length > 0)
-            database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ? AND attachment_id NOT IN (" + this.attachments.map(attachment => attachment.id).join(", ") + ")", [this.id]);
-        else
-            database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [this.id]);
-
-        for (const attachment of this.attachments)
-            database.connection.query("INSERT INTO Project_Attachments VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = ?", [attachment.projectId, attachment.id, attachment.filePath, attachment.filePath]);
-
-        await this.updateView();
-    }
-
     public async setName(newName: string) {
         this.name = newName;
-        await this.save();
+        await Database.getProjectRepo().save(this);
     }
 
     public async setDisplayName(displayName: string) {
         this.displayName = displayName;
-        await this.save();
+        await Database.getProjectRepo().save(this);
     }
 
-    public async delete() {
-        const project = this;
+    public async delete(): Promise<boolean> {
         const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
-        const members = await guild.members.fetch();
-        const database = Database.getInstance();
 
-        database.connection.query("SELECT * FROM Project_Staff", (err: any, staffData: any) => {
-            for (const staff of project.staff) {
-                var rank = null;
-
-                for (const staffEntry of staffData) {
-                    // If is same project, ignore
-                    // Else if is same userId and head, cache head and break
-                    // If just staff, cache staff and keep going
-                    if (staffEntry["project_id"] == staff.projectId)
-                        continue;
-
-                    if (staffEntry["user_id"] == staff.discordUserId)
-                        if (+staffEntry["staff_rank"] == ProjectStaffRank.LEAD) {
-                            rank = ProjectStaffRank.LEAD;
-                            break;
-                        } else
-                            rank = +staffEntry["staff_rank"];
-                }
-
-                if (rank == null) {
-                    // Take roles
-                    members.get(staff.discordUserId)?.roles.remove(Bot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.remove(Bot.STAFF_ROLE_ID);
-                } else {
-                    // If staff, give staff only
-                    // If lead, give staff and lead
-                    if (rank == ProjectStaffRank.LEAD)
-                        members.get(staff.discordUserId)?.roles.add(Bot.LEAD_ROLE_ID);
-                    members.get(staff.discordUserId)?.roles.add(Bot.STAFF_ROLE_ID);
-                }
-            }
-        });
+        for (const staff of this.staff) {
+            await staff.updateStaffRoles();
+        }
 
         if (this.type != ProjectType.MAP) {
             const channel = await this.getChannel();
@@ -620,14 +597,12 @@ export default class Project {
             await discoveryThreadResult.result.delete();
 
 
-        const role = await guild.roles.fetch(project.roleId);
+        const role = await guild.roles.fetch(this.roleId);
         role?.delete();
 
-        // database.connection.query("DELETE FROM Project_Staff WHERE project_id = ?", [project.id])
-        // database.connection.query("DELETE FROM Project_Links WHERE project_id = ?", [project.id])
-        // database.connection.query("DELETE FROM Project_Attachments WHERE project_id = ?", [project.id])
-        // database.connection.query("DELETE FROM Projects WHERE project_id = ?", [project.id]);
-        database.connection.query("UPDATE Projects SET deleted = ? WHERE project_id = ?", [true, this.id]);
+        const deleted = await Database.getProjectRepo().delete(this);
+
+        return deleted;
     }
 
     public async getMapsThread(): Promise<Result<AnyThreadChannel<boolean>>> {
