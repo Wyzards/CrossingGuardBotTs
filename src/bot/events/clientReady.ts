@@ -6,7 +6,6 @@ const name = Events.ClientReady;
 const once = true;
 const execute = async function (client: Client<true>) {
     var bot = Bot.getInstance();
-    var database = Database.getInstance();
     var guild = await bot.guild;
     var members = await guild.members.list();
 
