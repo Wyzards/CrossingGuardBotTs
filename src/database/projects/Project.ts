@@ -581,7 +581,7 @@ export default class Project {
         const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
 
         for (const staff of this.staff) {
-            await staff.updateStaffRoles();
+            await Database.updateStaffRoles(staff.discordUserId);
         }
 
         if (this.type != ProjectType.MAP) {
