@@ -95,4 +95,35 @@ export default class Database {
 
         return project.exists;
     }
+
+    public static async updateStaffRoles(discordUserId: string) {
+        const guild = await Bot.getInstance().guild;
+        const member = await guild.members.fetch(discordUserId);
+        const projectList = await Database.projectList();
+
+        var isStaff = false;
+
+        for (let project of projectList) {
+            for (let staff of project.staff) {
+                if (staff.discordUserId === discordUserId) {
+                    var doReturn = false;
+                    if (staff.rank === ProjectStaffRank.LEAD) {
+                        await member.roles.add(Bot.LEAD_ROLE_ID);
+                        doReturn = true;
+                    }
+
+                    await member.roles.add(Bot.STAFF_ROLE_ID);
+                    isStaff = true;
+
+                    if (doReturn)
+                        return;
+                }
+            }
+        }
+
+        if (!isStaff) {
+            await member.roles.remove(Bot.LEAD_ROLE_ID);
+            await member.roles.remove(Bot.STAFF_ROLE_ID);
+        }
+    }
 }

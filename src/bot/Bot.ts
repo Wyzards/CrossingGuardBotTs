@@ -38,7 +38,7 @@ export default class Bot extends Client {
         this.registerEvents();
         this.commandManager.registerCommands();
         this.loadEnv();
-        this.heartbeat();
+        // this.heartbeat();
     }
 
     public get commandManager() {
@@ -60,13 +60,13 @@ export default class Bot extends Client {
             throw new Error("Guild ID was not defined in environment variables");
     }
 
-    private heartbeat() {
-        var bot = this;
+    // private heartbeat() {
+    //     var bot = this;
 
-        setInterval(function () {
-            Database.getInstance().connection.query("SELECT 1");
-        }, 1000 * 60 * 10);
-    }
+    //     setInterval(function () {
+    //         Database.getInstance().connection.query("SELECT 1");
+    //     }, 1000 * 60 * 10);
+    // }
 
     private async registerEvents() {
         const eventsPath = path.join(process.cwd(), 'dist/bot/events');
@@ -106,13 +106,5 @@ export default class Bot extends Client {
         Bot.MAPS_FORUM_CHANNEL_ID = process.env.MAPS_FORUM_CHANNEL_ID!
         Bot.INTAKE_ROLE_ID = process.env.INTAKE_ROLE_ID!;
         Bot.ADMIN_CHANNEL_ID = process.env.ADMIN_CHANNEL_ID!
-    }
-
-    public async announceProjectUpdate(project: Project, message: Message) {
-
-    }
-
-    public async editProjectUpdateAnnouncement(project: Project,) {
-
     }
 }

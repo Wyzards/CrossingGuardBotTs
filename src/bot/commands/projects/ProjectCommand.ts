@@ -1,5 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import * as fs from 'fs';
+import * as client from 'https';
 import * as path from 'path';
 import Database from "../../../database/Database.js";
 import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
@@ -8,7 +9,6 @@ import ProjectStaff from "../../../database/projects/ProjectStaff.js";
 import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank.js";
 import { ProjectStatus } from "../../../database/projects/ProjectStatus.js";
 import { ProjectType } from "../../../database/projects/ProjectType.js";
-import * as client from 'https';
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -423,9 +423,8 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-
     project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
-    project.save();
+    Database.getProjectRepo().save(project)
     Database.updateStaffRoles(user.id);
 
     await interaction.reply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
@@ -441,7 +440,7 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.links = project.links.filter(link => link.linkName !== linkName);
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `Removed the link \`${linkName}\` from ${project.displayName}`, ephemeral: true });
 }
@@ -473,7 +472,7 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     if (project.addStaff(new ProjectStaff(project.id, user.id, +rank))) {
-        project.save();
+        Database.getProjectRepo().save(project)
         Database.updateStaffRoles(user.id);
 
         await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
@@ -509,7 +508,7 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
     project.links.push(new ProjectLink(project.id, 0, linkName, linkURL));
     // MAY CAUSE ERROR, MAY NEED TO GET LINKS, PUSH, THEN SET
 
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}`, ephemeral: true });
 }
@@ -525,7 +524,7 @@ async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.guildId = guildId;
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `Linked ${guildId} to ${project.displayName}`, ephemeral: true });
 }
@@ -555,14 +554,14 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
                 fs.mkdirSync(imageDirectory);
             }
 
-            const downloadedImage = await downloadImage(attachment.url, path.join(imageDirectory, attachment.name));
+            // const downloadedImage = await downloadImage(attachment.url, path.join(imageDirectory, attachment.name));
 
             // Create attachment
             newAttachments.push(new ProjectAttachment(project.id, 0, attachment.name));
         }
 
         project.attachments = newAttachments;
-        project.save();
+        Database.getProjectRepo().save(project);
 
         await interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
     } catch (error) {
@@ -578,22 +577,22 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     }
 }
 
-function downloadImage(url: string, filepath: string) {
-    return new Promise((resolve, reject) => {
-        client.get(url, (res) => {
-            if (res.statusCode === 200) {
-                res.pipe(fs.createWriteStream(filepath))
-                    .on('error', reject)
-                    .once('close', () => resolve(filepath));
-            } else {
-                // Consume response data to free up memory
-                res.resume();
-                reject(new Error(`Request Failed With a Status Code: ${res.statusCode}`));
+// function downloadImage(url: string, filepath: string) {
+//     return new Promise((resolve, reject) => {
+//         client.get(url, (res) => {
+//             if (res.statusCode === 200) {
+//                 res.pipe(fs.createWriteStream(filepath))
+//                     .on('error', reject)
+//                     .once('close', () => resolve(filepath));
+//             } else {
+//                 // Consume response data to free up memory
+//                 res.resume();
+//                 reject(new Error(`Request Failed With a Status Code: ${res.statusCode}`));
 
-            }
-        });
-    });
-}
+//             }
+//         });
+//     });
+// }
 
 async function executeSetType(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
@@ -607,7 +606,7 @@ async function executeSetType(interaction: ChatInputCommandInteraction) {
 
     if (projectTypeResult.exists) {
         project.type = ProjectType.fromString(type).result;
-        project.save();
+        Database.getProjectRepo().save(project);
 
         await interaction.reply({ content: `${project.displayName}'s type was set to ${projectTypeResult.result}`, ephemeral: true });
     } else {
@@ -633,7 +632,7 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
         const project = (await Database.getProjectByName(projectName)).result;
 
         project.description = description;
-        project.save();
+        Database.getProjectRepo().save(project);
 
         await interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
     } catch (error) {
@@ -658,7 +657,7 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
     project.emoji = emojiIdOrUnicode;
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\``, ephemeral: true });
 }
@@ -672,7 +671,7 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
     project.status = +status;
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[+status]}`, ephemeral: true });
 }
@@ -687,7 +686,7 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.ip = ipString;
-    project.save();
+    Database.getProjectRepo().save(project);
 
     await interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
 }
