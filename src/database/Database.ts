@@ -1,7 +1,7 @@
 import { CreateProjectPayload } from '@wyzards/crossroadsclientts/dist/projects/types.js';
 import { CategoryChannel } from 'discord.js';
 import Bot from "../bot/Bot.js";
-import { ProjectRepository } from '../repositories/ProjectRepository';
+import { ProjectRepository } from '../repositories/ProjectRepository.js';
 import { apiClient } from "../services/apiClient";
 import Project from "./projects/Project.js";
 import { ProjectStaffRank } from "./projects/ProjectStaffRank.js";
