@@ -1,6 +1,5 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import * as fs from 'fs';
-import * as client from 'https';
 import * as path from 'path';
 import Database from "../../../database/Database.js";
 import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
