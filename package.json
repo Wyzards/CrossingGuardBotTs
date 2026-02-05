@@ -24,7 +24,7 @@
 		"typescript": "^5.2.2"
 	},
 	"scripts": {
-		"start": "pm2 start ./dist/index.js --watch",
+		"start": "pm2 start ./dist/index.js",
 		"tsc": "tsc",
 		"postinstall": "npm run tsc",
 		"dev": "ts-node-dev --respawn --pretty --transpile-only App.ts",
