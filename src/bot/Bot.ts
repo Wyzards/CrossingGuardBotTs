@@ -1,11 +1,10 @@
-import { Client, GatewayIntentBits, Guild, Message } from 'discord.js';
+import { Client, GatewayIntentBits, Guild } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import Database from '../database/Database.js';
-import Project from '../database/projects/Project.js';
 import CommandManager from './CommandManager.js';
 import AnnouncementManager from './announcements/AnnouncementManager.js';
+import Database from '../database/Database.js';
 
 
 export default class Bot extends Client {
@@ -38,7 +37,17 @@ export default class Bot extends Client {
         this.registerEvents();
         this.commandManager.registerCommands();
         this.loadEnv();
+
+
         // this.heartbeat();
+    }
+
+    public async updateAllStaffRoles() {
+        var guild = await this.guild;
+        var members = await guild.members.list();
+
+        for (const [key, member] of members)
+            Database.updateStaffRoles(member.id);
     }
 
     public get commandManager() {
@@ -106,5 +115,7 @@ export default class Bot extends Client {
         Bot.MAPS_FORUM_CHANNEL_ID = process.env.MAPS_FORUM_CHANNEL_ID!
         Bot.INTAKE_ROLE_ID = process.env.INTAKE_ROLE_ID!;
         Bot.ADMIN_CHANNEL_ID = process.env.ADMIN_CHANNEL_ID!
+
+        await this.login(Bot.TOKEN);
     }
 }

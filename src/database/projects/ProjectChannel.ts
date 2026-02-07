@@ -1,9 +1,10 @@
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import Bot from "../../bot/Bot";
 import Project from "./Project";
-import { ProjectStatus } from "./ProjectStatus";
+import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import ProjectStaff from "./ProjectStaff";
 import { ProjectStaffRank } from "./ProjectStaffRank";
+import { ProjectStatusDiscordMeta } from "../../util/projectStatusDiscord.js";
 
 export default class ProjectChannel {
 
@@ -56,7 +57,7 @@ export default class ProjectChannel {
                     }
                 ] : []),
                 defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
-                name: ProjectStatus.channelIcon(this.project.status) + this.project.name,
+                name: ProjectStatusDiscordMeta[this.project.status].channelIcon + this.project.name,
                 topic: `Post anything related to ${this.project.displayName} here!`
             }) as ForumChannel;
 

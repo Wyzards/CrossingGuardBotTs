@@ -2,8 +2,8 @@ import { DefaultReactionEmoji } from "discord.js";
 import ProjectAttachment from "./ProjectAttachment.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
-import { ProjectStatus } from "./ProjectStatus.js";
-import { ProjectType } from "./ProjectType.js";
+import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectType } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 
 export type ProjectCreateDto = {
     channelId: string | null;

@@ -1,7 +1,6 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
-import Project from "../database/projects/Project.js";
-import { ProjectCreateDto } from "../database/projects/ProjectCreateDto.js";
 import { CreateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import Project from "../database/projects/Project.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }

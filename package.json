@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"dependencies": {
-		"@wyzards/crossroadsclientts": "^1.0.3",
+		"@wyzards/crossroadsclientts": "^1.0.12",
 		"async": "^3.2.5",
 		"discord.js": "^14.13.0",
 		"dotenv": "^17.2.3",
@@ -24,7 +24,7 @@
 		"typescript": "^5.2.2"
 	},
 	"scripts": {
-		"start": "pm2 start ./dist/index.js",
+		"start": "pm2 start ecosystem.config.cjs",
 		"tsc": "tsc",
 		"postinstall": "npm run tsc",
 		"dev": "ts-node-dev --respawn --pretty --transpile-only App.ts",

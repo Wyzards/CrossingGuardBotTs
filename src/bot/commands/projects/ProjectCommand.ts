@@ -6,8 +6,19 @@ import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
 import ProjectLink from "../../../database/projects/ProjectLink.js";
 import ProjectStaff from "../../../database/projects/ProjectStaff.js";
 import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank.js";
-import { ProjectStatus } from "../../../database/projects/ProjectStatus.js";
-import { ProjectType } from "../../../database/projects/ProjectType.js";
+import { ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStatusHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+
+const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
+    name: ProjectStatusHelper.pretty(status),
+    value: status,
+}));
+
+const projectTypeChoices = ProjectTypeHelper.values().map(type => ({
+    name: ProjectTypeHelper.pretty(type),
+    value: type,
+}));
 
 const data = new SlashCommandBuilder()
     .setName("project")
@@ -45,13 +56,7 @@ const data = new SlashCommandBuilder()
                 option.setName("type")
                     .setDescription("The type of RPG")
                     .setRequired(true)
-                    .addChoices(
-                        { name: "MMO", value: "MMO" },
-                        { name: "SMP", value: "SMP" },
-                        { name: "Map", value: "MAP" },
-                        { name: "RPG", value: "RPG" },
-                        { name: "Other", value: "Other" }
-                    )))
+                    .addChoices(...projectTypeChoices)))
     // Links Subcommand Group
     .addSubcommandGroup(subcommandGroup =>
         subcommandGroup.setName("links")
@@ -215,11 +220,7 @@ const data = new SlashCommandBuilder()
                         option.setName("status")
                             .setDescription("The current status of the project")
                             .setRequired(true)
-                            .addChoices(
-                                { name: "Playable", value: "0" },
-                                { name: "In Development", value: "1" },
-                                { name: "Hidden", value: "4" }
-                            )))
+                            .addChoices(...projectStatusChoices)))
             // Set Emoji Subcommand
             .addSubcommand(subcommand =>
                 subcommand.setName("emoji")
@@ -601,16 +602,11 @@ async function executeSetType(interaction: ChatInputCommandInteraction) {
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-    const projectTypeResult = ProjectType.fromString(type);
 
-    if (projectTypeResult.exists) {
-        project.type = ProjectType.fromString(type).result;
-        Database.getProjectRepo().save(project);
+    project.type = type as ProjectType;
+    Database.getProjectRepo().save(project);
 
-        await interaction.reply({ content: `${project.displayName}'s type was set to ${projectTypeResult.result}`, ephemeral: true });
-    } else {
-        await interaction.reply({ content: `The project type ${type} does not exist`, ephemeral: true });
-    }
+    await interaction.reply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type as ProjectType)}`, ephemeral: true });
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {
@@ -669,10 +665,9 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction) {
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-    project.status = +status;
     Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatus[+status]}`, ephemeral: true });
+    await interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`, ephemeral: true });
 }
 
 async function executeSetIp(interaction: ChatInputCommandInteraction) {
@@ -710,7 +705,7 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    Database.createNewProject(projectName, displayName, ProjectType.fromString(type).result);
+    Database.createNewProject(projectName, displayName, type as ProjectType);
 
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }

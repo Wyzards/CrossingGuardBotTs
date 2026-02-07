@@ -1,4 +1,4 @@
-import { UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStatusHelper, UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
 import Bot from "../../bot/Bot.js";
 import Database from "../Database.js";
@@ -7,8 +7,10 @@ import ProjectAttachment from "./ProjectAttachment.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
 import { ProjectStaffRank } from "./ProjectStaffRank.js";
-import { ProjectStatus } from "./ProjectStatus.js";
-import { ProjectType } from "./ProjectType.js";
+import { ProjectType } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStatusDiscordMeta } from "../../util/projectStatusDiscord.js";
 
 export default class Project {
 
@@ -146,7 +148,7 @@ export default class Project {
         const guild = await Bot.getInstance().guild;
 
 
-        await guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatus.roleColor(this.status) });
+        await guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatusDiscordMeta[this.status].roleColor });
 
         await this.updateChannel();
         await this.updateDiscovery();
@@ -199,7 +201,7 @@ export default class Project {
             }
         ] : [])
         await projectChannel.setDefaultReactionEmoji(this.emoji == null ? { id: null, name: "⚔️" } : this.emoji);
-        await projectChannel.setName(ProjectStatus.channelIcon(this.status) + "｜" + this.name);
+        await projectChannel.setName(ProjectStatusDiscordMeta[this.status].channelIcon + "｜" + this.name);
         await projectChannel.setTopic(`Post anything related to ${this.displayName} here!`)
         // MAY BE AN ISSUE NOT SETTING FLAGS HERE?
 
@@ -352,14 +354,11 @@ export default class Project {
     public async getDiscoveryThreadAppliedTags(): Promise<string[]> {
         const tags = [];
         const availableTags = (await Project.getDiscoveryChannel()).availableTags;
-        const statusTagResult = ProjectStatus.prettyName(this.status);
-        const projectTypeTagResult = ProjectType.prettyName(this.type);
+        const statusTag = ProjectStatusHelper.pretty(this.status);
+        const projectTypeTag = ProjectTypeHelper.pretty(this.type);
 
-        if (statusTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
-
-        if (projectTypeTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+        tags.push(availableTags.find(tag => tag.name == statusTag)!.id);
+        tags.push(availableTags.find(tag => tag.name == projectTypeTag)!.id);
 
         return tags;
     }
@@ -367,28 +366,22 @@ export default class Project {
     public async getMapsThreadAppliedTags(): Promise<string[]> {
         const tags = [];
         const availableTags = (await Project.getMapsChannel()).availableTags;
-        const statusTagResult = ProjectStatus.prettyName(this.status);
-        const projectTypeTagResult = ProjectType.prettyName(this.type);
+        const statusTag = ProjectStatusHelper.pretty(this.status);
+        const projectTypeTag = ProjectTypeHelper.pretty(this.type);
 
-        if (statusTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
-
-        if (projectTypeTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+        tags.push(availableTags.find(tag => tag.name == statusTag)!.id);
+        tags.push(availableTags.find(tag => tag.name == projectTypeTag)!.id);
 
         return tags;
     }
 
     public async getAvailableChannelTags(): Promise<GuildForumTagData[]> {
         const tags: GuildForumTagData[] = [];
-        const typeResult = ProjectType.prettyName(this.type);
-        const statusResult = ProjectStatus.prettyName(this.status);
+        const typeResult = ProjectTypeHelper.pretty(this.type);
+        const statusName = ProjectStatusHelper.pretty(this.status);
 
-        if (typeResult.exists)
-            tags.push({ name: typeResult.result, moderated: true });
-
-        if (statusResult.exists)
-            tags.push({ name: statusResult.result, moderated: true });
+        tags.push({ name: typeResult, moderated: true });
+        tags.push({ name: statusName, moderated: true });
 
         return tags;
     }
@@ -401,14 +394,11 @@ export default class Project {
             throw new Error("Tried to get applied tags for the pinned thread of a project that has no channel. Is it a map?");
 
         const availableTags = channelResult.result.availableTags;
-        const statusTagResult = ProjectStatus.prettyName(this.status);
-        const projectTypeTagResult = ProjectType.prettyName(this.type);
+        const statusTag = ProjectStatusHelper.pretty(this.status);
+        const projectTypeTag = ProjectTypeHelper.pretty(this.type);
 
-        if (statusTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == statusTagResult.result)!.id);
-
-        if (projectTypeTagResult.exists)
-            tags.push(availableTags.find(tag => tag.name == projectTypeTagResult.result)!.id);
+        tags.push(availableTags.find(tag => tag.name == statusTag)!.id);
+        tags.push(availableTags.find(tag => tag.name == projectTypeTag)!.id);
 
         return tags;
     }
@@ -635,7 +625,7 @@ export default class Project {
     }
 
     public get discoveryChannelName(): string {
-        return ProjectStatus.channelIcon(this.status) + " " + this.threadName;
+        return ProjectStatusDiscordMeta[this.status].channelIcon + " " + this.threadName;
     }
 
     public static async makeBlankChannel(name: string, category: CategoryChannel) {

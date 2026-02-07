@@ -1,7 +1,10 @@
 import { REST, Routes } from 'discord.js';
+import dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
+
+dotenv.config({ quiet: true });
 
 const commands: any[] = [];
 const foldersPath = path.join(process.cwd(), 'dist/bot/commands');
@@ -23,16 +26,15 @@ for (const folder of commandFolders) {
 }
 
 // Read config synchronously to avoid async/callback race conditions
-const config = JSON.parse(fs.readFileSync("config.json", 'utf8'));
 
-const rest = new REST().setToken(config["TOKEN"]);
+const rest = new REST().setToken(process.env.TOKEN!);
 
 (async () => {
     try {
         console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
         const data = await rest.put(
-            Routes.applicationGuildCommands(config["CLIENT_ID"], config["GUILD_ID"]),
+            Routes.applicationGuildCommands(process.env.CLIENT_ID!, process.env.GUILD_ID!),
             { body: commands },
         );
 

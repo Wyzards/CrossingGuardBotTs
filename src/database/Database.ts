@@ -2,19 +2,26 @@ import { CreateProjectPayload } from '@wyzards/crossroadsclientts/dist/projects/
 import { CategoryChannel } from 'discord.js';
 import Bot from "../bot/Bot.js";
 import { ProjectRepository } from '../repositories/ProjectRepository.js';
-import { apiClient } from "../services/apiClient.js";
+import { getApiClient } from '../services/apiClient.js';
 import Project from "./projects/Project.js";
 import { ProjectStaffRank } from "./projects/ProjectStaffRank.js";
-import { ProjectStatus } from "./projects/ProjectStatus.js";
 import { ProjectType } from "./projects/ProjectType.js";
 import Result from './Result.js';
+import { ProjectStatus } from '@wyzards/crossroadsclientts/dist/projects/types.js';
 
 export default class Database {
 
-    private static projectRepo = new ProjectRepository(apiClient);
+    private static _projectRepo: ProjectRepository | null = null;
 
     public static getProjectRepo() {
         return Database.projectRepo;
+    }
+
+    private static get projectRepo(): ProjectRepository {
+        if (!this._projectRepo) {
+            this._projectRepo = new ProjectRepository(getApiClient());
+        }
+        return this._projectRepo;
     }
 
     public static async guildBelongsToProject(guildId: string): Promise<boolean> {
@@ -24,7 +31,7 @@ export default class Database {
     }
 
     public static async getProjectByGuild(guildId: string): Promise<Result<Project>> {
-        const project = await this.projectRepo.getByGuild(guildId);
+        const project = await Database.projectRepo.getByGuild(guildId);
 
         return project ? new Result(project, true) : new Result<Project>(null, false);
     }
