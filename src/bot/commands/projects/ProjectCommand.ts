@@ -1,3 +1,4 @@
+import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStatus, ProjectStatusHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import * as fs from 'fs';
 import * as path from 'path';
@@ -5,10 +6,6 @@ import Database from "../../../database/Database.js";
 import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
 import ProjectLink from "../../../database/projects/ProjectLink.js";
 import ProjectStaff from "../../../database/projects/ProjectStaff.js";
-import { ProjectStaffRank } from "../../../database/projects/ProjectStaffRank.js";
-import { ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { ProjectStatusHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 
 const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
     name: ProjectStatusHelper.pretty(status),
@@ -18,6 +15,11 @@ const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
 const projectTypeChoices = ProjectTypeHelper.values().map(type => ({
     name: ProjectTypeHelper.pretty(type),
     value: type,
+}));
+
+const projectStaffRankChoices = ProjectStaffRankHelper.values().map(rank => ({
+    name: ProjectStaffRankHelper.pretty(rank),
+    value: rank,
 }));
 
 const data = new SlashCommandBuilder()
@@ -120,10 +122,7 @@ const data = new SlashCommandBuilder()
                         option.setName("rank")
                             .setDescription("The rank of this staff member")
                             .setRequired(true)
-                            .addChoices(
-                                { name: "Lead", value: "0" },
-                                { name: "Staff", value: "1" },
-                            )))
+                            .addChoices(...projectStaffRankChoices)))
             .addSubcommand(subcommand =>
                 subcommand.setName("remove")
                     .setDescription("Remove a staff member from a project")
@@ -187,13 +186,7 @@ const data = new SlashCommandBuilder()
                         option.setName("type")
                             .setDescription("The type of project")
                             .setRequired(true)
-                            .addChoices(
-                                { name: "MMO", value: "MMO" },
-                                { name: "SMP", value: "SMP" },
-                                { name: "Map", value: "MAP" },
-                                { name: "RPG", value: "RPG" },
-                                { name: "Other", value: "Other" }
-                            )))
+                            .addChoices(...projectTypeChoices)))
             // Set IP
             .addSubcommand(subcommand =>
                 subcommand.setName("ip")
@@ -456,7 +449,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     let reply = project.displayName + "'s Staff\n--------------------\n";
 
     for (const staff of project.staff)
-        reply += `- <@${staff.discordUserId}> ~ ${ProjectStaffRank[staff.rank]}\n`;
+        reply += `- <@${staff.discordUserId}> ~ ${staff.rank}\n`;
 
     await interaction.reply({ content: reply, allowedMentions: { parse: [] } });
 }
@@ -464,20 +457,20 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
 async function executeAddStaff(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const user = interaction.options.getUser("user");
-    const rank = interaction.options.getString("rank");
+    const rank = interaction.options.getString("rank") as ProjectStaffRank;
 
     if (!projectName || !user || !rank)
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    if (project.addStaff(new ProjectStaff(project.id, user.id, +rank))) {
+    if (project.addStaff(new ProjectStaff(project.id, user.id, rank))) {
         Database.getProjectRepo().save(project)
         Database.updateStaffRoles(user.id);
 
-        await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${rank}`, allowedMentions: { parse: [] }, ephemeral: true });
     } else {
-        await interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRank[+rank]}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${rank}`, allowedMentions: { parse: [] }, ephemeral: true });
     }
 }
 
