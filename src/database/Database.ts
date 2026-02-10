@@ -1,13 +1,10 @@
-import { CreateProjectPayload } from '@wyzards/crossroadsclientts/dist/projects/types.js';
+import { CreateProjectPayload, ProjectStaffRank, ProjectStatus, ProjectType } from '@wyzards/crossroadsclientts/dist/projects/types.js';
 import { CategoryChannel } from 'discord.js';
 import Bot from "../bot/Bot.js";
 import { ProjectRepository } from '../repositories/ProjectRepository.js';
 import { getApiClient } from '../services/apiClient.js';
 import Project from "./projects/Project.js";
-import { ProjectStaffRank } from "./projects/ProjectStaffRank.js";
-import { ProjectType } from "./projects/ProjectType.js";
 import Result from './Result.js';
-import { ProjectStatus } from '@wyzards/crossroadsclientts/dist/projects/types.js';
 
 export default class Database {
 
@@ -54,7 +51,7 @@ export default class Database {
             display_name: displayName,
             channel_id: channelId ?? undefined,
             role_id: roleId,
-            type: type.toString(), // or however ProjectType maps to API
+            type: type,
             guild_id: undefined,
             emoji: undefined,
             status: ProjectStatus.HIDDEN.toString(),

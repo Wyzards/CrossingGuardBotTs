@@ -1,6 +1,4 @@
-import Bot from "../../bot/Bot.js";
-import Database from "../Database.js";
-import { ProjectStaffRank } from "./ProjectStaffRank.js";
+import { ProjectStaffRank } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 
 export default class ProjectStaff {
 

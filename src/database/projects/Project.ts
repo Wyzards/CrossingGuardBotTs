@@ -1,4 +1,4 @@
-import { ProjectStatusHelper, UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStaffRankHelper, ProjectStatusHelper, UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { AnyThreadChannel, BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, TextBasedChannel } from "discord.js";
 import Bot from "../../bot/Bot.js";
 import Database from "../Database.js";
@@ -6,7 +6,7 @@ import Result from "../Result.js";
 import ProjectAttachment from "./ProjectAttachment.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
-import { ProjectStaffRank } from "./ProjectStaffRank.js";
+import { ProjectStaffRank } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ProjectType } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
@@ -52,7 +52,7 @@ export default class Project {
  */
     public static fromApi(apiDto: any): Project {
         return new Project(
-            apiDto.project_id,
+            apiDto.id,
             apiDto.channel_id,
             apiDto.name,
             apiDto.display_name,
@@ -103,7 +103,7 @@ export default class Project {
         }
 
         this._staff.sort(compare).forEach(staff => {
-            staffContent += `- <@${staff.discordUserId}> ~ ${ProjectStaffRank[staff.rank]}\n`;
+            staffContent += `- <@${staff.discordUserId}> ~ ${ProjectStaffRankHelper.pretty(staff.rank)}\n`;
         });
 
         if (this._links.length > 0)

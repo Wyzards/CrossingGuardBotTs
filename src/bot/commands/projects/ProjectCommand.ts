@@ -468,9 +468,9 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
         Database.getProjectRepo().save(project)
         Database.updateStaffRoles(user.id);
 
-        await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${rank}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] }, ephemeral: true });
     } else {
-        await interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${rank}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] }, ephemeral: true });
     }
 }
 
@@ -589,17 +589,17 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
 
 async function executeSetType(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
-    const type = interaction.options.getString("type");
+    const type = interaction.options.getString("type") as ProjectType;
 
     if (!projectName || !type)
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    project.type = type as ProjectType;
+    project.type = type;
     Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type as ProjectType)}`, ephemeral: true });
+    await interaction.reply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}`, ephemeral: true });
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {
@@ -681,7 +681,7 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
 async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
-    const type = interaction.options.getString("type");
+    const type = interaction.options.getString("type") as ProjectType;
 
     if (!projectName || !displayName || !type)
         return;
@@ -694,11 +694,11 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
     const projectWithSameName = await Database.getProjectByName(projectName);
 
     if (projectWithSameName.exists) {
-        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
+        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.`, ephemeral: true });
         return;
     }
 
-    Database.createNewProject(projectName, displayName, type as ProjectType);
+    Database.createNewProject(projectName, displayName, type);
 
     await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
 }
