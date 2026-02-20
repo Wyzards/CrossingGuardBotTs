@@ -1,6 +1,10 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
 import { CreateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import Project from "../database/projects/Project.js";
+import { Readable } from 'stream';
+import { fileTypeFromBuffer } from 'file-type';
+import FormData from 'form-data';
+import { Attachment } from "discord.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }
@@ -41,9 +45,9 @@ export class ProjectRepository {
         return dtos.map(Project.fromApi);
     }
 
-    async save(project: Project): Promise<void> {
+    async save(project: Project, updateChannel: boolean = true): Promise<void> {
         await this.api.projects.update(project.id, project.toUpdatePayload());
-        await project.updateView();
+        await project.updateView(updateChannel);
     }
 
     async create(payload: CreateProjectPayload): Promise<Project> {
@@ -59,5 +63,62 @@ export class ProjectRepository {
             console.error(`Failed to delete project with ID ${project.id}:`, err);
             return false
         }
+    }
+
+    async downloadAttachments(project: Project): Promise<Buffer[]> {
+        try {
+            // Now this returns an array of base64 strings
+            const buffers = await this.api.projects.downloadAllAttachments(project.id);
+
+            // buffers is already an array of Buffer objects thanks to the updated API library
+            return buffers;
+        } catch (err: any) {
+            console.error("Status:", err.status);
+            console.error("Message:", err.message);
+
+            if (err.data) {
+                console.error("Laravel response body:");
+                console.error(
+                    typeof err.data === "string"
+                        ? err.data
+                        : Buffer.from(err.data).toString()
+                );
+            }
+
+            throw err;
+        }
+    }
+
+    async storeAttachments(project: Project, attachments: Attachment[]): Promise<void> {
+        const form = new FormData();
+
+        // Download each file from Discord URL and append as a stream
+        for (let i = 0; i < attachments.length; i++) {
+            const attachment = attachments[i];
+
+            const res = await fetch(attachment.url);
+
+
+            if (!res.ok) {
+                throw new Error(`Failed to fetch ${attachment.url}: ${res.status} ${res.statusText}`);
+            }
+
+            const arrayBuffer = await res.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // Detect file type and MIME
+            const filename = attachment.name || `attachment-${i}.bin`;
+            const contentType = attachment.contentType || 'application/octet-stream';
+
+            form.append('files[]', buffer, { filename, contentType });
+        }
+
+        // If no files, still send a field so Laravel deletes existing attachments
+        if (attachments.length === 0) {
+            form.append('files[]', '');
+        }
+
+        // Call API library (which just posts FormData)
+        await this.api.projects.setAttachments(project.id, form);
     }
 }

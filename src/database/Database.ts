@@ -1,5 +1,5 @@
 import { CreateProjectPayload, ProjectStaffRank, ProjectStatus, ProjectType } from '@wyzards/crossroadsclientts/dist/projects/types.js';
-import { CategoryChannel } from 'discord.js';
+import { Attachment, CategoryChannel } from 'discord.js';
 import Bot from "../bot/Bot.js";
 import { ProjectRepository } from '../repositories/ProjectRepository.js';
 import { getApiClient } from '../services/apiClient.js';
@@ -64,6 +64,17 @@ export default class Database {
         return createdProject;
     }
 
+    public static async setAttachments(project: Project, attachments: Attachment[]): Promise<void> {
+        await Database.projectRepo.storeAttachments(project, attachments);
+        await project.updateView(true);
+    }
+
+    public static async getAttachments(project: Project): Promise<Buffer[]> {
+        const attachments = await Database.projectRepo.downloadAttachments(project);
+
+        return attachments;
+    }
+
 
     public static async createNewProject(name: string, displayName: string, type: ProjectType): Promise<Project> {
         const guild = await Bot.getInstance().guild;
@@ -80,9 +91,10 @@ export default class Database {
         if (type == ProjectType.MAP) {
             var project = await Database.addProject(name, displayName, null, role.id, type);
         } else {
-            const channel = await Project.makeBlankChannel(name, category);
-            var project = await Database.addProject(name, displayName, channel.id, role.id, type);
+            var project = await Database.addProject(name, displayName, null, role.id, type);
         }
+
+        await project.updateView(true);
 
         return project;
     }

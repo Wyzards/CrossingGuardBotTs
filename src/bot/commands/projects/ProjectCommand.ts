@@ -347,7 +347,7 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
             continue;
 
         count++;
-        await project.updateView();
+        await project.updateView(true);
         await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
 }
@@ -534,38 +534,24 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
         return;
     }
 
+    await interaction.deferReply({ ephemeral: true });
+
     try {
         const message = await interaction.channel.messages.fetch(msgId);
+        const attachments = Array.from(message.attachments.values());
         const project = (await Database.getProjectByName(projectName)).result;
 
-        var newAttachments: ProjectAttachment[] = [];
-        const imageDirectory = path.join(process.cwd(), `dist/database/projects/images`);
-
-        for (const attachment of message.attachments.values()) {
-            // Download image
-            if (!fs.existsSync(imageDirectory)) {
-                fs.mkdirSync(imageDirectory);
-            }
-
-            // const downloadedImage = await downloadImage(attachment.url, path.join(imageDirectory, attachment.name));
-
-            // Create attachment
-            newAttachments.push(new ProjectAttachment(project.id, 0, attachment.name));
-        }
-
-        project.attachments = newAttachments;
-        Database.getProjectRepo().save(project);
-
-        await interaction.reply({ content: `${project.displayName}'s attachments have been set`, ephemeral: true });
+        await Database.setAttachments(project, attachments);
+        await interaction.editReply({ content: `${project.displayName}'s attachments have been set` });
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {
-                await interaction.reply({ content: "You must input the ID of a valid message for this command", ephemeral: true })
+                await interaction.editReply({ content: "You must input the ID of a valid message for this command" })
                 return;
             }
         }
 
-        await interaction.reply({ content: "An internal error occurred. Yell at Theeef!", ephemeral: true });
+        await interaction.editReply({ content: "An internal error occurred. Yell at Theeef!" });
         console.error(error);
     }
 }
@@ -652,15 +638,17 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
 
 async function executeSetStatus(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
-    const status = interaction.options.getString("status");
+    const status = interaction.options.getString("status") as ProjectStatus;
 
     if (!projectName || !status)
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-    Database.getProjectRepo().save(project);
+    project.status = status;
+    await interaction.deferReply({ ephemeral: true });
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`, ephemeral: true });
+    await interaction.editReply({ content: `${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}` });
 }
 
 async function executeSetIp(interaction: ChatInputCommandInteraction) {
@@ -698,9 +686,11 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    Database.createNewProject(projectName, displayName, type);
+    await interaction.deferReply({ ephemeral: true });
 
-    await interaction.reply({ content: `Project created with project_name: \`${projectName}\`, and display_name: \`${displayName}\``, ephemeral: true });
+    const project = await Database.createNewProject(projectName, displayName, type);
+
+    await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.displayName}\`` });
 }
 
 export { autocomplete, data, execute };
