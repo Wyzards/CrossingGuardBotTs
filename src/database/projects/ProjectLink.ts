@@ -1,31 +1,31 @@
 export default class ProjectLink {
 
     private _projectId: number;
-    private _linkId: number;
-    private _linkName: string;
-    private _linkUrl: string;
+    private _id: number;
+    private _label: string;
+    private _url: string;
 
-    public constructor(projectId: number, linkId: number, linkName: string, linkUrl: string) {
+    public constructor(projectId: number, id: number, label: string, url: string) {
         this._projectId = projectId;
-        this._linkId = linkId;
-        this._linkName = linkName;
-        this._linkUrl = linkUrl;
+        this._id = id;
+        this._label = label;
+        this._url = url;
     }
 
     public get projectId(): number {
         return this._projectId;
     }
 
-    public get linkId(): number {
-        return this._linkId;
+    public get id(): number {
+        return this._id;
     }
 
-    public get linkName(): string {
-        return this._linkName;
+    public get label(): string {
+        return this._label;
     }
 
-    public get linkUrl(): string {
-        return this._linkUrl;
+    public get url(): string {
+        return this._url;
     }
 
 }

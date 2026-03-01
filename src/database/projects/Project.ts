@@ -87,10 +87,10 @@ export default class Project {
     public channelMessageContent(): string {
         let linksContent = this._links.length > 0 ? "# Links\n" : "";
         let staffContent = this._staff.length > 0 ? "# Staff\n" : "";
-        let discordLink = this._links.filter(link => link.linkName === "Discord").length ? this._links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
+        let discordLink = this._links.filter(link => link.label === "Discord").length ? this._links.filter(link => link.label === "Discord")[0].url : null;
 
         this._links.forEach(link => {
-            linksContent += `- [${link.linkName}](${link.linkUrl})\n`;
+            linksContent += `- [${link.label}](${link.url})\n`;
         });
 
         function compare(staff1: ProjectStaff, staff2: ProjectStaff) {

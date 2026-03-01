@@ -1,11 +1,10 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
 import { CreateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import Project from "../database/projects/Project.js";
-import { Readable } from 'stream';
-import { fileTypeFromBuffer } from 'file-type';
-import FormData from 'form-data';
 import { Attachment } from "discord.js";
+import FormData from 'form-data';
+import Project from "../database/projects/Project.js";
 import { IOperationReporter } from "../util/operations.js";
+import ProjectLink from "../database/projects/ProjectLink.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }
@@ -121,5 +120,19 @@ export class ProjectRepository {
 
         // Call API library (which just posts FormData)
         await this.api.projects.setAttachments(project.id, form);
+    }
+
+    async addLink(project: Project, label: string, url: string, reporter?: IOperationReporter) {
+        const validatedLink = await this.api.projects.addLink(project.id, { url: url, label: label });
+
+        project.links.push(new ProjectLink(project.id, validatedLink.id, validatedLink.label, validatedLink.url));
+        await project.updateView(true, reporter);
+    }
+
+    async removeLink(project: Project, link: ProjectLink, reporter?: IOperationReporter) {
+        await this.api.projects.removeLink(project.id, link.id);
+
+        project.links.filter(l => l !== link);
+        await project.updateView(true, reporter);
     }
 }

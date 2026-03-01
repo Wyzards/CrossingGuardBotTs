@@ -90,10 +90,10 @@ export default class ProjectChannel {
     public channelMessage(): MessageEditOptions | GuildForumThreadMessageCreateOptions {
         let linksContent = this.project.links.length > 0 ? "> **Links**\n" : "";
         let staffContent = this.project.staff.length > 0 ? "> **Staff**\n" : "";
-        let discordLink = this.project.links.filter(link => link.linkName === "Discord").length ? this.project.links.filter(link => link.linkName === "Discord")[0].linkUrl : null;
+        let discordLink = this.project.links.filter(link => link.label === "Discord").length ? this.project.links.filter(link => link.label === "Discord")[0].url : null;
 
         this.project.links.forEach(link => {
-            linksContent += `- [${link.linkName}](${link.linkUrl})\n`;
+            linksContent += `- [${link.label}](${link.url})\n`;
         });
 
         function compare(staff1: ProjectStaff, staff2: ProjectStaff) {

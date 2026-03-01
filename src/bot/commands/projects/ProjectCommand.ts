@@ -4,7 +4,8 @@ import Database from "../../../database/Database.js";
 import ProjectLink from "../../../database/projects/ProjectLink.js";
 import ProjectStaff from "../../../database/projects/ProjectStaff.js";
 import { MessageFlags } from "discord-api-types/v10";
-import { OperationTracker } from "../../../util/operations.js";
+import { IOperationReporter, OperationTracker } from "../../../util/operations.js";
+import { ProjectRepository } from "../../../repositories/ProjectRepository.js";
 
 const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
     name: ProjectStatusHelper.pretty(status),
@@ -314,11 +315,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
         else if (subcommandGroup == "links") {
             if (subcommand == "add")
-                await executeAddLink(interaction);
+                await executeAddLink(interaction, tracker);
             else if (subcommand == "list")
                 await executeListLinks(interaction);
             else if (subcommand == "remove")
-                await executeRemoveLink(interaction);
+                await executeRemoveLink(interaction, tracker);
         }
 
         else if (subcommandGroup == "staff") {
@@ -441,7 +442,7 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] } });
 }
 
-async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
+async function executeRemoveLink(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const linkName = interaction.options.getString("name");
 
@@ -450,10 +451,14 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    project.links = project.links.filter(link => link.linkName !== linkName);
-    await Database.getProjectRepo().save(project);
+    const link = project.links.find(l => l.label === linkName);
 
-    await interaction.editReply({ content: `Removed the link \`${linkName}\` from ${project.displayName}` });
+    if (link) {
+        await Database.getProjectRepo().removeLink(project, link, reporter);
+        await reporter.finalize(`Removed the link \`${linkName}\` from ${project.displayName}`);
+    } else {
+        await reporter.finalize(`A link with the name ${linkName} does not exist on the project ${project.displayName}!`);
+    }
 }
 
 async function executeListStaff(interaction: ChatInputCommandInteraction) {
@@ -502,12 +507,12 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     let reply = project.displayName + "'s Links\n--------------------\n";
 
     for (const link of project.links)
-        reply += `- [${link.linkName}](${link.linkUrl})\n`;
+        reply += `- [${link.label}](${link.url})\n`;
 
     await interaction.editReply(reply);
 }
 
-async function executeAddLink(interaction: ChatInputCommandInteraction) {
+async function executeAddLink(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const linkName = interaction.options.getString("name");
     const linkURL = interaction.options.getString("url");
@@ -516,12 +521,10 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-    project.links.push(new ProjectLink(project.id, 0, linkName, linkURL));
-    // MAY CAUSE ERROR, MAY NEED TO GET LINKS, PUSH, THEN SET
 
-    await Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().addLink(project, linkName, linkURL, reporter);
 
-    await interaction.editReply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}` });
+    await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.displayName}`);
 }
 
 
