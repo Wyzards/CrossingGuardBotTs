@@ -1,5 +1,5 @@
 import { ProjectStaffRankHelper, ProjectStatus, ProjectStatusHelper, ProjectType, ProjectTypeHelper, UpdateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, ForumChannel, ForumThreadChannel, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField } from "discord.js";
+import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, DefaultReactionEmoji, DiscordAPIError, ForumChannel, ForumThreadChannel, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField } from "discord.js";
 import Bot from "../../bot/Bot.js";
 import { ProjectStatusDiscordMeta } from "../../util/projectStatusDiscord.js";
 import Database from "../Database.js";
@@ -7,6 +7,7 @@ import Result from "../Result.js";
 import ProjectAttachment from "./ProjectAttachment.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
+import { IOperationReporter, track } from "../../util/operations.js";
 
 export default class Project {
 
@@ -24,6 +25,8 @@ export default class Project {
     private _staff: ProjectStaff[];
     private _attachments: ProjectAttachment[];
     private _type: ProjectType;
+
+    public static DISCOVERY_CHANNEL_NOT_EXIST_MSG = "Tried to get Discovery channel but it doesn't exist, create it and edit .env";
 
     public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType) {
         this._id = id;
@@ -140,28 +143,40 @@ export default class Project {
         }
     }
 
-    public async updateView(updateChannel: boolean) {
+    public async updateView(updateChannel: boolean, reporter?: IOperationReporter) {
         const guild = await Bot.getInstance().guild;
 
         await guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatusDiscordMeta[this.status].roleColor });
 
         if (updateChannel)
-            await this.updateOrCreateChannel();
+            await this.updateOrCreateChannel(reporter);
         await this.updateDiscovery();
         await this.updateMapsThread(); // If not a map, will delete a matching maps thread then do nothing
     }
 
     public async getChannel(): Promise<Result<ForumChannel>> {
         const guild = await Bot.getInstance().guild;
-        const channel = this.channelId == null ? null : await guild.channels.fetch(this.channelId);
 
-        if (channel == null)
+        if (this.channelId == null)
             return new Result<ForumChannel>(null, false);
-        else
-            return new Result(channel as ForumChannel, true);
+
+        try {
+            const channel = await guild.channels.fetch(this.channelId);
+
+            if (channel == null)
+                return new Result<ForumChannel>(null, false);
+            else
+                return new Result(channel as ForumChannel, true);
+        } catch (err) {
+            if (err instanceof DiscordAPIError && (err as DiscordAPIError).code === 10003) {
+                return new Result<ForumChannel>(null, false);
+            }
+
+            throw err;
+        }
     }
 
-    public async updateOrCreateChannel() {
+    public async updateOrCreateChannel(reporter?: IOperationReporter) {
         const guild = await Bot.getInstance().guild;
         const channelResult = await this.getChannel();
         var projectChannel: ForumChannel;
@@ -170,9 +185,9 @@ export default class Project {
             projectChannel = channelResult.result;
 
             if (this.type == ProjectType.MAP) {
-                await projectChannel.delete();
+                await track(reporter, 'Deleting project channel', projectChannel.delete());
                 this.channelId = null;
-                await Database.getProjectRepo().save(this, false);
+                await track(reporter, 'Saving project', Database.getProjectRepo().save(this, false));
                 return;
             }
         } else {
@@ -180,18 +195,21 @@ export default class Project {
                 return;
 
             const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
-            projectChannel = await guild.channels.create({
+            projectChannel = await track(reporter, 'Creating project channel', guild.channels.create({
                 name: this.name,
                 type: ChannelType.GuildForum,
                 parent: category.id,
                 availableTags: []
-            });
+            }));
             this._channelId = projectChannel.id;
-            await Database.getProjectRepo().save(this, false);
+            await track(reporter, 'Saving project', Database.getProjectRepo().save(this, false));
         }
 
-        await projectChannel.setAvailableTags(await this.getAvailableChannelTags());
-        await projectChannel.permissionOverwrites.set(this.status == ProjectStatus.HIDDEN ? [
+        const availableTags = await this.getAvailableChannelTags();
+        const defaultReactionEmoji = this.emoji == null ? { id: null, name: "⚔️" } : this.emoji;
+        const name = ProjectStatusDiscordMeta[this.status].channelIcon + "｜" + this.name;
+        const topic = `Post anything related to ${this.displayName} here!`
+        const permissionOverwrites = this.status == ProjectStatus.HIDDEN ? [
             {
                 id: guild.roles.everyone.id,
                 deny: [PermissionsBitField.Flags.ViewChannel]
@@ -200,12 +218,15 @@ export default class Project {
                 id: Bot.INTAKE_ROLE_ID,
                 allow: [PermissionsBitField.Flags.ViewChannel]
             }
-        ] : [])
-        await projectChannel.setDefaultReactionEmoji(this.emoji == null ? { id: null, name: "⚔️" } : this.emoji);
-        // Think this line gets ratelimited so when we await it might just wait for... a while. Maybe check if this is ratelimited and if it is change the return message
-        // Not awaiting because ratelimiting and lazy to listen (also event doesnt trigger??)
-        projectChannel.setName(ProjectStatusDiscordMeta[this.status].channelIcon + "｜" + this.name);
-        await projectChannel.setTopic(`Post anything related to ${this.displayName} here!`)
+        ] : [];
+
+        await track(reporter, 'Updating project display... May take up to 15 minutes. You can dismiss this message and it will still complete.', projectChannel.edit({
+            availableTags,
+            permissionOverwrites: permissionOverwrites,
+            defaultReactionEmoji: defaultReactionEmoji,
+            name: name,
+            topic: topic
+        }));
 
         // turn on watch for autodist and make all async commands defereply
 
@@ -221,7 +242,7 @@ export default class Project {
 
                 if (starterMessage) {
                     const starterMessageContent = await this.getStarterMessage();
-                    await starterMessage.edit(starterMessageContent);
+                    await track(reporter, 'Editing project channel thread', starterMessage.edit(starterMessageContent));
                     // Doesnt delete the actual message, just removes it from the collection
                     messages.delete(starterMessage.id);
                 }
@@ -230,8 +251,8 @@ export default class Project {
                     if (!message.system)
                         await thread.messages.delete(message);
 
-                await this.sendChannelMessage(thread);
-                await thread.setAppliedTags(await this.getTagsForPinnedChannelThread());
+                await track(reporter, 'Sending project channel thread message', this.sendChannelMessage(thread));
+                await track(reporter, 'Setting project channel thread tags', thread.setAppliedTags(await this.getTagsForPinnedChannelThread()));
 
                 return;
             }
@@ -241,15 +262,18 @@ export default class Project {
 
         // Creating pinned thread if it doesn't already exist
         const starterMessage = (await this.getStarterMessage()) as GuildForumThreadMessageCreateOptions;
+        const tags = await this.getTagsForPinnedChannelThread();
         const thread = await projectChannel.threads.create({
-            appliedTags: await this.getTagsForPinnedChannelThread(),
+            appliedTags: tags,
             message: starterMessage,
             name: this.threadName,
         });
 
-        await thread.pin();
-        await thread.setLocked(true);
-        await this.sendChannelMessage(thread);
+        const pin = track(reporter, 'Pinning project channel thread', thread.pin());
+        const lock = track(reporter, 'Locking project channel thread', thread.setLocked(true));
+        const send = track(reporter, 'Sending project channel thread message', this.sendChannelMessage(thread));
+
+        await Promise.all([pin, lock, send]);
     }
 
     public get threadName() {
@@ -257,17 +281,36 @@ export default class Project {
     }
 
     public static async getMapsChannel(): Promise<ForumChannel> {
-        const guild = await Bot.getInstance().guild;
-        const channel = await guild.channels.fetch(Bot.MAPS_FORUM_CHANNEL_ID);
 
-        return channel as ForumChannel;
+        const guild = await Bot.getInstance().guild;
+        try {
+            const channel = await guild.channels.fetch(Bot.MAPS_FORUM_CHANNEL_ID);
+
+            return channel as ForumChannel;
+
+        } catch (err) {
+            if (err instanceof DiscordAPIError && (err as DiscordAPIError).code === 10003) {
+                throw new Error("Tried to get Maps channel but it doesn't exist, create it and edit .env");
+            }
+
+            throw err;
+        }
     }
 
     public static async getDiscoveryChannel(): Promise<ForumChannel> {
         const guild = await Bot.getInstance().guild;
-        const channel = await guild.channels.fetch(Bot.DISCOVERY_CHANNEL_ID);
 
-        return channel as ForumChannel;
+        try {
+            const channel = await guild.channels.fetch(Bot.DISCOVERY_CHANNEL_ID);
+
+            return channel as ForumChannel;
+        } catch (err) {
+            if (err instanceof DiscordAPIError && (err as DiscordAPIError).code === 10003) {
+                throw new Error(Project.DISCOVERY_CHANNEL_NOT_EXIST_MSG);
+            }
+
+            throw err;
+        }
     }
 
     public async updateMapsThread() {
@@ -338,11 +381,21 @@ export default class Project {
         this.sendChannelMessage(discoveryThread);
     }
 
+    public static async createDiscoveryChannel(): Promise<ForumChannel> {
+        const guild = await Bot.guild;
+        const channel = await guild.channels.create<ChannelType.GuildForum>({ name: "🔎｜discover-rpgs", type: ChannelType.GuildForum });
+
+        return channel;
+    }
+
+
+
     public async createDiscoveryThread(): Promise<ForumThreadChannel> {
         const discoveryChannel = await Project.getDiscoveryChannel();
+        const starterMessage = await this.getStarterMessage();
         const discoveryThread = await discoveryChannel.threads.create({
             appliedTags: await this.getDiscoveryThreadAppliedTags(),
-            message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
+            message: starterMessage as GuildForumThreadMessageCreateOptions,
             name: this.discoveryChannelName,
         }) as ForumThreadChannel;
 
@@ -351,9 +404,10 @@ export default class Project {
 
     public async createMapsThread() {
         const mapsChannel = await Project.getMapsChannel();
+        const starterMessage = await this.getStarterMessage();
         const mapsThread = await mapsChannel.threads.create({
             appliedTags: await this.getMapsThreadAppliedTags(),
-            message: this.getStarterMessage() as GuildForumThreadMessageCreateOptions,
+            message: starterMessage as GuildForumThreadMessageCreateOptions,
             name: this.discoveryChannelName, // Correct, uses same format as discovery channel
         }) as ForumThreadChannel;
 
@@ -362,12 +416,22 @@ export default class Project {
 
     public async getDiscoveryThreadAppliedTags(): Promise<string[]> {
         const tags = [];
-        const availableTags = (await Project.getDiscoveryChannel()).availableTags;
-        const statusTag = ProjectStatusHelper.pretty(this.status);
-        const projectTypeTag = ProjectTypeHelper.pretty(this.type);
+        const discoveryChannel = await Project.getDiscoveryChannel();
+        const availableTags = discoveryChannel.availableTags;
+        const statusTagName = ProjectStatusHelper.pretty(this.status);
+        const projectTypeTagName = ProjectTypeHelper.pretty(this.type);
 
-        tags.push(availableTags.find(tag => tag.name == statusTag)!.id);
-        tags.push(availableTags.find(tag => tag.name == projectTypeTag)!.id);
+        const statusTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == statusTagName);
+        const projectTypeTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == projectTypeTagName);
+
+        if (statusTag == undefined)
+            throw new Error("Tried to set status tag for discovery message but status tag did not exist on discovery channel forum");
+        if (projectTypeTag == undefined)
+            throw new Error("Tried to set project type tag for discovery message but project type tag did not exist on discovery channel forum");
+
+
+        tags.push(statusTag.id);
+        tags.push(projectTypeTag.id);
 
         return tags;
     }
@@ -613,7 +677,8 @@ export default class Project {
     }
 
     public async getDiscoveryThread(): Promise<Result<ForumThreadChannel>> {
-        const discoveryChannel = await Project.getDiscoveryChannel();
+        let discoveryChannel = await Project.getDiscoveryChannel();
+
         const discoveryThreads = await discoveryChannel.threads.fetchActive();
 
         for (const discoveryThread of discoveryThreads.threads)

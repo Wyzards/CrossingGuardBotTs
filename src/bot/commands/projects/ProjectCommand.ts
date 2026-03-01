@@ -1,11 +1,10 @@
 import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStatus, ProjectStatusHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import * as fs from 'fs';
-import * as path from 'path';
+import { AutocompleteInteraction, ChatInputCommandInteraction, Message, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import Database from "../../../database/Database.js";
-import ProjectAttachment from "../../../database/projects/ProjectAttachment.js";
 import ProjectLink from "../../../database/projects/ProjectLink.js";
 import ProjectStaff from "../../../database/projects/ProjectStaff.js";
+import { MessageFlags } from "discord-api-types/v10";
+import { OperationTracker } from "../../../util/operations.js";
 
 const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
     name: ProjectStatusHelper.pretty(status),
@@ -283,55 +282,75 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
 
     if (projectName && subcommand != "create" && !await Database.projectExists(projectName)) {
-        interaction.reply({ content: `No project matched the name ${projectName}`, ephemeral: true });
+        interaction.editReply({ content: `No project matched the name ${projectName}` });
         return;
     }
 
-    if (subcommandGroup == "set") {
-        if (subcommand == "type")
-            executeSetType(interaction);
-        else if (subcommand == "ip")
-            executeSetIp(interaction);
-        else if (subcommand == "status")
-            executeSetStatus(interaction);
-        else if (subcommand == "emoji")
-            executeSetEmoji(interaction);
-        else if (subcommand == "description")
-            executeSetDescription(interaction);
-        else if (subcommand == "attachments")
-            executeSetAttachments(interaction);
-        else if (subcommand == "discord_id")
-            executeSetGuildID(interaction);
-        else if (subcommand == "display_name")
-            executeSetDisplayName(interaction);
-        else if (subcommand == "name")
-            executeSetName(interaction);
-    }
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    else if (subcommandGroup == "links") {
-        if (subcommand == "add")
-            executeAddLink(interaction);
-        else if (subcommand == "list")
-            executeListLinks(interaction);
-        else if (subcommand == "remove")
-            executeRemoveLink(interaction);
-    }
+    const tracker = new OperationTracker(interaction);
 
-    else if (subcommandGroup == "staff") {
-        if (subcommand == "add")
-            executeAddStaff(interaction);
-        else if (subcommand == "list")
-            executeListStaff(interaction);
-        else if (subcommand == "remove")
-            executeRemoveStaff(interaction);
-    }
+    try {
+        if (subcommandGroup == "set") {
+            if (subcommand == "type")
+                await executeSetType(interaction);
+            else if (subcommand == "ip")
+                await executeSetIp(interaction);
+            else if (subcommand == "status")
+                await executeSetStatus(interaction, tracker);
+            else if (subcommand == "emoji")
+                await executeSetEmoji(interaction);
+            else if (subcommand == "description")
+                await executeSetDescription(interaction);
+            else if (subcommand == "attachments")
+                await executeSetAttachments(interaction);
+            else if (subcommand == "discord_id")
+                await executeSetGuildID(interaction);
+            else if (subcommand == "display_name")
+                await executeSetDisplayName(interaction);
+            else if (subcommand == "name")
+                await executeSetName(interaction);
+        }
 
-    else if (subcommand == "create")
-        executeCreateProject(interaction);
-    else if (subcommand == "delete")
-        executeDeleteProject(interaction);
-    else if (subcommand == "updateviews")
-        executeUpdateViews(interaction);
+        else if (subcommandGroup == "links") {
+            if (subcommand == "add")
+                await executeAddLink(interaction);
+            else if (subcommand == "list")
+                await executeListLinks(interaction);
+            else if (subcommand == "remove")
+                await executeRemoveLink(interaction);
+        }
+
+        else if (subcommandGroup == "staff") {
+            if (subcommand == "add")
+                await executeAddStaff(interaction);
+            else if (subcommand == "list")
+                await executeListStaff(interaction);
+            else if (subcommand == "remove")
+                await executeRemoveStaff(interaction);
+        }
+
+        else if (subcommand == "create")
+            await executeCreateProject(interaction);
+        else if (subcommand == "delete")
+            await executeDeleteProject(interaction);
+        else if (subcommand == "updateviews")
+            await executeUpdateViews(interaction);
+    } catch (err) {
+        if (err instanceof Error) {
+            const error = err as Error;
+            await interaction.editReply({ content: `ERROR: ${error.message}` });
+
+            console.error(error.stack);
+        } else {
+            await interaction.editReply({
+                content: `ERROR: ${typeof err === "string" ? err : String(err)}`
+            });
+
+            console.error(err);
+        }
+
+    }
 }
 
 async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
@@ -339,8 +358,6 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project"); // Can be null
 
     var count = 0;
-
-    await interaction.deferReply({ ephemeral: true });
 
     for (const project of projects) {
         if (projectName != null && project.name != projectName)
@@ -360,14 +377,14 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
         return;
 
     if (newName.toLowerCase() != newName || newName.includes(" ")) {
-        await interaction.reply({ content: `Your submitted project name (${newName}) is invalid as it contains uppercase characters or whitespaces`, ephemeral: true });
+        await interaction.editReply({ content: `Your submitted project name (${newName}) is invalid as it contains uppercase characters or whitespaces` });
         return;
     }
 
     const projectWithSameName = await Database.getProjectByName(newName);
 
     if (projectWithSameName.exists) {
-        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
+        await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
 
@@ -376,7 +393,7 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
 
     await project.setName(newName);
 
-    await interaction.reply({ content: `${nameBefore} has been renamed to ${newName}`, ephemeral: true });
+    await interaction.editReply({ content: `${nameBefore} has been renamed to ${newName}` });
 }
 
 async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
@@ -386,13 +403,14 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
     if (!projectName || !displayName)
         return;
 
+
     const project = (await Database.getProjectByName(projectName)).result;
 
     var nameBefore = project.displayName;
 
     await project.setDisplayName(displayName);
 
-    await interaction.reply({ content: `${nameBefore}'s display name has been changed to ${displayName}`, ephemeral: true });
+    await interaction.editReply({ content: `${nameBefore}'s display name has been changed to ${displayName}` });
 }
 
 async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
@@ -403,9 +421,9 @@ async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    project.delete();
+    await project.delete();
 
-    await interaction.reply({ content: `Deleted ${project.displayName}`, ephemeral: true });
+    await interaction.editReply({ content: `Deleted ${project.displayName}` });
 }
 
 async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
@@ -417,10 +435,10 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
     project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
-    Database.getProjectRepo().save(project)
-    Database.updateStaffRoles(user.id);
+    await Database.getProjectRepo().save(project)
+    await Database.updateStaffRoles(user.id);
 
-    await interaction.reply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] }, ephemeral: true });
+    await interaction.editReply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] } });
 }
 
 async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
@@ -433,9 +451,9 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.links = project.links.filter(link => link.linkName !== linkName);
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `Removed the link \`${linkName}\` from ${project.displayName}`, ephemeral: true });
+    await interaction.editReply({ content: `Removed the link \`${linkName}\` from ${project.displayName}` });
 }
 
 async function executeListStaff(interaction: ChatInputCommandInteraction) {
@@ -451,7 +469,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     for (const staff of project.staff)
         reply += `- <@${staff.discordUserId}> ~ ${staff.rank}\n`;
 
-    await interaction.reply({ content: reply, allowedMentions: { parse: [] } });
+    await interaction.editReply({ content: reply, allowedMentions: { parse: [] } });
 }
 
 async function executeAddStaff(interaction: ChatInputCommandInteraction) {
@@ -465,12 +483,12 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     if (project.addStaff(new ProjectStaff(project.id, user.id, rank))) {
-        Database.getProjectRepo().save(project)
-        Database.updateStaffRoles(user.id);
+        await Database.getProjectRepo().save(project)
+        await Database.updateStaffRoles(user.id);
 
-        await interaction.reply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.editReply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] } });
     } else {
-        await interaction.reply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] }, ephemeral: true });
+        await interaction.editReply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] } });
     }
 }
 
@@ -486,7 +504,7 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     for (const link of project.links)
         reply += `- [${link.linkName}](${link.linkUrl})\n`;
 
-    await interaction.reply(reply);
+    await interaction.editReply(reply);
 }
 
 async function executeAddLink(interaction: ChatInputCommandInteraction) {
@@ -501,9 +519,9 @@ async function executeAddLink(interaction: ChatInputCommandInteraction) {
     project.links.push(new ProjectLink(project.id, 0, linkName, linkURL));
     // MAY CAUSE ERROR, MAY NEED TO GET LINKS, PUSH, THEN SET
 
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}`, ephemeral: true });
+    await interaction.editReply({ content: `Added the link [${linkName}](${linkURL}) to ${project.displayName}` });
 }
 
 
@@ -517,9 +535,9 @@ async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.guildId = guildId;
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `Linked ${guildId} to ${project.displayName}`, ephemeral: true });
+    await interaction.editReply({ content: `Linked ${guildId} to ${project.displayName}` });
 }
 
 async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
@@ -530,11 +548,9 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
         return;
 
     if (isNaN(Number(msgId))) {
-        await interaction.reply({ content: "You must provide a valid message ID for the description", ephemeral: true });
+        await interaction.editReply({ content: "You must provide a valid message ID for the description" });
         return;
     }
-
-    await interaction.deferReply({ ephemeral: true });
 
     try {
         const message = await interaction.channel.messages.fetch(msgId);
@@ -552,26 +568,8 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
         }
 
         await interaction.editReply({ content: "An internal error occurred. Yell at Theeef!" });
-        console.error(error);
     }
 }
-
-// function downloadImage(url: string, filepath: string) {
-//     return new Promise((resolve, reject) => {
-//         client.get(url, (res) => {
-//             if (res.statusCode === 200) {
-//                 res.pipe(fs.createWriteStream(filepath))
-//                     .on('error', reject)
-//                     .once('close', () => resolve(filepath));
-//             } else {
-//                 // Consume response data to free up memory
-//                 res.resume();
-//                 reject(new Error(`Request Failed With a Status Code: ${res.statusCode}`));
-
-//             }
-//         });
-//     });
-// }
 
 async function executeSetType(interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
@@ -583,9 +581,9 @@ async function executeSetType(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.type = type;
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}`, ephemeral: true });
+    await interaction.editReply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}` });
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction) {
@@ -596,7 +594,7 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
         return;
 
     if (isNaN(Number(descriptionMessageId))) {
-        await interaction.reply({ content: "You must provide a valid message ID for the description", ephemeral: true });
+        await interaction.editReply({ content: "You must provide a valid message ID for the description" });
         return;
     }
 
@@ -606,18 +604,18 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
         const project = (await Database.getProjectByName(projectName)).result;
 
         project.description = description;
-        Database.getProjectRepo().save(project);
+        await Database.getProjectRepo().save(project);
 
-        await interaction.reply({ content: `${project.displayName} has been given the following description:\n${description}`, ephemeral: true });
+        await interaction.editReply({ content: `${project.displayName} has been given the following description:\n${description}` });
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {
-                await interaction.reply({ content: "You must input the ID of a valid message for this command", ephemeral: true })
+                await interaction.editReply({ content: "You must input the ID of a valid message for this command" })
                 return;
             }
         }
 
-        await interaction.reply({ content: "An internal error occurred. Yell at Theeef!", ephemeral: true });
+        await interaction.editReply({ content: "An internal error occurred. Yell at Theeef!" });
         console.error(error);
     }
 }
@@ -631,24 +629,23 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
     project.emoji = emojiIdOrUnicode;
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\``, ephemeral: true });
+    await interaction.editReply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\`` });
 }
 
-async function executeSetStatus(interaction: ChatInputCommandInteraction) {
+async function executeSetStatus(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const status = interaction.options.getString("status") as ProjectStatus;
 
     if (!projectName || !status)
         return;
 
+
     const project = (await Database.getProjectByName(projectName)).result;
     project.status = status;
-    await interaction.deferReply({ ephemeral: true });
-    await Database.getProjectRepo().save(project);
-
-    await interaction.editReply({ content: `${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}` });
+    await Database.getProjectRepo().save(project, true, reporter);
+    await reporter.finalize(`${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`);
 }
 
 async function executeSetIp(interaction: ChatInputCommandInteraction) {
@@ -661,9 +658,9 @@ async function executeSetIp(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.ip = ipString;
-    Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project);
 
-    await interaction.reply({ content: `${project.displayName}'s IP set to \`${ipString}\``, ephemeral: true });
+    await interaction.editReply({ content: `${project.displayName}'s IP set to \`${ipString}\`` });
 }
 
 async function executeCreateProject(interaction: ChatInputCommandInteraction) {
@@ -675,18 +672,16 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
 
     if (projectName.toLowerCase() != projectName || projectName.includes(" ")) {
-        await interaction.reply({ content: `Your submitted project name (${projectName}) is invalid as it contains uppercase characters or whitespaces`, ephemeral: true });
+        await interaction.editReply({ content: `Your submitted project name (${projectName}) is invalid as it contains uppercase characters or whitespaces` });
         return;
     }
 
     const projectWithSameName = await Database.getProjectByName(projectName);
 
     if (projectWithSameName.exists) {
-        await interaction.reply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.`, ephemeral: true });
+        await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
-
-    await interaction.deferReply({ ephemeral: true });
 
     const project = await Database.createNewProject(projectName, displayName, type);
 

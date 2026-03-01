@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { fileTypeFromBuffer } from 'file-type';
 import FormData from 'form-data';
 import { Attachment } from "discord.js";
+import { IOperationReporter } from "../util/operations.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }
@@ -45,9 +46,9 @@ export class ProjectRepository {
         return dtos.map(Project.fromApi);
     }
 
-    async save(project: Project, updateChannel: boolean = true): Promise<void> {
+    async save(project: Project, updateChannel: boolean = true, reporter?: IOperationReporter): Promise<void> {
         await this.api.projects.update(project.id, project.toUpdatePayload());
-        await project.updateView(updateChannel);
+        await project.updateView(updateChannel, reporter);
     }
 
     async create(payload: CreateProjectPayload): Promise<Project> {

@@ -3,6 +3,7 @@
 	"dependencies": {
 		"@wyzards/crossroadsclientts": "^1.0.27",
 		"async": "^3.2.5",
+		"discord-api-types": "^0.38.40",
 		"discord.js": "^14.13.0",
 		"dotenv": "^17.2.3",
 		"file-type": "^21.3.0",

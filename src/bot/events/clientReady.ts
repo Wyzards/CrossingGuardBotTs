@@ -1,4 +1,4 @@
-import { Client, Events } from "discord.js";
+import { Client, Events, RESTEvents } from "discord.js";
 
 const name = Events.ClientReady;
 const once = true;
