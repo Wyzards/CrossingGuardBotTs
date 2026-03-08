@@ -102,7 +102,8 @@ export default class Project {
         }
 
         this._staff.sort(compare).forEach(staff => {
-            staffContent += `- <@${staff.discordUserId}> ~ ${ProjectStaffRankHelper.pretty(staff.rank)}\n`;
+            if (staff.user.discordId)
+                staffContent += `- <@${staff.user.discordId}> ~ ${ProjectStaffRankHelper.pretty(staff.rank)}\n`;
         });
 
         if (this._links.length > 0)
@@ -585,28 +586,6 @@ export default class Project {
         return this._links;
     }
 
-    public addStaff(staff: ProjectStaff): boolean {
-        // Person is already staff
-        if (this._staff.some(existingStaff => existingStaff.discordUserId === staff.discordUserId)) {
-            // Set rank
-
-            var alreadyExists = false;
-            this._staff.filter(existingStaff => existingStaff.discordUserId === staff.discordUserId).forEach(existingStaff => {
-                if (existingStaff.rank == staff.rank)
-                    alreadyExists = true;
-                else
-                    existingStaff.rank = staff.rank;
-            });
-
-            if (alreadyExists)
-                return false;
-        } else {
-            this._staff.push(staff);
-        }
-
-        return true;
-    }
-
     public set staff(staff: ProjectStaff[]) {
         this._staff = staff;
     }
@@ -641,7 +620,8 @@ export default class Project {
         const guild = await Bot.getInstance().guilds.fetch(Bot.GUILD_ID);
 
         for (const staff of this.staff) {
-            await Database.updateStaffRoles(staff.discordUserId);
+            if (staff.user.discordId)
+                await Database.updateStaffRoles(staff.user.discordId);
         }
 
         if (this.type != ProjectType.MAP) {

@@ -1,10 +1,9 @@
+import { ProjectStaffRankHelper, ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import Bot from "../../bot/Bot";
-import Project from "./Project";
-import { ProjectStaffRankHelper, ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import ProjectStaff from "./ProjectStaff";
-import { ProjectStaffRank } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ProjectStatusDiscordMeta } from "../../util/projectStatusDiscord.js";
+import Project from "./Project";
+import ProjectStaff from "./ProjectStaff";
 
 export default class ProjectChannel {
 
@@ -105,7 +104,8 @@ export default class ProjectChannel {
         }
 
         this.project.staff.sort(compare).forEach(staff => {
-            staffContent += `- <@${staff.discordUserId}> ~ ${ProjectStaffRankHelper.pretty(staff.rank)}\n`;
+            if (staff.user.discordId)
+                staffContent += `- <@${staff.user.discordId}> ~ ${ProjectStaffRankHelper.pretty(staff.rank)}\n`;
         });
 
         if (this.project.links.length > 0)

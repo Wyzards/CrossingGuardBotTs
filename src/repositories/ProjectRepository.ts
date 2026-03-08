@@ -1,10 +1,11 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
-import { CreateProjectPayload } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { CreateProjectPayload, ProjectStaffRank, ProjectStaffRankHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { Attachment } from "discord.js";
 import FormData from 'form-data';
 import Project from "../database/projects/Project.js";
 import { IOperationReporter } from "../util/operations.js";
 import ProjectLink from "../database/projects/ProjectLink.js";
+import ProjectStaff from "../database/projects/ProjectStaff.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }
@@ -132,7 +133,31 @@ export class ProjectRepository {
     async removeLink(project: Project, link: ProjectLink, reporter?: IOperationReporter) {
         await this.api.projects.removeLink(project.id, link.id);
 
-        project.links.filter(l => l !== link);
+        const links = project.links.filter(l => l.label !== link.label);
+        project.links = links;
         await project.updateView(true, reporter);
+    }
+
+    async addOrSetStaff(project: Project, userId: string, rank: ProjectStaffRank, reporter?: IOperationReporter) {
+        const newStaff = await this.api.setProjectStaffByDiscordId(project.id, userId, rank);
+
+        const existingIndex = project.staff.findIndex(s => s.user?.id === newStaff.user.id);
+        if (existingIndex >= 0) {
+            project.staff[existingIndex] = new ProjectStaff(project.id, newStaff.user, newStaff.rank);
+        } else {
+            project.staff.push(new ProjectStaff(project.id, newStaff.user, newStaff.rank));
+        }
+
+        await project.updateView(true, reporter);
+    }
+
+    async removeStaff(project: Project, userId: string, reporter?: IOperationReporter) {
+        const existing = project.staff.find(s => s.user?.discordId === userId);
+        if (existing) {
+            await this.api.removeProjectStaffByDiscordId(project.id, userId);
+            const staff = project.staff.filter(s => s.user.discordId !== userId);
+            project.staff = staff;
+            await project.updateView(true, reporter);
+        }
     }
 }

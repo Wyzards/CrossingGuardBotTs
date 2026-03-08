@@ -1,14 +1,15 @@
 import { ProjectStaffRank } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { CrossroadsUser } from "@wyzards/crossroadsclientts/dist/users/types.js";
 
 export default class ProjectStaff {
 
     private _projectId: number;
-    private _discordUserId: string;
+    private _user: CrossroadsUser;
     private _rank: ProjectStaffRank;
 
-    public constructor(projectId: number, discordUserId: string, rank: ProjectStaffRank) {
+    public constructor(projectId: number, user: CrossroadsUser, rank: ProjectStaffRank) {
         this._projectId = projectId;
-        this._discordUserId = discordUserId;
+        this._user = user;
         this._rank = rank;
     }
 
@@ -16,8 +17,8 @@ export default class ProjectStaff {
         return this._projectId;
     }
 
-    public get discordUserId(): string {
-        return this._discordUserId;
+    public get user(): CrossroadsUser {
+        return this._user;
     }
 
     public set rank(rank: ProjectStaffRank) {

@@ -324,11 +324,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
 
         else if (subcommandGroup == "staff") {
             if (subcommand == "add")
-                await executeAddStaff(interaction);
+                await executeAddStaff(interaction, tracker);
             else if (subcommand == "list")
                 await executeListStaff(interaction);
             else if (subcommand == "remove")
-                await executeRemoveStaff(interaction);
+                await executeRemoveStaff(interaction, tracker);
         }
 
         else if (subcommand == "create")
@@ -427,7 +427,7 @@ async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ content: `Deleted ${project.displayName}` });
 }
 
-async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
+async function executeRemoveStaff(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const user = interaction.options.getUser("user");
 
@@ -435,11 +435,10 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction) {
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
-    project.staff = project.staff.filter(staff => staff.discordUserId !== user.id);
-    await Database.getProjectRepo().save(project)
-    await Database.updateStaffRoles(user.id);
+    project.staff = project.staff.filter(staff => staff.user.discordId !== user.id);
 
-    await interaction.editReply({ content: `Removed the user ${user} from ${project.displayName}`, allowedMentions: { parse: [] } });
+    await Database.getProjectRepo().removeStaff(project, user.id, reporter);
+    await reporter.finalize(`Removed the user ${user} from ${project.displayName}`);
 }
 
 async function executeRemoveLink(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
@@ -472,12 +471,12 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     let reply = project.displayName + "'s Staff\n--------------------\n";
 
     for (const staff of project.staff)
-        reply += `- <@${staff.discordUserId}> ~ ${staff.rank}\n`;
+        reply += `- <@${staff.user.discordId}> ~ ${staff.rank}\n`;
 
     await interaction.editReply({ content: reply, allowedMentions: { parse: [] } });
 }
 
-async function executeAddStaff(interaction: ChatInputCommandInteraction) {
+async function executeAddStaff(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const user = interaction.options.getUser("user");
     const rank = interaction.options.getString("rank") as ProjectStaffRank;
@@ -487,14 +486,8 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    if (project.addStaff(new ProjectStaff(project.id, user.id, rank))) {
-        await Database.getProjectRepo().save(project)
-        await Database.updateStaffRoles(user.id);
-
-        await interaction.editReply({ content: `Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] } });
-    } else {
-        await interaction.editReply({ content: `${user.toString()} is already a staff member of ${project.displayName} with the role ${ProjectStaffRankHelper.pretty(rank)}`, allowedMentions: { parse: [] } });
-    }
+    await Database.getProjectRepo().addOrSetStaff(project, user.id, rank, reporter);
+    await reporter.finalize(`Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`);
 }
 
 async function executeListLinks(interaction: ChatInputCommandInteraction) {

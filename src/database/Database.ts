@@ -114,7 +114,7 @@ export default class Database {
 
         for (let project of projectList) {
             for (let staff of project.staff) {
-                if (staff.discordUserId === discordUserId) {
+                if (staff.user.discordId === discordUserId) {
                     var doReturn = false;
                     if (staff.rank === ProjectStaffRank.LEAD) {
                         await member.roles.add(Bot.LEAD_ROLE_ID);
