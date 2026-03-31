@@ -582,7 +582,7 @@ async function executeSetType(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}` });
 }
 
-async function executeSetDescription(interaction: ChatInputCommandInteraction) {
+async function executeSetDescription(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const descriptionMessageId = interaction.options.getString("description_msg_id");
 
@@ -600,9 +600,9 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction) {
         const project = (await Database.getProjectByName(projectName)).result;
 
         project.description = description;
-        await Database.getProjectRepo().save(project);
+        await Database.getProjectRepo().save(project, true, reporter);
 
-        await interaction.editReply({ content: `${project.displayName} has been given the following description:\n${description}` });
+        await reporter.finalize(`${project.displayName} has been given the following description:\n${description}`);
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {

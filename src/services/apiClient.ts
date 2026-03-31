@@ -10,6 +10,9 @@ export function getApiClient(): CrossroadsApiClient {
         if (!url || !token) {
             throw new Error("CROSSROADS_API_URL or CROSSROADS_API_TOKEN not set");
         }
+
+        console.log("CROSSROADS API TOKEN: ", token);
+
         instance = new CrossroadsApiClient(url, token);
     }
     return instance;
