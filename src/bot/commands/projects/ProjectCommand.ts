@@ -302,7 +302,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
             else if (subcommand == "emoji")
                 await executeSetEmoji(interaction);
             else if (subcommand == "description")
-                await executeSetDescription(interaction);
+                await executeSetDescription(interaction, tracker);
             else if (subcommand == "attachments")
                 await executeSetAttachments(interaction);
             else if (subcommand == "discord_id")
