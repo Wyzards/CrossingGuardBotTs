@@ -606,12 +606,12 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction, r
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {
-                await interaction.editReply({ content: "You must input the ID of a valid message for this command" })
+                await reporter.finalize("You must input the ID of a valid message for this command");
                 return;
             }
         }
 
-        await interaction.editReply({ content: "An internal error occurred. Yell at Theeef!" });
+        await reporter.finalize("An internal error occurred. Yell at Theeef!");
         console.error(error);
     }
 }
