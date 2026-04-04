@@ -19,4 +19,5 @@ export type ProjectCreateDto = {
     attachments?: ProjectAttachment[];
     type: ProjectType;
     emoji?: DefaultReactionEmoji | null;
+    version?: string;
 };

@@ -190,15 +190,27 @@ const data = new SlashCommandBuilder()
             // Set IP
             .addSubcommand(subcommand =>
                 subcommand.setName("ip")
-                    .setDescription("Set a project's ip & version")
+                    .setDescription("Set a project's ip address")
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
                             .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
-                        option.setName("ip_string")
-                            .setDescription("The ip and version for this project. Format: version > ip")
+                        option.setName("ip")
+                            .setDescription("The project's ip address")
+                            .setRequired(true)))
+            .addSubcommand(subcommand =>
+                subcommand.setName("version")
+                    .setDescription("Set a project's version")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("version")
+                            .setDescription("The version(s) of the project")
                             .setRequired(true)))
             // Set Status Subcommand
             .addSubcommand(subcommand =>
@@ -278,6 +290,8 @@ async function autocomplete(interaction: AutocompleteInteraction) {
 }
 
 async function execute(interaction: ChatInputCommandInteraction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const subcommand = interaction.options.getSubcommand();
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const projectName = interaction.options.getString("project");
@@ -287,20 +301,20 @@ async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
     const tracker = new OperationTracker(interaction);
 
     try {
         if (subcommandGroup == "set") {
             if (subcommand == "type")
-                await executeSetType(interaction);
+                await executeSetType(interaction, tracker);
             else if (subcommand == "ip")
-                await executeSetIp(interaction);
+                await executeSetIp(interaction, tracker);
+            else if (subcommand == "version")
+                await executeSetVersion(interaction, tracker);
             else if (subcommand == "status")
                 await executeSetStatus(interaction, tracker);
             else if (subcommand == "emoji")
-                await executeSetEmoji(interaction);
+                await executeSetEmoji(interaction, tracker);
             else if (subcommand == "description")
                 await executeSetDescription(interaction, tracker);
             else if (subcommand == "attachments")
@@ -340,13 +354,11 @@ async function execute(interaction: ChatInputCommandInteraction) {
     } catch (err) {
         if (err instanceof Error) {
             const error = err as Error;
-            await interaction.editReply({ content: `ERROR: ${error.message}` });
+            await tracker.finalize(`ERROR: ${error.message}`);
 
             console.error(error.stack);
         } else {
-            await interaction.editReply({
-                content: `ERROR: ${typeof err === "string" ? err : String(err)}`
-            });
+            await tracker.finalize(`ERROR: ${typeof err === "string" ? err : String(err)}`);
 
             console.error(err);
         }
@@ -567,7 +579,7 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     }
 }
 
-async function executeSetType(interaction: ChatInputCommandInteraction) {
+async function executeSetType(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const type = interaction.options.getString("type") as ProjectType;
 
@@ -577,9 +589,9 @@ async function executeSetType(interaction: ChatInputCommandInteraction) {
     const project = (await Database.getProjectByName(projectName)).result;
 
     project.type = type;
-    await Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project, true, reporter);
 
-    await interaction.editReply({ content: `${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}` });
+    await reporter.finalize(`${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
 }
 
 async function executeSetDescription(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
@@ -611,12 +623,11 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction, r
             }
         }
 
-        await reporter.finalize("An internal error occurred. Yell at Theeef!");
-        console.error(error);
+        throw error;
     }
 }
 
-async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
+async function executeSetEmoji(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const emojiIdOrUnicode = interaction.options.getString("emoji_string");
 
@@ -625,9 +636,9 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction) {
 
     const project = (await Database.getProjectByName(projectName)).result;
     project.emoji = emojiIdOrUnicode;
-    await Database.getProjectRepo().save(project);
+    await Database.getProjectRepo().save(project, true, reporter);
 
-    await interaction.editReply({ content: `${project.displayName}'s emoji set to \`${project.emoji}\`` });
+    await reporter.finalize(`${project.displayName}'s emoji set to \`${project.emoji}\``);
 }
 
 async function executeSetStatus(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
@@ -644,19 +655,34 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction, report
     await reporter.finalize(`${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`);
 }
 
-async function executeSetIp(interaction: ChatInputCommandInteraction) {
+async function executeSetIp(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
-    const ipString = interaction.options.getString("ip_string");
+    const ip = interaction.options.getString("ip");
 
-    if (!projectName || !ipString)
+    if (!projectName || !ip)
         return;
 
     const project = (await Database.getProjectByName(projectName)).result;
 
-    project.ip = ipString;
-    await Database.getProjectRepo().save(project);
+    project.ip = ip;
+    await Database.getProjectRepo().save(project, true, reporter);
 
-    await interaction.editReply({ content: `${project.displayName}'s IP set to \`${ipString}\`` });
+    await reporter.finalize(`${project.displayName}'s IP set to \`${ip}\``);
+}
+
+async function executeSetVersion(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+    const projectName = interaction.options.getString("project");
+    const version = interaction.options.getString("version");
+
+    if (!projectName || !version)
+        return;
+
+    const project = (await Database.getProjectByName(projectName)).result;
+
+    project.version = version;
+    await Database.getProjectRepo().save(project, true, reporter);
+
+    await reporter.finalize(`${project.displayName}'s IP set to \`${version}\``);
 }
 
 async function executeCreateProject(interaction: ChatInputCommandInteraction) {

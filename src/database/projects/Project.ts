@@ -25,10 +25,11 @@ export default class Project {
     private _staff: ProjectStaff[];
     private _attachments: ProjectAttachment[];
     private _type: ProjectType;
+    private _version: string | null;
 
     public static DISCOVERY_CHANNEL_NOT_EXIST_MSG = "Tried to get Discovery channel but it doesn't exist, create it and edit .env";
 
-    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType, version: string) {
         this._id = id;
         this._channelId = channelId;
         this._name = name;
@@ -43,6 +44,7 @@ export default class Project {
         this._staff = staff;
         this._attachments = attachments;
         this._type = type;
+        this._version = version ?? null;
     }
 
     /**
@@ -64,7 +66,8 @@ export default class Project {
             apiDto.links ?? [],
             apiDto.staff ?? [],
             apiDto.attachments ?? [],
-            apiDto.type as ProjectType
+            apiDto.type as ProjectType,
+            apiDto.version
         );
     }
 
@@ -278,7 +281,16 @@ export default class Project {
     }
 
     public get threadName() {
-        return this.displayName + (this.status == ProjectStatus.PLAYABLE && this.ip != null ? ` >>> ${this.ip}` : "");
+        var name = this.displayName;
+
+        if (this.status == ProjectStatus.PLAYABLE) {
+            if (this.ip)
+                name += " >>> " + this.ip;
+            if (this.version)
+                name += " (" + this.version + ")";
+        }
+
+        return name;
     }
 
     public static async getMapsChannel(): Promise<ForumChannel> {
@@ -570,6 +582,14 @@ export default class Project {
         return this._ip;
     }
 
+    public set version(version: string) {
+        this._version = version;
+    }
+
+    public get version(): string | null {
+        return this._version;
+    }
+
     public set roleId(roleId: string) {
         this._roleId = roleId;
     }
@@ -680,9 +700,5 @@ export default class Project {
 
     public get discoveryChannelName(): string {
         return ProjectStatusDiscordMeta[this.status].channelIcon + " " + this.threadName;
-    }
-
-    public static async makeBlankChannel(name: string, category: CategoryChannel) {
-
     }
 }
