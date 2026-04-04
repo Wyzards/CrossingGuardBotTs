@@ -682,7 +682,7 @@ async function executeSetVersion(interaction: ChatInputCommandInteraction, repor
     project.version = version;
     await Database.getProjectRepo().save(project, true, reporter);
 
-    await reporter.finalize(`${project.displayName}'s IP set to \`${version}\``);
+    await reporter.finalize(`${project.displayName}'s version set to \`${version}\``);
 }
 
 async function executeCreateProject(interaction: ChatInputCommandInteraction) {

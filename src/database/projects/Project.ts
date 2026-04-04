@@ -83,6 +83,7 @@ export default class Project {
             ip: this.ip,
             role_id: this.roleId,
             type: this.type?.toString(),      // Or convert to API string representation
+            version: this.version?.toString(),
         };
     }
 
