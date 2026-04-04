@@ -124,7 +124,10 @@ export default class Project {
         const attachments = await Database.getAttachments(this);
         const content = this.description == null ? "# " + this.displayName : this.description;
 
-        return { content: content, files: attachments };
+        if (attachments.length == 0)
+            return { content: content, files: [] };
+        else
+            return { content: "", files: attachments };
     }
 
     public async sendChannelMessage(channel: ForumThreadChannel) {
