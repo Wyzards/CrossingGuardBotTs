@@ -27,10 +27,11 @@ export default class Project {
     private _attachments: ProjectAttachment[];
     private _type: ProjectType;
     private _version: string | null;
+    private _discoveryThreadId: string | null;
 
     public static DISCOVERY_CHANNEL_NOT_EXIST_MSG = "Tried to get Discovery channel but it doesn't exist, create it and edit .env";
 
-    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType, version: string) {
+    public constructor(id: number, channelId: string, name: string, displayName: string, status: ProjectStatus, description: string, discordId: string, emoji: DefaultReactionEmoji, ip: string, roleId: string, links: ProjectLink[], staff: ProjectStaff[], attachments: ProjectAttachment[], type: ProjectType, version: string | null, discoveryThreadId: string | null) {
         this._id = id;
         this._channelId = channelId;
         this._name = name;
@@ -45,7 +46,8 @@ export default class Project {
         this._staff = staff;
         this._attachments = attachments;
         this._type = type;
-        this._version = version ?? null;
+        this._version = version;
+        this._discoveryThreadId = discoveryThreadId;
     }
 
     /**
@@ -68,7 +70,8 @@ export default class Project {
             apiDto.staff ?? [],
             apiDto.attachments ?? [],
             apiDto.type as ProjectType,
-            apiDto.version
+            apiDto.version,
+            apiDto.discovery_thread_id
         );
     }
 
@@ -84,7 +87,8 @@ export default class Project {
             ip: this.ip,
             role_id: this.roleId,
             type: this.type?.toString(),      // Or convert to API string representation
-            version: this.version?.toString(),
+            version: this.version ?? undefined,
+            discovery_thread_id: this.discoveryThreadId ?? undefined
         };
     }
 
@@ -380,15 +384,30 @@ export default class Project {
     }
 
     public async updateDiscovery() {
-        if (this.status == ProjectStatus.HIDDEN)
-            return;
+        if (this.status == ProjectStatus.HIDDEN) {
+            if (this.discoveryThreadId) {
+                const thread = await this.getDiscoveryThread();
+                await thread.result.delete();
 
-        const discoveryThreadResult = await this.getDiscoveryThread();
+                this.discoveryThreadId = null;
+                await Database.getProjectRepo().save(this, false);
+            }
+
+            return;
+        }
+
         var discoveryThread;
+        const discoveryThreadResult = await this.getDiscoveryThread();
 
         if (discoveryThreadResult.exists) {
             discoveryThread = discoveryThreadResult.result;
-            await discoveryThread.edit({ appliedTags: await this.getDiscoveryThreadAppliedTags() });
+
+            if (discoveryThread.name === this.discoveryChannelName)
+                await discoveryThread.edit({ appliedTags: await this.getDiscoveryThreadAppliedTags() });
+            else {
+                await discoveryThread.delete();
+                discoveryThread = await this.createDiscoveryThread();
+            }
         } else {
             discoveryThread = await this.createDiscoveryThread();
         }
@@ -426,6 +445,9 @@ export default class Project {
             message: starterMessage as GuildForumThreadMessageCreateOptions,
             name: this.discoveryChannelName,
         }) as ForumThreadChannel;
+
+        this.discoveryThreadId = discoveryThread.id;
+        await Database.getProjectRepo().save(this, false);
 
         return discoveryThread;
     }
@@ -605,6 +627,14 @@ export default class Project {
         return this._version;
     }
 
+    public set discoveryThreadId(id: string | null) {
+        this._discoveryThreadId = id;
+    }
+
+    public get discoveryThreadId(): string | null {
+        return this._discoveryThreadId;
+    }
+
     public set roleId(roleId: string) {
         this._roleId = roleId;
     }
@@ -692,13 +722,12 @@ export default class Project {
     }
 
     public async getDiscoveryThread(): Promise<Result<ForumThreadChannel>> {
-        let discoveryChannel = await Project.getDiscoveryChannel();
+        if (this.discoveryThreadId) {
+            const guild = await Bot.getInstance().guild;
+            const thread = await guild.channels.fetch(this.discoveryThreadId);
 
-        const discoveryThreads = await discoveryChannel.threads.fetchActive();
-
-        for (const discoveryThread of discoveryThreads.threads)
-            if (discoveryThread[1].name == this.discoveryChannelName)
-                return new Result(discoveryThread[1] as ForumThreadChannel, true);
+            return new Result(thread as ForumThreadChannel, true);
+        }
 
         return new Result<ForumThreadChannel>(null, false);
     }
