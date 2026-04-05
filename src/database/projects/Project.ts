@@ -8,6 +8,7 @@ import ProjectAttachment from "./ProjectAttachment.js";
 import ProjectLink from "./ProjectLink.js";
 import ProjectStaff from "./ProjectStaff.js";
 import { IOperationReporter, track } from "../../util/operations.js";
+import { ProjectRepository } from "../../repositories/ProjectRepository.js";
 
 export default class Project {
 
@@ -153,8 +154,18 @@ export default class Project {
 
     public async updateView(updateChannel: boolean, reporter?: IOperationReporter) {
         const guild = await Bot.getInstance().guild;
+        const role = await guild.roles.fetch(this.roleId).catch(() => null);
 
-        await guild.roles.edit(this.roleId, { position: 2, name: this.displayName, color: ProjectStatusDiscordMeta[this.status].roleColor });
+        if (!role) {
+            const rolePromise = Database.createProjectRole(this.displayName, this.status);
+            await reporter?.track('Project role not found, creating a new one', rolePromise);
+            const newRole = await rolePromise;
+
+            this.roleId = newRole.id;
+            await Database.getProjectRepo().save(this, false, reporter);
+        } else {
+            await role.edit(Database.getRoleSettings(this.displayName, this.status));
+        }
 
         if (updateChannel)
             await this.updateOrCreateChannel(reporter);

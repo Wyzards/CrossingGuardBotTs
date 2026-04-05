@@ -5,6 +5,7 @@ import { ProjectRepository } from '../repositories/ProjectRepository.js';
 import { getApiClient } from '../services/apiClient.js';
 import Project from "./projects/Project.js";
 import Result from './Result.js';
+import { ProjectStatusDiscordMeta } from '../util/projectStatusDiscord.js';
 
 export default class Database {
 
@@ -75,18 +76,29 @@ export default class Database {
         return attachments;
     }
 
+    public static getRoleSettings(displayName: string, projectStatus: ProjectStatus) {
+        return {
+            position: 2,
+            hoist: true,
+            name: displayName,
+            color: ProjectStatusDiscordMeta[projectStatus].roleColor
+        }
+    }
+
+    public static async createProjectRole(displayName: string, status: ProjectStatus) {
+        const guild = await Bot.getInstance().guild;
+        const role = await guild.roles.create(Database.getRoleSettings(displayName, status));
+
+        return role;
+    }
 
     public static async createNewProject(name: string, displayName: string, type: ProjectType): Promise<Project> {
         const guild = await Bot.getInstance().guild;
-        const role = await guild.roles.create({
-            hoist: true,
-            name: displayName
-        });
+        const role = await Database.createProjectRole(displayName, ProjectStatus.HIDDEN);
         const category = await guild.channels.fetch(Bot.PROJECT_CATEGORY_ID) as CategoryChannel;
 
         if (!category)
             throw new Error(`Category channel does not exist`);
-
 
         if (type == ProjectType.MAP) {
             var project = await Database.addProject(name, displayName, null, role.id, type);
