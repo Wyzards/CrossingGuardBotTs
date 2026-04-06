@@ -1,4 +1,4 @@
-import { Attachment, AttachmentBuilder, Embed, Message, DiscordAPIError, MessageCreateOptions, MessageEditOptions, TextChannel } from "discord.js";
+import { Attachment, Embed, Message, MessageCreateOptions, MessageEditOptions } from "discord.js";
 import Project from "../../database/projects/Project.js";
 import Bot from "../Bot.js";
 import AnnouncementManager from "./AnnouncementManager.js";
@@ -22,59 +22,65 @@ export default class AnnouncementMessage {
     public async send(includeHeading: boolean) {
         const announcementChannel = await AnnouncementManager.getAnnouncementChannel();
         const roleID = this.project == null ? Bot.DEFAULT_PING_ROLE_ID : this.project.roleId;
-        var content = this.announcementMsgInHidden.content;
+        const channelId = this.project?.channelId;
+        // var content = this.announcementMsgInHidden.content;
 
-        if (includeHeading)
-            content = `**From ${this.announcementMsgInHidden.author.displayName}**\n<@&${roleID}>\n\n${this.announcementMsgInHidden.content}`;
+        // if (includeHeading)
+        //     content = `**From ${this.announcementMsgInHidden.author.displayName}**\n<@&${roleID}>\n\n${this.announcementMsgInHidden.content}`;
 
+        const heading = `**From ${this.announcementMsgInHidden.author.displayName}**\n<@&${roleID}> ${channelId ? `<#${channelId}>` : ""}\n\n`;
+        const message = this.announcementMsgInHidden;
 
-        var messages = AnnouncementMessage.splitMessageContent(this.announcementMsgInHidden.id, content, this.announcementMsgInHidden.embeds, Array.from(this.announcementMsgInHidden.attachments.values()), false);
-        for (const messageToSend of messages) {
-            let messageSent = false;
+        await announcementChannel.send({ content: heading, allowedMentions: { parse: ['users'] } });
+        await message.forward(announcementChannel);
 
-            do {
-                try {
-                    await announcementChannel.send(messageToSend as MessageCreateOptions);
-                    messageSent = true;
-                } catch (error) {
-                    // If error code == 40005 (file size error, caused by announcement sent from nitro user bypassing default file attachment size limit)
-                    if (error instanceof DiscordAPIError && error.code == 40005 && messageToSend.files != null) {
-                        // Get attachments, sorted by file size
-                        const attachments = messageToSend.files.filter((file): file is Attachment => file instanceof Attachment);
-                        const largestAttachment = attachments.reduce((largest, current) => current.size > largest.size ? current : largest);
-                        // Take the largest attachment, remove from attachments list
-                        messageToSend.files = messageToSend.files.filter(file => file != largestAttachment);
-                        // append url to content
+        // var messages = AnnouncementMessage.splitMessageContent(this.announcementMsgInHidden.id, content, this.announcementMsgInHidden.embeds, Array.from(this.announcementMsgInHidden.attachments.values()), false);
+        // for (const messageToSend of messages) {
+        //     let messageSent = false;
 
-                        messageToSend.content += "\n" + largestAttachment.url;
+        //     do {
+        //         try {
+        //             await announcementChannel.send(messageToSend as MessageCreateOptions);
+        //             messageSent = true;
+        //         } catch (error) {
+        //             // If error code == 40005 (file size error, caused by announcement sent from nitro user bypassing default file attachment size limit)
+        //             if (error instanceof DiscordAPIError && error.code == 40005 && messageToSend.files != null) {
+        //                 // Get attachments, sorted by file size
+        //                 const attachments = messageToSend.files.filter((file): file is Attachment => file instanceof Attachment);
+        //                 const largestAttachment = attachments.reduce((largest, current) => current.size > largest.size ? current : largest);
+        //                 // Take the largest attachment, remove from attachments list
+        //                 messageToSend.files = messageToSend.files.filter(file => file != largestAttachment);
+        //                 // append url to content
 
-                        // Try send again
-                        continue;
-                    }
+        //                 messageToSend.content += "\n" + largestAttachment.url;
 
-                    const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
+        //                 // Try send again
+        //                 continue;
+        //             }
 
-                    if (error instanceof DiscordAPIError && error.code == 50035) {
-                        const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
-                        await adminChannel.send({ content: "Message body length edge case error occurred while sending an announcement:", files: [attachment] })
-                    }
+        //             const adminChannel = await (await Bot.getInstance().guild).channels.fetch(Bot.ADMIN_CHANNEL_ID) as TextChannel;
 
-                    // If it wasn't a file size error...
-                    // Send announcement send error to architect/admin channel
-                    if (error instanceof Error) {
-                        const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
-                        await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
-                        messageSent = true;
-                    } else {
-                        try {
-                            await adminChannel.send({ content: JSON.stringify(error) })
-                        } catch (e) {
-                            await adminChannel.send({ content: "An error occurred but there was another error while stringifying that error... Ironic." });
-                        }
-                    }
-                }
-            } while (!messageSent);
-        }
+        //             if (error instanceof DiscordAPIError && error.code == 50035) {
+        //                 const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
+        //                 await adminChannel.send({ content: "Message body length edge case error occurred while sending an announcement:", files: [attachment] })
+        //             }
+
+        //             // If it wasn't a file size error...
+        //             // Send announcement send error to architect/admin channel
+        //             if (error instanceof Error) {
+        //                 const attachment = new AttachmentBuilder(Buffer.from(error.stack as string), { name: 'error.txt', description: 'The error stack' })
+        //                 await adminChannel.send({ content: "An error occurred while sending an announcement:", files: [attachment] })
+        //                 messageSent = true;
+        //             } else {
+        //                 try {
+        //                     await adminChannel.send({ content: JSON.stringify(error) })
+        //                 } catch (e) {
+        //                     await adminChannel.send({ content: "An error occurred but there was another error while stringifying that error... Ironic." });
+        //                 }
+        //             }
+        //         }
+        //     } while (!messageSent);
+        // }
     }
 
     public async update() {

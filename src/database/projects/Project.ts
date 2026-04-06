@@ -724,7 +724,12 @@ export default class Project {
     public async getDiscoveryThread(): Promise<Result<ForumThreadChannel>> {
         if (this.discoveryThreadId) {
             const guild = await Bot.getInstance().guild;
-            const thread = await guild.channels.fetch(this.discoveryThreadId);
+            const thread = await guild.channels.fetch(this.discoveryThreadId).catch(() => null);
+
+            if (!thread) {
+                const newThread = await this.createDiscoveryThread();
+                return new Result(newThread as ForumThreadChannel, true);
+            }
 
             return new Result(thread as ForumThreadChannel, true);
         }

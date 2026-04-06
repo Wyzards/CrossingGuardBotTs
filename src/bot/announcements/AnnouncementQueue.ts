@@ -19,9 +19,9 @@ export default class AnnouncementQueue {
     }
 
     public updateMessage(newMessage: AnnouncementMessage) {
-        const updateOperation = new AnnouncementOperation(AnnouncementOperationType.Update, newMessage);
+        // const updateOperation = new AnnouncementOperation(AnnouncementOperationType.Update, newMessage);
 
-        this.queueOperation(updateOperation);
+        // this.queueOperation(updateOperation);
     }
 
     public queueOperation(operation: AnnouncementOperation) {
@@ -56,11 +56,11 @@ export default class AnnouncementQueue {
             await announcementMessage.send(i == 0);
         });
 
-        if (messageUpdates.length > 0) {
-            for (const messageUpdate of messageUpdates) {
-                await messageUpdate.update();
-            }
-        }
+        // if (messageUpdates.length > 0) {
+        //     for (const messageUpdate of messageUpdates) {
+        //         await messageUpdate.update();
+        //     }
+        // }
 
         this.stack.length = 0;
     }
