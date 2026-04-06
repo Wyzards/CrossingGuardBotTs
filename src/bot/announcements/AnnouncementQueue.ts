@@ -52,9 +52,9 @@ export default class AnnouncementQueue {
             }
         }
 
-        Array.from(newMessages.values()).forEach(async (announcementMessage, i) => {
-            await announcementMessage.send(i == 0);
-        });
+        for (const [i, announcementMessage] of Array.from(newMessages.values()).entries()) {
+            await announcementMessage.send(i === 0);
+        }
 
         // if (messageUpdates.length > 0) {
         //     for (const messageUpdate of messageUpdates) {
