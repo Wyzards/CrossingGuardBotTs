@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
+import { createApp } from './core/index.js';
 dotenv.config({ quiet: true });
 
-import Bot from "./bot/Bot.js";
-
-Bot.getInstance();
+createApp();

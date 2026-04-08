@@ -1,11 +1,11 @@
 import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStatus, ProjectStatusHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, Message, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import Database from "../../../database/Database.js";
-import ProjectLink from "../../../database/projects/ProjectLink.js";
-import ProjectStaff from "../../../database/projects/ProjectStaff.js";
+import Database from "../../../domain/ProjectRepository.js";
+import ProjectLink from "../../../domain/project/ProjectLink.js";
+import ProjectStaff from "../../../domain/project/ProjectStaff.js";
 import { MessageFlags } from "discord-api-types/v10";
-import { IOperationReporter, OperationTracker } from "../../../util/operations.js";
-import { ProjectRepository } from "../../../repositories/ProjectRepository.js";
+import { IOperationReporter, OperationTracker } from "../../../shared/operations.js";
+import { ProjectRepository } from "../../../infrastructure/api/ProjectRepository.js";
 
 const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
     name: ProjectStatusHelper.pretty(status),
@@ -280,7 +280,7 @@ const data = new SlashCommandBuilder()
                             .setRequired(true))));
 
 async function autocomplete(interaction: AutocompleteInteraction) {
-    const projects = await Database.projectList();
+    const projects = await ProjectRepository.projectList();
     const focusedValue = interaction.options.getFocused();
     const filtered = projects.filter(project => project.name.includes(focusedValue) || project.displayName.includes(focusedValue));
 
@@ -296,7 +296,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const projectName = interaction.options.getString("project");
 
-    if (projectName && subcommand != "create" && !await Database.projectExists(projectName)) {
+    if (projectName && subcommand != "create" && !await ProjectRepository.projectExists(projectName)) {
         interaction.editReply({ content: `No project matched the name ${projectName}` });
         return;
     }
@@ -367,7 +367,7 @@ async function execute(interaction: ChatInputCommandInteraction) {
 }
 
 async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
-    const projects = await Database.projectList();
+    const projects = await ProjectRepository.projectList();
     const projectName = interaction.options.getString("project"); // Can be null
 
     var count = 0;
@@ -377,7 +377,7 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
             continue;
 
         count++;
-        await project.updateView(true);
+        await project.sync(true);
         await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
 }
@@ -394,14 +394,14 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const projectWithSameName = await Database.getProjectByName(newName);
+    const projectWithSameName = await ProjectRepository.getProjectByName(newName);
 
     if (projectWithSameName.exists) {
         await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
     const nameBefore = project.name;
 
     await project.setName(newName);
@@ -417,7 +417,7 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
         return;
 
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     var nameBefore = project.displayName;
 
@@ -432,7 +432,7 @@ async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     await project.delete();
 
@@ -446,10 +446,10 @@ async function executeRemoveStaff(interaction: ChatInputCommandInteraction, repo
     if (!projectName || !user)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
     project.staff = project.staff.filter(staff => staff.user.discordId !== user.id);
 
-    await Database.getProjectRepo().removeStaff(project, user.id, reporter);
+    await ProjectRepository.getProjectRepo().removeStaff(project, user.id, reporter);
     await reporter.finalize(`Removed the user ${user} from ${project.displayName}`);
 }
 
@@ -460,12 +460,12 @@ async function executeRemoveLink(interaction: ChatInputCommandInteraction, repor
     if (!projectName || !linkName)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     const link = project.links.find(l => l.label === linkName);
 
     if (link) {
-        await Database.getProjectRepo().removeLink(project, link, reporter);
+        await ProjectRepository.getProjectRepo().removeLink(project, link, reporter);
         await reporter.finalize(`Removed the link \`${linkName}\` from ${project.displayName}`);
     } else {
         await reporter.finalize(`A link with the name ${linkName} does not exist on the project ${project.displayName}!`);
@@ -478,7 +478,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     let reply = project.displayName + "'s Staff\n--------------------\n";
 
@@ -496,9 +496,9 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction, reporte
     if (!projectName || !user || !rank)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
-    await Database.getProjectRepo().addOrSetStaff(project, user.id, rank, reporter);
+    await ProjectRepository.getProjectRepo().addOrSetStaff(project, user.id, rank, reporter);
     await reporter.finalize(`Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`);
 }
 
@@ -508,7 +508,7 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     if (!projectName)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
     let reply = project.displayName + "'s Links\n--------------------\n";
 
     for (const link of project.links)
@@ -525,9 +525,9 @@ async function executeAddLink(interaction: ChatInputCommandInteraction, reporter
     if (!projectName || !linkName || !linkURL)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
-    await Database.getProjectRepo().addLink(project, linkName, linkURL, reporter);
+    await ProjectRepository.getProjectRepo().addLink(project, linkName, linkURL, reporter);
 
     await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.displayName}`);
 }
@@ -540,10 +540,10 @@ async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
     if (!projectName || !guildId)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     project.guildId = guildId;
-    await Database.getProjectRepo().save(project);
+    await ProjectRepository.getProjectRepo().save(project);
 
     await interaction.editReply({ content: `Linked ${guildId} to ${project.displayName}` });
 }
@@ -563,9 +563,9 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     try {
         const message = await interaction.channel.messages.fetch(msgId);
         const attachments = Array.from(message.attachments.values());
-        const project = (await Database.getProjectByName(projectName)).result;
+        const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
-        await Database.setAttachments(project, attachments);
+        await ProjectRepository.setAttachments(project, attachments);
         await interaction.editReply({ content: `${project.displayName}'s attachments have been set` });
     } catch (error) {
         if (error instanceof Error) {
@@ -586,10 +586,10 @@ async function executeSetType(interaction: ChatInputCommandInteraction, reporter
     if (!projectName || !type)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     project.type = type;
-    await Database.getProjectRepo().save(project, true, reporter);
+    await ProjectRepository.getProjectRepo().save(project, true, reporter);
 
     await reporter.finalize(`${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
 }
@@ -609,10 +609,10 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction, r
     try {
         const message = await interaction.channel.messages.fetch(descriptionMessageId)
         const description = message.content;
-        const project = (await Database.getProjectByName(projectName)).result;
+        const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
         project.description = description;
-        await Database.getProjectRepo().save(project, true, reporter);
+        await ProjectRepository.getProjectRepo().save(project, true, reporter);
 
         await reporter.finalize(`${project.displayName} has been given the following description:\n${description}`);
     } catch (error) {
@@ -634,9 +634,9 @@ async function executeSetEmoji(interaction: ChatInputCommandInteraction, reporte
     if (!projectName || !emojiIdOrUnicode)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
     project.emoji = emojiIdOrUnicode;
-    await Database.getProjectRepo().save(project, true, reporter);
+    await ProjectRepository.getProjectRepo().save(project, true, reporter);
 
     await reporter.finalize(`${project.displayName}'s emoji set to \`${project.emoji}\``);
 }
@@ -649,9 +649,9 @@ async function executeSetStatus(interaction: ChatInputCommandInteraction, report
         return;
 
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
     project.status = status;
-    await Database.getProjectRepo().save(project, true, reporter);
+    await ProjectRepository.getProjectRepo().save(project, true, reporter);
     await reporter.finalize(`${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`);
 }
 
@@ -662,10 +662,10 @@ async function executeSetIp(interaction: ChatInputCommandInteraction, reporter: 
     if (!projectName || !ip)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     project.ip = ip;
-    await Database.getProjectRepo().save(project, true, reporter);
+    await ProjectRepository.getProjectRepo().save(project, true, reporter);
 
     await reporter.finalize(`${project.displayName}'s IP set to \`${ip}\``);
 }
@@ -677,10 +677,10 @@ async function executeSetVersion(interaction: ChatInputCommandInteraction, repor
     if (!projectName || !version)
         return;
 
-    const project = (await Database.getProjectByName(projectName)).result;
+    const project = (await ProjectRepository.getProjectByName(projectName)).result;
 
     project.version = version;
-    await Database.getProjectRepo().save(project, true, reporter);
+    await ProjectRepository.getProjectRepo().save(project, true, reporter);
 
     await reporter.finalize(`${project.displayName}'s version set to \`${version}\``);
 }
@@ -698,14 +698,14 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const projectWithSameName = await Database.getProjectByName(projectName);
+    const projectWithSameName = await ProjectRepository.getProjectByName(projectName);
 
     if (projectWithSameName.exists) {
         await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
 
-    const project = await Database.createNewProject(projectName, displayName, type);
+    const project = await ProjectRepository.createNewProject(projectName, displayName, type);
 
     await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.displayName}\`` });
 }

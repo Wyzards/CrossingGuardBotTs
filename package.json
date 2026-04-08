@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"dependencies": {
-		"@wyzards/crossroadsclientts": "git+https://github.com/Wyzards/CrossroadsClientTs.git#main",
+		"@wyzards/crossroadsclientts": "github:Wyzards/CrossroadsClientTs#main",
 		"async": "^3.2.5",
 		"discord-api-types": "^0.38.40",
 		"discord.js": "^14.13.0",

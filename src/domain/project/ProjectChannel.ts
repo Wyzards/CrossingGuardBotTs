@@ -1,7 +1,7 @@
-import { ProjectStaffRankHelper, ProjectStatus } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ArchitectApproval, CommunityVetted, ProjectStaffRankHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ChannelFlags, DefaultReactionEmoji, ForumChannel, GuildForumThreadMessageCreateOptions, MessageEditOptions, PermissionsBitField } from "discord.js";
 import Bot from "../../bot/Bot";
-import { ProjectStatusDiscordMeta } from "../../util/projectStatusDiscord.js";
+import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
 import Project from "./Project";
 import ProjectStaff from "./ProjectStaff";
 
@@ -45,20 +45,29 @@ export default class ProjectChannel {
         return "NULL";
     }
 
+    public async getPermissionOverwrites() {
+        const guild = await Bot.getInstance().guild;
+        const inMainList = this.project.architectApproval == ArchitectApproval.APPROVED && (this.project.communityVetted == CommunityVetted.ACCEPTED || this.project.communityVetted == CommunityVetted.SKIPPED);
+
+        return inMainList ?
+            [{
+                id: guild.roles.everyone.id,
+                deny: [PermissionsBitField.Flags.ViewChannel]
+            }]
+            :
+            [];
+    }
+
     public async update() {
         const guild = await Bot.getInstance().guild;
-        const projectChannel = await guild.channels.edit(this.id,
-            {
-                permissionOverwrites: (this.project.status == ProjectStatus.HIDDEN ? [
-                    {
-                        id: guild.roles.everyone.id,
-                        deny: [PermissionsBitField.Flags.ViewChannel]
-                    }
-                ] : []),
-                defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
-                name: ProjectStatusDiscordMeta[this.project.status].channelIcon + this.project.name,
-                topic: `Post anything related to ${this.project.displayName} here!`
-            }) as ForumChannel;
+        const permissions = await this.getPermissionOverwrites();
+        const editOptions = {
+            permissionOverwrites: permissions,
+            defaultReactionEmoji: this.emoji == null ? { id: null, name: "⚔️" } : this.emoji,
+            name: ProjectStageDiscordMeta[this.project.stage].channelIcon + this.project.name,
+            topic: `Post anything related to ${this.project.displayName} here!`
+        }
+        const projectChannel = await guild.channels.edit(this.id, editOptions) as ForumChannel;
 
         const fetchedThreads = await projectChannel.threads.fetchActive();
 

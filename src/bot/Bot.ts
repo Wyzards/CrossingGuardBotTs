@@ -2,9 +2,10 @@ import { Client, GatewayIntentBits, Guild } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
+import { ProjectService } from '../application/ProjectService.js';
 import CommandManager from './CommandManager.js';
-import AnnouncementManager from './announcements/AnnouncementManager.js';
-import Database from '../database/Database.js';
+import AnnouncementManager from '../infrastructure/discord/announcements/AnnouncementManager.js';
+import { ProjectDiscordService } from '../infrastructure/discord/ProjectDiscordService.js';
 
 
 export default class Bot extends Client {
@@ -24,15 +25,14 @@ export default class Bot extends Client {
     public static INTAKE_ROLE_ID: string;
     public static ANNOUNCEMENT_COOLDOWN = 60000 * 5;
 
-    private static instance: Bot;
-    private _commandManager: CommandManager;
-    private _announcementManager: AnnouncementManager;
+    private commandManager: CommandManager;
+    private announcementManager: AnnouncementManager;
 
-    private constructor() {
+    constructor(private projectService: ProjectService, private projectDiscordService: ProjectDiscordService) {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
-        this._commandManager = new CommandManager();
-        this._announcementManager = new AnnouncementManager();
+        this.commandManager = new CommandManager();
+        this.announcementManager = new AnnouncementManager();
 
         this.registerEvents();
         this.commandManager.registerCommands();
@@ -47,35 +47,9 @@ export default class Bot extends Client {
         var members = await guild.members.list();
 
         for (const [key, member] of members)
-            Database.updateStaffRoles(member.id);
+            // Currently errors because ProjectRepository is no longer static, so we actually need to instantiate either a project repo or a project service here to call this function!
+            this.projectDiscordService.updateStaffRoles(member.id);
     }
-
-    public get commandManager() {
-        return this._commandManager;
-    }
-
-    public get announcementManager() {
-        return this._announcementManager;
-    }
-
-    public static get guild(): Promise<Guild> {
-        return Bot.getInstance().guild;
-    }
-
-    public get guild(): Promise<Guild> {
-        if (Bot.GUILD_ID)
-            return this.guilds.fetch(Bot.GUILD_ID);
-        else
-            throw new Error("Guild ID was not defined in environment variables");
-    }
-
-    // private heartbeat() {
-    //     var bot = this;
-
-    //     setInterval(function () {
-    //         Database.getInstance().connection.query("SELECT 1");
-    //     }, 1000 * 60 * 10);
-    // }
 
     private async registerEvents() {
         const eventsPath = path.join(process.cwd(), 'dist/bot/events');
@@ -94,12 +68,6 @@ export default class Bot extends Client {
         } else {
             this.on(event.name, (...args) => event.execute(...args));
         }
-    }
-
-    public static getInstance(): Bot {
-        if (Bot.instance == null)
-            Bot.instance = new Bot();
-        return Bot.instance;
     }
 
     private async loadEnv() {
