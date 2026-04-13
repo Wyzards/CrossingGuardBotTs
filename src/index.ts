@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
-import { createApp } from './core/index.js';
+import { loadConfig } from './core/loadConfig.js';
+import { Bot } from './bot/Bot.js';
 dotenv.config({ quiet: true });
 
-createApp();
+const config = loadConfig();
+const bot = new Bot(config);

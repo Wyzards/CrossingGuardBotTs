@@ -1,7 +1,5 @@
-import { Attachment, Embed, Message, MessageCreateOptions, MessageEditOptions } from "discord.js";
-import Project from "../../../domain/project/Project.js";
-import Bot from "../../../bot/Bot.js";
-import AnnouncementManager from "./AnnouncementManager.js";
+import { Project } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { Message } from "discord.js";
 
 export default class AnnouncementMessage {
 

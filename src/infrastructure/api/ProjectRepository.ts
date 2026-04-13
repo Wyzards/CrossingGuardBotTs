@@ -1,31 +1,21 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
-import { CreateProjectPayload, ProjectLink, ProjectStaff, ProjectStaffRank } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { CreateProjectPayload, Project, ProjectLink, ProjectStaff, ProjectStaffRank, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { Attachment } from "discord.js";
 import FormData from 'form-data';
-import Project from "../../domain/project/Project.js";
 
 export class ProjectRepository {
     constructor(private api: CrossroadsApiClient) { }
 
-    async getById(id: number): Promise<Project | null> {
-        const dto = await this.api.projects.getById(id);
-        if (!dto) return null;
-
-        return new Project(dto);
+    async getById(id: number): Promise<ProjectWithRelations | null> {
+        return this.api.projects.getById(id);
     }
 
-    async getByName(name: string): Promise<Project | null> {
-        const dto = await this.api.projects.getByName(name);
-        if (!dto) return null;
-
-        return new Project(dto);
+    async getByName(name: string): Promise<ProjectWithRelations | null> {
+        return this.api.projects.getByName(name);
     }
 
-    async getByGuild(guildId: string): Promise<Project | null> {
-        const dto = await this.api.projects.getByGuild(guildId);
-        if (!dto) return null;
-
-        return new Project(dto);
+    async getByGuild(guildId: string): Promise<ProjectWithRelations | null> {
+        return this.api.projects.getByGuild(guildId);
     }
 
     async existsByName(name: string): Promise<boolean> {
@@ -38,37 +28,26 @@ export class ProjectRepository {
         return response.exists;
     }
 
-    async list(): Promise<Project[]> {
-        const dtos = await this.api.projects.list();
-        return dtos.map(dto => new Project(dto));
+    async list(): Promise<ProjectWithRelations[]> {
+        return this.api.projects.list();
     }
 
-    async save(project: Project): Promise<Project> {
-        const dto = await this.api.projects.update(project.id, project.toUpdatePayload());
-
-        return new Project(dto);
+    async save(project: Project): Promise<ProjectWithRelations> {
+        return this.api.projects.update(project.id, project)
     }
 
-    async create(payload: CreateProjectPayload): Promise<Project> {
-        const projectDto = await this.api.projects.create(payload);
-        return new Project(projectDto);
+    async create(payload: CreateProjectPayload): Promise<ProjectWithRelations> {
+        return this.api.projects.create(payload);
     }
 
-    async delete(project: Project): Promise<boolean> {
-        try {
-            return this.api.projects.delete(project.id);
-        } catch (err) {
-            console.error(`Failed to delete project with ID ${project.id}:`, err);
-            return false;
-        }
+    async delete(projectId: number): Promise<boolean> {
+        return this.api.projects.delete(projectId);
     }
 
     async downloadAttachments(project: Project): Promise<Buffer[]> {
         try {
-            // Now this returns an array of base64 strings
             const buffers = await this.api.projects.downloadAllAttachments(project.id);
 
-            // buffers is already an array of Buffer objects thanks to the updated API library
             return buffers;
         } catch (err: any) {
             console.error("Status:", err.status);
@@ -127,7 +106,7 @@ export class ProjectRepository {
         return this.api.setProjectStaffByDiscordId(projectId, userId, rank);
     }
 
-    async removeStaff(projectId: number, userId: string): Promise<boolean> {
-        return this.api.removeProjectStaffByDiscordId(projectId, userId);
+    async removeStaffByDiscord(projectId: number, discordId: string): Promise<boolean> {
+        return this.api.removeProjectStaffByDiscordId(projectId, discordId);
     }
 }

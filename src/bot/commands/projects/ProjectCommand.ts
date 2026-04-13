@@ -1,19 +1,16 @@
-import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStatus, ProjectStatusHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { AutocompleteInteraction, ChatInputCommandInteraction, Message, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import Database from "../../../domain/ProjectRepository.js";
-import ProjectLink from "../../../domain/project/ProjectLink.js";
-import ProjectStaff from "../../../domain/project/ProjectStaff.js";
+import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStage, ProjectStageHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { MessageFlags } from "discord-api-types/v10";
+import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { IOperationReporter, OperationTracker } from "../../../shared/operations.js";
-import { ProjectRepository } from "../../../infrastructure/api/ProjectRepository.js";
+import { Bot } from "../../Bot.js";
 
-const projectStatusChoices = ProjectStatusHelper.values().map(status => ({
-    name: ProjectStatusHelper.pretty(status),
-    value: status,
+const projectStageChoices = ProjectStageHelper.values().map(stage => ({
+    name: ProjectStageHelper.pretty(stage as ProjectStage),
+    value: stage,
 }));
 
 const projectTypeChoices = ProjectTypeHelper.values().map(type => ({
-    name: ProjectTypeHelper.pretty(type),
+    name: ProjectTypeHelper.pretty(type as ProjectType),
     value: type,
 }));
 
@@ -222,10 +219,10 @@ const data = new SlashCommandBuilder()
                             .setAutocomplete(true)
                             .setRequired(true))
                     .addStringOption(option =>
-                        option.setName("status")
-                            .setDescription("The current status of the project")
+                        option.setName("stage")
+                            .setDescription("The current stage of the project")
                             .setRequired(true)
-                            .addChoices(...projectStatusChoices)))
+                            .addChoices(...projectStageChoices)))
             // Set Emoji Subcommand
             .addSubcommand(subcommand =>
                 subcommand.setName("emoji")
@@ -279,24 +276,24 @@ const data = new SlashCommandBuilder()
                             .setDescription("The id of the guild to link to")
                             .setRequired(true))));
 
-async function autocomplete(interaction: AutocompleteInteraction) {
-    const projects = await ProjectRepository.projectList();
+async function autocomplete(bot: Bot, interaction: AutocompleteInteraction) {
+    const projects = await bot.orchestrator.repo.list();
     const focusedValue = interaction.options.getFocused();
-    const filtered = projects.filter(project => project.name.includes(focusedValue) || project.displayName.includes(focusedValue));
+    const filtered = projects.filter(project => project.name.includes(focusedValue) || project.display_name?.includes(focusedValue)) ?? false;
 
     await interaction.respond(
-        filtered.slice(0, 24).map(projectChoice => ({ name: projectChoice.displayName, value: projectChoice.name })),
+        filtered.slice(0, 24).map(projectChoice => ({ name: projectChoice.display_name ?? projectChoice.name, value: projectChoice.name })),
     );
 }
 
-async function execute(interaction: ChatInputCommandInteraction) {
+async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const subcommand = interaction.options.getSubcommand();
     const subcommandGroup = interaction.options.getSubcommandGroup();
     const projectName = interaction.options.getString("project");
 
-    if (projectName && subcommand != "create" && !await ProjectRepository.projectExists(projectName)) {
+    if (projectName && subcommand != "create" && !await bot.orchestrator.repo.existsByName(projectName)) {
         interaction.editReply({ content: `No project matched the name ${projectName}` });
         return;
     }
@@ -306,51 +303,51 @@ async function execute(interaction: ChatInputCommandInteraction) {
     try {
         if (subcommandGroup == "set") {
             if (subcommand == "type")
-                await executeSetType(interaction, tracker);
+                await executeSetType(bot, interaction, tracker);
             else if (subcommand == "ip")
-                await executeSetIp(interaction, tracker);
+                await executeSetIp(bot, interaction, tracker);
             else if (subcommand == "version")
-                await executeSetVersion(interaction, tracker);
+                await executeSetVersion(bot, interaction, tracker);
             else if (subcommand == "status")
-                await executeSetStatus(interaction, tracker);
+                await executeSetStage(bot, interaction, tracker);
             else if (subcommand == "emoji")
-                await executeSetEmoji(interaction, tracker);
+                await executeSetEmoji(bot, interaction, tracker);
             else if (subcommand == "description")
-                await executeSetDescription(interaction, tracker);
+                await executeSetDescription(bot, interaction, tracker);
             else if (subcommand == "attachments")
-                await executeSetAttachments(interaction);
+                await executeSetAttachments(bot, interaction);
             else if (subcommand == "discord_id")
-                await executeSetGuildID(interaction);
+                await executeSetGuildID(bot, interaction);
             else if (subcommand == "display_name")
-                await executeSetDisplayName(interaction);
+                await executeSetDisplayName(bot, interaction);
             else if (subcommand == "name")
-                await executeSetName(interaction);
+                await executeSetName(bot, interaction);
         }
 
         else if (subcommandGroup == "links") {
             if (subcommand == "add")
-                await executeAddLink(interaction, tracker);
+                await executeAddLink(bot, interaction, tracker);
             else if (subcommand == "list")
-                await executeListLinks(interaction);
+                await executeListLinks(bot, interaction);
             else if (subcommand == "remove")
-                await executeRemoveLink(interaction, tracker);
+                await executeRemoveLink(bot, interaction, tracker);
         }
 
         else if (subcommandGroup == "staff") {
             if (subcommand == "add")
-                await executeAddStaff(interaction, tracker);
+                await executeAddStaff(bot, interaction, tracker);
             else if (subcommand == "list")
-                await executeListStaff(interaction);
+                await executeListStaff(bot, interaction);
             else if (subcommand == "remove")
-                await executeRemoveStaff(interaction, tracker);
+                await executeRemoveStaff(bot, interaction, tracker);
         }
 
         else if (subcommand == "create")
-            await executeCreateProject(interaction);
+            await executeCreateProject(bot, interaction);
         else if (subcommand == "delete")
-            await executeDeleteProject(interaction);
+            await executeDeleteProject(bot, interaction);
         else if (subcommand == "updateviews")
-            await executeUpdateViews(interaction);
+            await executeUpdateViews(bot, interaction, tracker);
     } catch (err) {
         if (err instanceof Error) {
             const error = err as Error;
@@ -366,8 +363,8 @@ async function execute(interaction: ChatInputCommandInteraction) {
     }
 }
 
-async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
-    const projects = await ProjectRepository.projectList();
+async function executeUpdateViews(bot: Bot, interaction: ChatInputCommandInteraction, reporter: IOperationReporter) {
+    const projects = await bot.orchestrator.repo.list();
     const projectName = interaction.options.getString("project"); // Can be null
 
     var count = 0;
@@ -376,13 +373,15 @@ async function executeUpdateViews(interaction: ChatInputCommandInteraction) {
         if (projectName != null && project.name != projectName)
             continue;
 
+        // TODO: Make this a promise.all()
+
         count++;
-        await project.sync(true);
+        await bot.orchestrator.sync(project, reporter);
         await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
 }
 
-async function executeSetName(interaction: ChatInputCommandInteraction) {
+async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const newName = interaction.options.getString("new_name");
 
@@ -394,22 +393,26 @@ async function executeSetName(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const projectWithSameName = await ProjectRepository.getProjectByName(newName);
+    const projectWithSameName = await bot.orchestrator.repo.existsByName(newName);
 
-    if (projectWithSameName.exists) {
+    if (projectWithSameName) {
         await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
     const nameBefore = project.name;
 
-    await project.setName(newName);
-
+    project.name = newName;
+    await bot.orchestrator.save(project);
     await interaction.editReply({ content: `${nameBefore} has been renamed to ${newName}` });
 }
 
-async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
+async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
 
@@ -417,70 +420,94 @@ async function executeSetDisplayName(interaction: ChatInputCommandInteraction) {
         return;
 
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    var nameBefore = project.displayName;
+    if (!project)
+        return;
 
-    await project.setDisplayName(displayName);
+    var nameBefore = project.display_name;
 
-    await interaction.editReply({ content: `${nameBefore}'s display name has been changed to ${displayName}` });
+    project.display_name = displayName;
+    await bot.orchestrator.save(project);
+
+    if (nameBefore)
+        await interaction.editReply({ content: `${nameBefore}'s display name has been changed to ${displayName}` });
+    else
+        await interaction.editReply({ content: `${project.name} display name has been set to ${displayName}` });
 }
 
-async function executeDeleteProject(interaction: ChatInputCommandInteraction) {
+async function executeDeleteProject(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
 
     if (!projectName)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    await project.delete();
+    if (!project)
+        return;
 
-    await interaction.editReply({ content: `Deleted ${project.displayName}` });
+    await bot.orchestrator.delete(project);
+    await interaction.editReply({ content: `Deleted ${project.display_name}` });
 }
 
-async function executeRemoveStaff(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeRemoveStaff(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const user = interaction.options.getUser("user");
 
     if (!projectName || !user)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
-    project.staff = project.staff.filter(staff => staff.user.discordId !== user.id);
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    await ProjectRepository.getProjectRepo().removeStaff(project, user.id, reporter);
-    await reporter.finalize(`Removed the user ${user} from ${project.displayName}`);
+    if (!project)
+        return;
+
+    const staff = project.staff.find(s => s.user.discordId === user.id);
+
+    if (!staff) {
+        await reporter.finalize(`That user is not staff on ${project.display_name}`);
+        return;
+    }
+
+    await bot.orchestrator.removeStaff(project, staff, reporter);
+    await reporter.finalize(`Removed the user ${user} from ${project.display_name}`);
 }
 
-async function executeRemoveLink(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeRemoveLink(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const linkName = interaction.options.getString("name");
 
     if (!projectName || !linkName)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
 
     const link = project.links.find(l => l.label === linkName);
 
     if (link) {
-        await ProjectRepository.getProjectRepo().removeLink(project, link, reporter);
-        await reporter.finalize(`Removed the link \`${linkName}\` from ${project.displayName}`);
+        await bot.orchestrator.removeLink(project, link, reporter);
+        await reporter.finalize(`Removed the link \`${linkName}\` from ${project.display_name}`);
     } else {
-        await reporter.finalize(`A link with the name ${linkName} does not exist on the project ${project.displayName}!`);
+        await reporter.finalize(`A link with the name ${linkName} does not exist on the project ${project.display_name}!`);
     }
 }
 
-async function executeListStaff(interaction: ChatInputCommandInteraction) {
+async function executeListStaff(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
 
     if (!projectName)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    let reply = project.displayName + "'s Staff\n--------------------\n";
+    if (!project)
+        return;
+
+    let reply = project.display_name ?? project.name + " Staff\n--------------------\n";
 
     for (const staff of project.staff)
         reply += `- <@${staff.user.discordId}> ~ ${staff.rank}\n`;
@@ -488,7 +515,7 @@ async function executeListStaff(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ content: reply, allowedMentions: { parse: [] } });
 }
 
-async function executeAddStaff(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeAddStaff(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const user = interaction.options.getUser("user");
     const rank = interaction.options.getString("rank") as ProjectStaffRank;
@@ -496,20 +523,27 @@ async function executeAddStaff(interaction: ChatInputCommandInteraction, reporte
     if (!projectName || !user || !rank)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    await ProjectRepository.getProjectRepo().addOrSetStaff(project, user.id, rank, reporter);
-    await reporter.finalize(`Added ${user.toString()} to the staff of ${project.displayName} as a ${ProjectStaffRankHelper.pretty(rank)}`);
+    if (!project)
+        return;
+
+    await bot.orchestrator.addOrSetStaff(project, user.id, rank, reporter);
+    await reporter.finalize(`Added ${user.toString()} to the staff of ${project.display_name} as a ${ProjectStaffRankHelper.pretty(rank)}`);
 }
 
-async function executeListLinks(interaction: ChatInputCommandInteraction) {
+async function executeListLinks(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
 
     if (!projectName)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
-    let reply = project.displayName + "'s Links\n--------------------\n";
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
+    let reply = project.display_name + " Links\n--------------------\n";
 
     for (const link of project.links)
         reply += `- [${link.label}](${link.url})\n`;
@@ -517,7 +551,7 @@ async function executeListLinks(interaction: ChatInputCommandInteraction) {
     await interaction.editReply(reply);
 }
 
-async function executeAddLink(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeAddLink(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const linkName = interaction.options.getString("name");
     const linkURL = interaction.options.getString("url");
@@ -525,30 +559,35 @@ async function executeAddLink(interaction: ChatInputCommandInteraction, reporter
     if (!projectName || !linkName || !linkURL)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    await ProjectRepository.getProjectRepo().addLink(project, linkName, linkURL, reporter);
+    if (!project)
+        return;
 
-    await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.displayName}`);
+    await bot.orchestrator.addLink(project, linkName, linkURL, reporter);
+
+    await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.display_name}`);
 }
 
 
-async function executeSetGuildID(interaction: ChatInputCommandInteraction) {
+async function executeSetGuildID(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const guildId = interaction.options.getString("guild_id");
 
     if (!projectName || !guildId)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    project.guildId = guildId;
-    await ProjectRepository.getProjectRepo().save(project);
+    if (!project)
+        return;
 
-    await interaction.editReply({ content: `Linked ${guildId} to ${project.displayName}` });
+    await bot.orchestrator.setDiscord(project, guildId);
+
+    await interaction.editReply({ content: `Linked ${guildId} to ${project.display_name}` });
 }
 
-async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
+async function executeSetAttachments(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const msgId = interaction.options.getString("msg_with_attachments_id");
 
@@ -563,10 +602,13 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     try {
         const message = await interaction.channel.messages.fetch(msgId);
         const attachments = Array.from(message.attachments.values());
-        const project = (await ProjectRepository.getProjectByName(projectName)).result;
+        const project = await getProjectByName(bot, interaction, projectName);
 
-        await ProjectRepository.setAttachments(project, attachments);
-        await interaction.editReply({ content: `${project.displayName}'s attachments have been set` });
+        if (!project)
+            return;
+
+        await bot.orchestrator.setAttachments(project, attachments);
+        await interaction.editReply({ content: `${project.display_name}'s attachments have been set` });
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {
@@ -579,22 +621,25 @@ async function executeSetAttachments(interaction: ChatInputCommandInteraction) {
     }
 }
 
-async function executeSetType(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetType(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const type = interaction.options.getString("type") as ProjectType;
 
     if (!projectName || !type)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
 
     project.type = type;
-    await ProjectRepository.getProjectRepo().save(project, true, reporter);
+    await bot.orchestrator.save(project, reporter);
 
-    await reporter.finalize(`${project.displayName}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
+    await reporter.finalize(`${project.display_name}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
 }
 
-async function executeSetDescription(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetDescription(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const descriptionMessageId = interaction.options.getString("description_msg_id");
 
@@ -609,12 +654,15 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction, r
     try {
         const message = await interaction.channel.messages.fetch(descriptionMessageId)
         const description = message.content;
-        const project = (await ProjectRepository.getProjectByName(projectName)).result;
+        const project = await getProjectByName(bot, interaction, projectName);
+
+        if (!project)
+            return;
 
         project.description = description;
-        await ProjectRepository.getProjectRepo().save(project, true, reporter);
+        await bot.orchestrator.save(project, reporter);
 
-        await reporter.finalize(`${project.displayName} has been given the following description:\n${description}`);
+        await reporter.finalize(`${project.display_name} has been given the following description:\n${description}`);
     } catch (error) {
         if (error instanceof Error) {
             if (error.message == "Unknown Message") {
@@ -627,65 +675,78 @@ async function executeSetDescription(interaction: ChatInputCommandInteraction, r
     }
 }
 
-async function executeSetEmoji(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetEmoji(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const emojiIdOrUnicode = interaction.options.getString("emoji_string");
 
     if (!projectName || !emojiIdOrUnicode)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
-    project.emoji = emojiIdOrUnicode;
-    await ProjectRepository.getProjectRepo().save(project, true, reporter);
+    const project = await getProjectByName(bot, interaction, projectName);
 
-    await reporter.finalize(`${project.displayName}'s emoji set to \`${project.emoji}\``);
+    if (!project)
+        return;
+    project.emoji = emojiIdOrUnicode;
+    await bot.orchestrator.save(project, reporter);
+
+    await reporter.finalize(`${project.display_name}'s emoji set to \`${project.emoji}\``);
 }
 
-async function executeSetStatus(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetStage(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
-    const status = interaction.options.getString("status") as ProjectStatus;
+    const stage = interaction.options.getString("stage") as ProjectStage;
 
-    if (!projectName || !status)
+    if (!projectName || !stage)
         return;
 
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
-    project.status = status;
-    await ProjectRepository.getProjectRepo().save(project, true, reporter);
-    await reporter.finalize(`${project.displayName}'s status set to ${ProjectStatusHelper.pretty(status as ProjectStatus)}`);
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
+    project.project_stage = stage;
+    await bot.orchestrator.save(project, reporter);
+    await reporter.finalize(`${project.display_name}'s stage set to ${ProjectStageHelper.pretty(stage as ProjectStage)}`);
 }
 
-async function executeSetIp(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetIp(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const ip = interaction.options.getString("ip");
 
     if (!projectName || !ip)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
 
     project.ip = ip;
-    await ProjectRepository.getProjectRepo().save(project, true, reporter);
+    await bot.orchestrator.save(project, reporter);
 
-    await reporter.finalize(`${project.displayName}'s IP set to \`${ip}\``);
+    await reporter.finalize(`${project.display_name}'s IP set to \`${ip}\``);
 }
 
-async function executeSetVersion(interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+async function executeSetVersion(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
     const projectName = interaction.options.getString("project");
     const version = interaction.options.getString("version");
 
     if (!projectName || !version)
         return;
 
-    const project = (await ProjectRepository.getProjectByName(projectName)).result;
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
 
     project.version = version;
-    await ProjectRepository.getProjectRepo().save(project, true, reporter);
+    await bot.orchestrator.save(project, reporter);
 
-    await reporter.finalize(`${project.displayName}'s version set to \`${version}\``);
+    await reporter.finalize(`${project.display_name}'s version set to \`${version}\``);
 }
 
-async function executeCreateProject(interaction: ChatInputCommandInteraction) {
+async function executeCreateProject(bot: Bot, interaction: ChatInputCommandInteraction) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
     const type = interaction.options.getString("type") as ProjectType;
@@ -698,16 +759,26 @@ async function executeCreateProject(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const projectWithSameName = await ProjectRepository.getProjectByName(projectName);
+    const projectWithSameName = await bot.orchestrator.repo.existsByName(projectName);
 
-    if (projectWithSameName.exists) {
+    if (projectWithSameName) {
         await interaction.editReply({ content: `A project with the name ${projectName} already exists (possibly safe deleted). The name must be unique.` });
         return;
     }
 
-    const project = await ProjectRepository.createNewProject(projectName, displayName, type);
+    const project = await bot.orchestrator.createNewProject(projectName, displayName, type);
 
-    await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.displayName}\`` });
+    await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.display_name}\`` });
+}
+
+async function getProjectByName(bot: Bot, interaction: ChatInputCommandInteraction, name: string) {
+    const project = await bot.orchestrator.repo.getByName(name);
+
+    if (!project) {
+        await interaction.editReply({ content: `Could not find project ${name}` });
+    }
+
+    return project;
 }
 
 export { autocomplete, data, execute };

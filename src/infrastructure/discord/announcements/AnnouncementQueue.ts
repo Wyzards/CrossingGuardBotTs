@@ -1,7 +1,5 @@
-import { TextChannel } from "discord.js";
-import Bot from "../../../bot/Bot.js";
-import AnnouncementMessage from "./AnnouncementMessage.js";
 import AnnouncementManager from "./AnnouncementManager.js";
+import AnnouncementMessage from "./AnnouncementMessage.js";
 
 export default class AnnouncementQueue {
 

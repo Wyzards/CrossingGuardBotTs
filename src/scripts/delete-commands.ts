@@ -1,6 +1,5 @@
 import { REST, Routes } from 'discord.js';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Construct and prepare an instance of the REST module
 var configData = fs.readFile("config.json", 'utf8', (err, data) => {

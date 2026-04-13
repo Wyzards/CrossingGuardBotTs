@@ -1,8 +1,8 @@
 import { CacheType, Events, Interaction } from "discord.js";
-import Bot from "../Bot";
+import { Bot } from "../Bot.js";
 
 const name = Events.InteractionCreate;
-const execute = async function (interaction: Interaction<CacheType>) {
+const execute = async function (bot: Bot, interaction: Interaction<CacheType>) {
     if (interaction.isChatInputCommand()) {
         const command = (<Bot>interaction.client).commandManager.commands.get(interaction.commandName);
 
@@ -12,7 +12,7 @@ const execute = async function (interaction: Interaction<CacheType>) {
         }
 
         try {
-            await command.execute(interaction);
+            await command.execute(bot, interaction);
         } catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
@@ -32,7 +32,7 @@ const execute = async function (interaction: Interaction<CacheType>) {
 
         try {
             if (command.autocomplete)
-                await command.autocomplete(interaction);
+                await command.autocomplete(bot, interaction);
         } catch (error) {
             console.error(error);
         }

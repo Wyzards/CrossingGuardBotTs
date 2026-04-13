@@ -1,9 +1,9 @@
-import { Accessibility, ProjectStaff, ProjectStaffRankHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import Project from "../../../domain/project/Project.js";
+import { Accessibility, Project, ProjectStaff, ProjectStaffRankHelper, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { ProjectStageDiscordMeta } from "../../../shared/projectStatusDiscord.js";
 
 export class ProjectMessageBuilder {
 
-    static buildChannelContent(project: Project): string {
+    static buildChannelContent(project: ProjectWithRelations): string {
         let linksContent = project.links.length > 0 ? "# Links\n" : "";
         let staffContent = project.staff.length > 0 ? "# Staff\n" : "";
         let discordLink = project.links.filter(link => link.label === "Discord").length ? project.links.filter(link => link.label === "Discord")[0].url : null;
@@ -36,7 +36,7 @@ export class ProjectMessageBuilder {
     }
 
     static buildThreadName(project: Project) {
-        var name = project.displayName;
+        var name = project.display_name ?? project.name;
 
         if (project.accessibility == Accessibility.PUBLIC) {
             if (project.ip)
@@ -46,6 +46,14 @@ export class ProjectMessageBuilder {
         }
 
         return name;
+    }
+
+    static buildDiscoveryThreadName(project: Project): string {
+        return ProjectStageDiscordMeta[project.project_stage].channelIcon + " " + ProjectMessageBuilder.buildThreadName(project);
+    }
+
+    static buildChannelName(project: Project) {
+        return ProjectStageDiscordMeta[project.project_stage].channelIcon + "｜" + this.name;
     }
 
 }

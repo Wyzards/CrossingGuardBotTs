@@ -2,12 +2,13 @@ import { Collection, SlashCommandBuilder } from "discord.js";
 import * as fs from "fs";
 import path from "path";
 import { pathToFileURL } from 'url';
+import { Bot } from "./Bot.js";
 
 class CommandManager {
 
     private _commands: Collection<String, { data: SlashCommandBuilder, execute: Function, autocomplete?: Function }>;
 
-    public constructor() {
+    public constructor(private bot: Bot) {
         this._commands = new Collection();
     }
 

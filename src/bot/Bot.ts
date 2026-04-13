@@ -1,54 +1,42 @@
-import { Client, GatewayIntentBits, Guild } from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { ProjectService } from '../application/ProjectService.js';
-import CommandManager from './CommandManager.js';
+import { AppConfig } from '../core/config.js';
+import { ProjectRepository } from '../infrastructure/api/ProjectRepository.js';
 import AnnouncementManager from '../infrastructure/discord/announcements/AnnouncementManager.js';
+import CommandManager from './CommandManager.js';
+import { ProjectOrchestrator } from '../application/ProjectOrchestrator.js';
+import { CrossroadsApiClient } from '@wyzards/crossroadsclientts';
 import { ProjectDiscordService } from '../infrastructure/discord/ProjectDiscordService.js';
 
 
-export default class Bot extends Client {
-    public static ADMIN_CHANNEL_ID: string;
-    public static DISCOVERY_CHANNEL_ID: string;
-    public static MAPS_FORUM_CHANNEL_ID: string;
-    public static ANNOUNCEMENT_CHANNEL_ID: string;
-    public static DEFAULT_PING_ROLE_ID: string;
-    private static TOKEN: string;
-    public static GUILD_ID: string;
-    public static CLIENT_ID: string;
-    public static PROJECT_CATEGORY_ID: string;
-    public static STAFF_ROLE_ID: string;
-    public static LEAD_ROLE_ID: string;
-    public static LAST_ANNOUNCEMENT_GUILD_ID: string;
-    public static LAST_ANNOUNCEMENT_DATA: Map<string, { channel_name: string, last_ping_time: number }> = new Map();
-    public static INTAKE_ROLE_ID: string;
-    public static ANNOUNCEMENT_COOLDOWN = 60000 * 5;
+export class Bot extends Client {
 
-    private commandManager: CommandManager;
-    private announcementManager: AnnouncementManager;
+    commandManager: CommandManager;
+    announcementManager!: AnnouncementManager;
+    orchestrator!: ProjectOrchestrator;
 
-    constructor(private projectService: ProjectService, private projectDiscordService: ProjectDiscordService) {
+    constructor(private config: AppConfig) {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
 
-        this.commandManager = new CommandManager();
-        this.announcementManager = new AnnouncementManager();
+        this.commandManager = new CommandManager(this);
 
+        this.registerServices(config);
         this.registerEvents();
         this.commandManager.registerCommands();
-        this.loadEnv();
-
-
-        // this.heartbeat();
+        this.login(this.config.discord.token);
     }
 
-    public async updateAllStaffRoles() {
-        var guild = await this.guild;
-        var members = await guild.members.list();
+    private registerServices(config: AppConfig) {
+        const api = new CrossroadsApiClient(this.config.api.url, this.config.api.token);
+        const repo = new ProjectRepository(api);
+        const discordService = new ProjectDiscordService(config, this);
+        const orchestrator = new ProjectOrchestrator(repo, discordService);
+        const announcementManager = new AnnouncementManager(repo, this, config);
 
-        for (const [key, member] of members)
-            // Currently errors because ProjectRepository is no longer static, so we actually need to instantiate either a project repo or a project service here to call this function!
-            this.projectDiscordService.updateStaffRoles(member.id);
+        this.announcementManager = announcementManager;
+        this.orchestrator = orchestrator;
     }
 
     private async registerEvents() {
@@ -56,34 +44,17 @@ export default class Bot extends Client {
         const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
         for (const file of eventFiles) {
-            await this._registerEventFileAtPath(eventsPath, file);
+            await this.registerEventFileAtPath(eventsPath, file);
         }
     }
 
-    private async _registerEventFileAtPath(eventsPath: string, file: string) {
+    private async registerEventFileAtPath(eventsPath: string, file: string) {
         const filePath = path.join(eventsPath, file);
         const event = await import(pathToFileURL(filePath).toString());
         if (event.once) {
-            this.once(event.name, (...args) => event.execute(...args));
+            this.once(event.name, (...args) => event.execute(this, ...args));
         } else {
-            this.on(event.name, (...args) => event.execute(...args));
+            this.on(event.name, (...args) => event.execute(this, ...args));
         }
-    }
-
-    private async loadEnv() {
-        Bot.TOKEN = process.env.TOKEN!;
-        Bot.ANNOUNCEMENT_CHANNEL_ID = process.env.ANNOUNCEMENT_CHANNEL_ID!;
-        Bot.PROJECT_CATEGORY_ID = process.env.PROJECT_CATEGORY!;
-        Bot.DEFAULT_PING_ROLE_ID = process.env.DEFAULT_PING_ROLE_ID!;
-        Bot.GUILD_ID = process.env.GUILD_ID!;
-        Bot.CLIENT_ID = process.env.CLIENT_ID!;
-        Bot.LEAD_ROLE_ID = process.env.LEAD_ROLE_ID!;
-        Bot.STAFF_ROLE_ID = process.env.STAFF_ROLE_ID!;
-        Bot.DISCOVERY_CHANNEL_ID = process.env.DISCOVERY_CHANNEL_ID!
-        Bot.MAPS_FORUM_CHANNEL_ID = process.env.MAPS_FORUM_CHANNEL_ID!
-        Bot.INTAKE_ROLE_ID = process.env.INTAKE_ROLE_ID!;
-        Bot.ADMIN_CHANNEL_ID = process.env.ADMIN_CHANNEL_ID!
-
-        await this.login(Bot.TOKEN);
     }
 }

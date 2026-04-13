@@ -1,5 +1,5 @@
 import { Client, Message, MessageFlags, TextChannel } from "discord.js";
-import Bot from "../../../bot/Bot.js";
+import { AppConfig } from "../../../core/config.js";
 import { ProjectRepository } from "../../api/ProjectRepository.js";
 import AnnouncementMessage from "./AnnouncementMessage.js";
 import AnnouncementQueue from "./AnnouncementQueue.js";
@@ -9,7 +9,7 @@ export default class AnnouncementManager {
     private projectAnnouncementQueues: Map<Number, AnnouncementQueue>;
     private defaultAnnouncementQueue: AnnouncementQueue;
 
-    public constructor(private repo: ProjectRepository, private bot: Bot) {
+    public constructor(private repo: ProjectRepository, private client: Client, private config: AppConfig) {
         this.projectAnnouncementQueues = new Map();
         this.defaultAnnouncementQueue = new AnnouncementQueue(this);
     }
@@ -36,7 +36,7 @@ export default class AnnouncementManager {
     }
 
     public async getAnnouncementChannel(): Promise<TextChannel> {
-        const announcementChannel = await this.bot.channels.fetch(Bot.ANNOUNCEMENT_CHANNEL_ID);
+        const announcementChannel = await this.client.channels.fetch(this.config.discord.channels.announcement);
 
         if (announcementChannel == null)
             throw new Error("Announcement channel did not exist on retrieval. Check configurations?");
@@ -46,8 +46,8 @@ export default class AnnouncementManager {
 
     public async send(announcement: AnnouncementMessage, includeHeading: boolean) {
         const announcementChannel = await this.getAnnouncementChannel();
-        const roleID = announcement.project == null ? Bot.DEFAULT_PING_ROLE_ID : announcement.project.roleId;
-        const channelId = announcement.project?.channelId;
+        const roleID = announcement.project?.role_id ?? this.config.discord.channels.announcement;
+        const channelId = announcement.project?.channel_id;
         const heading = `**From ${announcement.announcementMsgInHidden.author.displayName}**\n<@&${roleID}> ${channelId ? `<#${channelId}>` : ""}\n\n`;
         const message = announcement.announcementMsgInHidden;
 
