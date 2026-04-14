@@ -211,8 +211,8 @@ const data = new SlashCommandBuilder()
                             .setRequired(true)))
             // Set Status Subcommand
             .addSubcommand(subcommand =>
-                subcommand.setName("status")
-                    .setDescription("Set a project's status")
+                subcommand.setName("stage")
+                    .setDescription("Set a project's stage")
                     .addStringOption(option =>
                         option.setName("project")
                             .setDescription("The name of the project")
@@ -308,7 +308,7 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
                 await executeSetIp(bot, interaction, tracker);
             else if (subcommand == "version")
                 await executeSetVersion(bot, interaction, tracker);
-            else if (subcommand == "status")
+            else if (subcommand == "stage")
                 await executeSetStage(bot, interaction, tracker);
             else if (subcommand == "emoji")
                 await executeSetEmoji(bot, interaction, tracker);
@@ -319,9 +319,9 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
             else if (subcommand == "discord_id")
                 await executeSetGuildID(bot, interaction);
             else if (subcommand == "display_name")
-                await executeSetDisplayName(bot, interaction);
+                await executeSetDisplayName(bot, interaction, tracker);
             else if (subcommand == "name")
-                await executeSetName(bot, interaction);
+                await executeSetName(bot, interaction, tracker);
         }
 
         else if (subcommandGroup == "links") {
@@ -337,6 +337,7 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
             if (subcommand == "add")
                 await executeAddStaff(bot, interaction, tracker);
             else if (subcommand == "list")
+                // TODO: Add autocomplete for links removal names
                 await executeListStaff(bot, interaction);
             else if (subcommand == "remove")
                 await executeRemoveStaff(bot, interaction, tracker);
@@ -381,7 +382,7 @@ async function executeUpdateViews(bot: Bot, interaction: ChatInputCommandInterac
     }
 }
 
-async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction) {
+async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction, reporter: IOperationReporter) {
     const projectName = interaction.options.getString("project");
     const newName = interaction.options.getString("new_name");
 
@@ -409,10 +410,11 @@ async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction
 
     project.name = newName;
     await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
     await interaction.editReply({ content: `${nameBefore} has been renamed to ${newName}` });
 }
 
-async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInteraction) {
+async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInteraction, reporter: IOperationReporter) {
     const projectName = interaction.options.getString("project");
     const displayName = interaction.options.getString("display_name");
 
@@ -429,6 +431,7 @@ async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInte
 
     project.display_name = displayName;
     await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
 
     if (nameBefore)
         await interaction.editReply({ content: `${nameBefore}'s display name has been changed to ${displayName}` });
@@ -565,6 +568,7 @@ async function executeAddLink(bot: Bot, interaction: ChatInputCommandInteraction
         return;
 
     await bot.orchestrator.addLink(project, linkName, linkURL, reporter);
+    await bot.orchestrator.sync(project);
 
     await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.display_name}`);
 }
@@ -634,7 +638,8 @@ async function executeSetType(bot: Bot, interaction: ChatInputCommandInteraction
         return;
 
     project.type = type;
-    await bot.orchestrator.save(project, reporter);
+    await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
 
     await reporter.finalize(`${project.display_name}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
 }
@@ -660,7 +665,8 @@ async function executeSetDescription(bot: Bot, interaction: ChatInputCommandInte
             return;
 
         project.description = description;
-        await bot.orchestrator.save(project, reporter);
+        await bot.orchestrator.save(project);
+        await bot.orchestrator.sync(project, reporter);
 
         await reporter.finalize(`${project.display_name} has been given the following description:\n${description}`);
     } catch (error) {
@@ -687,7 +693,8 @@ async function executeSetEmoji(bot: Bot, interaction: ChatInputCommandInteractio
     if (!project)
         return;
     project.emoji = emojiIdOrUnicode;
-    await bot.orchestrator.save(project, reporter);
+    await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
 
     await reporter.finalize(`${project.display_name}'s emoji set to \`${project.emoji}\``);
 }
@@ -706,7 +713,8 @@ async function executeSetStage(bot: Bot, interaction: ChatInputCommandInteractio
         return;
 
     project.project_stage = stage;
-    await bot.orchestrator.save(project, reporter);
+    await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
     await reporter.finalize(`${project.display_name}'s stage set to ${ProjectStageHelper.pretty(stage as ProjectStage)}`);
 }
 
@@ -723,7 +731,8 @@ async function executeSetIp(bot: Bot, interaction: ChatInputCommandInteraction, 
         return;
 
     project.ip = ip;
-    await bot.orchestrator.save(project, reporter);
+    await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
 
     await reporter.finalize(`${project.display_name}'s IP set to \`${ip}\``);
 }
@@ -741,7 +750,8 @@ async function executeSetVersion(bot: Bot, interaction: ChatInputCommandInteract
         return;
 
     project.version = version;
-    await bot.orchestrator.save(project, reporter);
+    await bot.orchestrator.save(project);
+    await bot.orchestrator.sync(project, reporter);
 
     await reporter.finalize(`${project.display_name}'s version set to \`${version}\``);
 }

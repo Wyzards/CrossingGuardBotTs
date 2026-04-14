@@ -26,7 +26,7 @@ export class ProjectOrchestrator {
         const link = await this.repo.addLink(project.id, { url: url, label: label });
         project.links.push(link);
 
-        return this.save(project, reporter);
+        return this.save(project);
     }
 
     async removeLink(project: ProjectWithRelations, link: ProjectLink, reporter: IOperationReporter): Promise<ProjectWithRelations> {
@@ -55,9 +55,8 @@ export class ProjectOrchestrator {
         }
     }
 
-    async save(project: Project, reporter?: IOperationReporter): Promise<ProjectWithRelations> {
+    async save(project: Project): Promise<ProjectWithRelations> {
         const saved = await this.repo.save(project);
-        await this.sync(saved, reporter);
 
         return saved;
     }
@@ -158,6 +157,7 @@ export class ProjectOrchestrator {
         const role = await this.discordService.ensureProjectRole(project);
 
         project.role_id = role?.id;
+
         await this.save(project);
 
         return role;

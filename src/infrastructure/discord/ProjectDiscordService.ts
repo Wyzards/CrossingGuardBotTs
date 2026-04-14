@@ -149,7 +149,7 @@ export class ProjectDiscordService {
         const defaultReactionEmoji = project.emoji ?? "⚔️";
         const topic = `Post anything related to ${project.display_name} here!`
         const permissionOverwrites =
-            isInMainList(project) ?
+            project.architect_approval == ArchitectApproval.HIDDEN ?
                 [{
                     id: guild.roles.everyone.id,
                     deny: [PermissionsBitField.Flags.ViewChannel]

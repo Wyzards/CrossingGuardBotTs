@@ -53,7 +53,7 @@ export class ProjectMessageBuilder {
     }
 
     static buildChannelName(project: Project) {
-        return ProjectStageDiscordMeta[project.project_stage].channelIcon + "｜" + this.name;
+        return ProjectStageDiscordMeta[project.project_stage].channelIcon + "｜" + project.name;
     }
 
 }
