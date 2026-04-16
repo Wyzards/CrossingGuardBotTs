@@ -1,5 +1,6 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
 import { CreateProjectPayload, Project, ProjectLink, ProjectStaff, ProjectStaffRank, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { FilterGroup } from "@wyzards/crossroadsclientts/dist/types/filter.js";
 import { Attachment } from "discord.js";
 import FormData from 'form-data';
 
@@ -30,6 +31,10 @@ export class ProjectRepository {
 
     async list(): Promise<ProjectWithRelations[]> {
         return this.api.projects.list();
+    }
+
+    async search(filter: FilterGroup): Promise<ProjectWithRelations[]> {
+        return this.api.projects.search(filter);
     }
 
     async save(project: Project): Promise<ProjectWithRelations> {

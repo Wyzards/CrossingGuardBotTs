@@ -9,13 +9,16 @@ import CommandManager from './CommandManager.js';
 import { ProjectOrchestrator } from '../application/ProjectOrchestrator.js';
 import { CrossroadsApiClient } from '@wyzards/crossroadsclientts';
 import { ProjectDiscordService } from '../infrastructure/discord/ProjectDiscordService.js';
+import { ProjectListOrchestrator } from '../application/ProjectListOrchestrator.js';
+import { ProjectListRepository } from '../infrastructure/api/ProjectListRepository.js';
 
 
 export class Bot extends Client {
 
     commandManager: CommandManager;
     announcementManager!: AnnouncementManager;
-    orchestrator!: ProjectOrchestrator;
+    projectOrchestrator!: ProjectOrchestrator;
+    projectListOrchestrator!: ProjectListOrchestrator;
 
     constructor(private config: AppConfig) {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
@@ -30,13 +33,16 @@ export class Bot extends Client {
 
     private registerServices(config: AppConfig) {
         const api = new CrossroadsApiClient(this.config.api.url, this.config.api.token);
-        const repo = new ProjectRepository(api);
+        const projectRepo = new ProjectRepository(api);
+        const projectListRepo = new ProjectListRepository(api);
         const discordService = new ProjectDiscordService(config, this);
-        const orchestrator = new ProjectOrchestrator(repo, discordService);
-        const announcementManager = new AnnouncementManager(repo, this, config);
+        const projectOrchestrator = new ProjectOrchestrator(projectRepo, discordService);
+        const projectListOrchestrator = new ProjectListOrchestrator(projectListRepo, projectRepo, discordService);
+        const announcementManager = new AnnouncementManager(projectRepo, this, config);
 
         this.announcementManager = announcementManager;
-        this.orchestrator = orchestrator;
+        this.projectOrchestrator = projectOrchestrator;
+        this.projectListOrchestrator = projectListOrchestrator;
     }
 
     private async registerEvents() {

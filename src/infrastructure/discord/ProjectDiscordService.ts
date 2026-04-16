@@ -1,15 +1,13 @@
-import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, Client, createChannel, DiscordAPIError, ForumChannel, ForumThreadChannel, Guild, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, Role, ThreadChannel } from "discord.js";
+import { ArchitectApproval, Project, ProjectStaff, ProjectStaffRank, ProjectStaffRankHelper, ProjectStageHelper, ProjectTypeHelper, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, Client, ForumChannel, ForumThreadChannel, Guild, GuildChannel, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, Role, ThreadChannel } from "discord.js";
+import { shouldHaveDiscoveryThread, shouldHaveMapsThread, shouldHaveRole } from "../../application/ProjectRules.js";
 import { AppConfig } from "../../core/config.js";
-import { Accessibility, ArchitectApproval, CommunityVetted, Project, ProjectStaff, ProjectStaffRank, ProjectStaffRankHelper, ProjectStage, ProjectStageHelper, ProjectType, ProjectTypeHelper, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
 import { IOperationReporter, track } from "../../shared/operations.js";
-import { isInMainList, shouldHaveDiscoveryThread, shouldHaveMapsThread, shouldHaveRole } from "../../application/ProjectRules.js";
-import { ProjectMessageBuilder } from "./helpers/ProjectMessageBuilder.js";
+import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
 import { ProjectEmojiHelper } from "./helpers/ProjectEmojiHelper.js";
+import { ProjectMessageBuilder } from "./helpers/ProjectMessageBuilder.js";
 
 export class ProjectDiscordService {
-
-    public static DISCOVERY_CHANNEL_NOT_EXIST_MSG = "Tried to get Discovery channel but it doesn't exist, create it and edit .env";
 
     constructor(
         private config: AppConfig,
@@ -47,8 +45,12 @@ export class ProjectDiscordService {
         }
     }
 
-    async deleteChannel(channel: ForumChannel) {
+    async deleteChannel(channel: GuildChannel) {
         await channel.delete();
+    }
+
+    async deleteThread(thread: ThreadChannel) {
+        await thread.delete();
     }
 
     async getGuild(): Promise<Guild> {
@@ -99,6 +101,15 @@ export class ProjectDiscordService {
         return channel as ForumChannel;
     }
 
+    async renameChannel(channel: GuildChannel, name: string) {
+        await channel.edit({ name: name });
+    }
+
+    async fetchChannel(channelId: string): Promise<ForumChannel | null> {
+        const guild = await this.getGuild();
+        return guild.channels.fetch(channelId).catch(() => null) as any;
+    }
+
     async syncPinnedChannelThread(project: ProjectWithRelations, attachments: Buffer[], channel: ForumChannel, reporter?: IOperationReporter) {
         const pinned = await this.getPinnedInForum(channel);
 
@@ -141,6 +152,17 @@ export class ProjectDiscordService {
         const send = track(reporter, 'Sending project channel thread message', this.sendChannelMessage(project, thread));
 
         await Promise.all([pin, lock, send]);
+    }
+
+    async createChannel(name: string): Promise<ForumChannel> {
+        const guild = await this.getGuild();
+
+        const channel = await guild.channels.create({
+            name,
+            type: ChannelType.GuildForum,
+        });
+
+        return channel as ForumChannel;
     }
 
     async syncProjectChannel(project: Project, channel: ForumChannel, reporter?: IOperationReporter) {
@@ -211,6 +233,26 @@ export class ProjectDiscordService {
         const tags = [];
         const discoveryChannel = await this.getDiscoveryChannel();
         const availableTags = discoveryChannel.availableTags;
+        const stageTagName = ProjectStageHelper.pretty(project.project_stage);
+        const projectTypeTagName = ProjectTypeHelper.pretty(project.type);
+
+        const statusTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == stageTagName);
+        const projectTypeTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == projectTypeTagName);
+
+        if (statusTag == undefined)
+            throw new Error("Tried to set status tag for discovery message but status tag did not exist on discovery channel forum");
+        if (projectTypeTag == undefined)
+            throw new Error("Tried to set project type tag for discovery message but project type tag did not exist on discovery channel forum");
+
+        tags.push(statusTag.id);
+        tags.push(projectTypeTag.id);
+
+        return tags;
+    }
+
+    public async getProjectListThreadAppliedTags(channel: ForumChannel, project: Project): Promise<string[]> {
+        const tags = [];
+        const availableTags = channel.availableTags;
         const stageTagName = ProjectStageHelper.pretty(project.project_stage);
         const projectTypeTagName = ProjectTypeHelper.pretty(project.type);
 
@@ -398,6 +440,17 @@ export class ProjectDiscordService {
         return discoveryThread;
     }
 
+    async createListThread(channel: ForumChannel, project: Project, attachments: Buffer[]): Promise<ForumThreadChannel> {
+        const starterMessage = await this.getStarterMessage(project, attachments);
+        const discoveryThread = await channel.threads.create({
+            appliedTags: await this.getDiscoveryThreadAppliedTags(project),
+            message: starterMessage as GuildForumThreadMessageCreateOptions,
+            name: ProjectMessageBuilder.buildDiscoveryThreadName(project),
+        }) as ForumThreadChannel;
+
+        return discoveryThread;
+    }
+
     async createMapsThread(project: Project, attachments: Buffer[]) {
         const mapsChannel = await this.getMapsChannel();
         const starterMessage = await this.getStarterMessage(project, attachments);
@@ -417,6 +470,24 @@ export class ProjectDiscordService {
             return { content: content, files: [] };
         else
             return { content: "", files: attachments };
+    }
+
+    async buildListThreadStarterMessage(project: Project, attachments: Buffer[]): Promise<BaseMessageOptions> {
+        const content = project.description == null ? "# " + project.display_name : project.description;
+
+        if (attachments.length == 0)
+            return { content: content, files: [] };
+        else
+            return { content: "", files: attachments };
+    }
+
+    async fetchThread(thread_id: string | null) {
+        if (!thread_id) return null;
+
+        const guild = await this.getGuild();
+        const thread = await guild.channels.fetch(thread_id);
+
+        return thread as ThreadChannel;
     }
 
     channelMessageContent(project: ProjectWithRelations): string {
@@ -452,6 +523,27 @@ export class ProjectDiscordService {
     }
 
     async sendChannelMessage(project: ProjectWithRelations, channel: ForumThreadChannel) {
+        var content = this.channelMessageContent(project);
+
+        while (content.length > 0) {
+            var maxSnippet = content.substring(0, 2000);
+            var lastSpace = maxSnippet.lastIndexOf(' ');
+            var lastNewline = maxSnippet.lastIndexOf('\n');
+            var sending = maxSnippet.substring(0, (content.length > 2000 ? (lastNewline > 0 ? lastNewline : (lastSpace > 0 ? lastSpace : maxSnippet.length)) : maxSnippet.length));
+
+            var messageToSend: MessageCreateOptions = {
+                content: sending.trim(),
+                allowedMentions: { parse: [] },
+                flags: MessageFlags.SuppressEmbeds
+            };
+
+            content = content.substring(sending.length, content.length);
+
+            await channel.send(messageToSend);
+        }
+    }
+
+    async sendListThreadMessage(project: ProjectWithRelations, channel: ForumThreadChannel) {
         var content = this.channelMessageContent(project);
 
         while (content.length > 0) {
