@@ -3,208 +3,7 @@ import { FilterField } from "@wyzards/crossroadsclientts/dist/types/filter.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { OperationTracker } from "../../../shared/operations.js";
 import { Bot } from "../../Bot.js";
-
-const data = new SlashCommandBuilder()
-    .setName("projectlist")
-    .setDescription("Manage project lists")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
-
-    // ===== BASE =====
-    .addSubcommand(sub =>
-        sub.setName("create")
-            .setDescription("Create a project list")
-            .addStringOption(o =>
-                o.setName("name").setRequired(true)))
-
-    .addSubcommand(sub =>
-        sub.setName("delete")
-            .setDescription("Delete a project list")
-            .addStringOption(o =>
-                o.setName("list").setAutocomplete(true).setRequired(true)))
-
-    .addSubcommand(sub =>
-        sub.setName("list")
-            .setDescription("List project lists"))
-
-    .addSubcommand(sub =>
-        sub.setName("view")
-            .setDescription("View a project list")
-            .addStringOption(o =>
-                o.setName("list").setAutocomplete(true).setRequired(true)))
-
-    // ===== LIST FILTERS =====
-    .addSubcommandGroup(group =>
-        group.setName("filter")
-            .setDescription("Manage list filters")
-
-            .addSubcommand(sub =>
-                sub.setName("add")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("field")
-                        .setDescription("Filter field")
-                        .setRequired(true)
-                        .addChoices(...filterFieldChoices))
-                    .addStringOption(o =>
-                        o.setName("operator")
-                            .setRequired(true)
-                            .addChoices(...filterOperatorChoices))
-                    .addStringOption(o =>
-                        o.setName("value")
-                            .setDescription("Filter value")
-                            .setRequired(true)
-                            .addChoices(
-                                ...filterValueChoices.type,
-                                ...filterValueChoices.project_stage,
-                                ...filterValueChoices.community_vetted,
-                                ...filterValueChoices.architect_approval,
-                                ...filterValueChoices.accessibility,
-                            )
-                    )
-                    .addStringOption(o =>
-                        o.setName("group")
-                            .addChoices(
-                                { name: "ALL", value: "all" },
-                                { name: "ANY", value: "any" }
-                            )
-                            .setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("remove")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("field")
-                        .setDescription("Filter field")
-                        .setRequired(true)
-                        .addChoices(...filterFieldChoices))
-                    .addStringOption(o =>
-                        o.setName("operator")
-                            .setRequired(true)
-                            .addChoices(...filterOperatorChoices))
-                    .addStringOption(o =>
-                        o.setName("value")
-                            .setDescription("Filter value")
-                            .setRequired(true)
-                            .addChoices(
-                                ...filterValueChoices.type,
-                                ...filterValueChoices.project_stage,
-                                ...filterValueChoices.community_vetted,
-                                ...filterValueChoices.architect_approval,
-                                ...filterValueChoices.accessibility,
-                            )
-                    )
-                    .addStringOption(o =>
-                        o.setName("group")
-                            .addChoices(
-                                { name: "ALL", value: "all" },
-                                { name: "ANY", value: "any" }
-                            )
-                            .setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("clear")
-                    .addStringOption(o =>
-                        o.setName("list").setAutocomplete(true).setRequired(true)))
-    )
-
-    // ===== TAGS =====
-    .addSubcommandGroup(group =>
-        group.setName("tag")
-            .setDescription("Manage tags")
-
-            .addSubcommand(sub =>
-                sub.setName("create")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("name").setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("delete")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("rename")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("name").setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("list")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true)))
-
-            // ===== TAG FILTERS (flattened) =====
-            .addSubcommand(sub =>
-                sub.setName("filter-add")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("field")
-                        .setDescription("Filter field")
-                        .setRequired(true)
-                        .addChoices(...filterFieldChoices))
-                    .addStringOption(o =>
-                        o.setName("operator")
-                            .setRequired(true)
-                            .addChoices(...filterOperatorChoices))
-                    .addStringOption(o =>
-                        o.setName("value")
-                            .setDescription("Filter value")
-                            .setRequired(true)
-                            .addChoices(
-                                ...filterValueChoices.type,
-                                ...filterValueChoices.project_stage,
-                                ...filterValueChoices.community_vetted,
-                                ...filterValueChoices.architect_approval,
-                                ...filterValueChoices.accessibility,
-                            )
-                    )
-                    .addStringOption(o =>
-                        o.setName("group")
-                            .addChoices(
-                                { name: "ALL", value: "all" },
-                                { name: "ANY", value: "any" }
-                            )
-                            .setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("filter-remove")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("field")
-                        .setDescription("Filter field")
-                        .setRequired(true)
-                        .addChoices(...filterFieldChoices))
-                    .addStringOption(o =>
-                        o.setName("operator")
-                            .setRequired(true)
-                            .addChoices(...filterOperatorChoices))
-                    .addStringOption(o =>
-                        o.setName("value")
-                            .setDescription("Filter value")
-                            .setRequired(true)
-                            .addChoices(
-                                ...filterValueChoices.type,
-                                ...filterValueChoices.project_stage,
-                                ...filterValueChoices.community_vetted,
-                                ...filterValueChoices.architect_approval,
-                                ...filterValueChoices.accessibility,
-                            )
-                    )
-                    .addStringOption(o =>
-                        o.setName("group")
-                            .addChoices(
-                                { name: "ALL", value: "all" },
-                                { name: "ANY", value: "any" }
-                            )
-                            .setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("filter-list")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true)))
-
-            .addSubcommand(sub =>
-                sub.setName("filter-clear")
-                    .addStringOption(o => o.setName("list").setAutocomplete(true).setRequired(true))
-                    .addStringOption(o => o.setName("tag").setAutocomplete(true).setRequired(true)))
-    );
+import { fieldOption, groupOption, listOption, operatorOption, tagOption, valueOption } from "../../../infrastructure/discord/helpers/projectListOptions.js";
 
 const filterOperatorChoices = [
     { name: "Equals", value: "=" },
@@ -259,6 +58,146 @@ type FilterRuleInput = {
     operator: string;
     value: string;
 }
+
+const data = new SlashCommandBuilder()
+    .setName("projectlist")
+    .setDescription("Manage project lists")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+
+    // ===== BASE =====
+    .addSubcommand(sub =>
+        sub.setName("create")
+            .setDescription("Create a project list")
+            .addStringOption(o => o.setName("name")
+                .setDescription("The name of the project list to create")
+                .setRequired(true))
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("delete")
+            .setDescription("Delete a project list")
+            .addStringOption(listOption(true))
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("list")
+            .setDescription("List project lists")
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("view")
+            .setDescription("View a project list")
+            .addStringOption(listOption(true))
+    )
+
+    // ===== LIST FILTERS =====
+    .addSubcommandGroup(group =>
+        group.setName("filter")
+            .setDescription("Manage list filters")
+
+            .addSubcommand(sub =>
+                sub.setName("add")
+                    .setDescription("Add a filter rule to a list")
+                    .addStringOption(listOption(true))
+                    .addStringOption(fieldOption())
+                    .addStringOption(operatorOption())
+                    .addStringOption(valueOption())
+                    .addStringOption(groupOption())
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("remove")
+                    .setDescription("Remove a filter rule from a list")
+                    .addStringOption(listOption(true))
+                    .addStringOption(fieldOption())
+                    .addStringOption(operatorOption())
+                    .addStringOption(valueOption())
+                    .addStringOption(groupOption())
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("clear")
+                    .setDescription("Clear all filters from a list")
+                    .addStringOption(listOption(true))
+            )
+    )
+
+    // ===== TAGS =====
+    .addSubcommandGroup(group =>
+        group.setName("tag")
+            .setDescription("Manage tags")
+
+            .addSubcommand(sub =>
+                sub.setName("create")
+                    .setDescription("Create a tag on a list")
+                    .addStringOption(listOption(true))
+                    .addStringOption(o =>
+                        o.setName("name")
+                            .setDescription("The tag name")
+                            .setRequired(true))
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("delete")
+                    .setDescription("Delete a tag from a list")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("rename")
+                    .setDescription("Rename a tag on a list")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+                    .addStringOption(o =>
+                        o.setName("name")
+                            .setDescription("The new tag name")
+                            .setRequired(true))
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("list")
+                    .setDescription("List tags on a list")
+                    .addStringOption(listOption(true))
+            )
+
+            // ===== TAG FILTERS =====
+            .addSubcommand(sub =>
+                sub.setName("filter-add")
+                    .setDescription("Add a filter to a tag")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+                    .addStringOption(fieldOption())
+                    .addStringOption(operatorOption())
+                    .addStringOption(valueOption())
+                    .addStringOption(groupOption())
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("filter-remove")
+                    .setDescription("Remove a filter from a tag")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+                    .addStringOption(fieldOption())
+                    .addStringOption(operatorOption())
+                    .addStringOption(valueOption())
+                    .addStringOption(groupOption())
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("filter-list")
+                    .setDescription("List tag filters")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+            )
+
+            .addSubcommand(sub =>
+                sub.setName("filter-clear")
+                    .setDescription("Clear tag filters")
+                    .addStringOption(listOption(true))
+                    .addStringOption(tagOption(true))
+            )
+    );
 
 function validateFilter(field: FilterField, value: string): boolean {
     return validMap[field]?.includes(value);
@@ -406,6 +345,11 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
         }
     } catch (err) {
         if (err instanceof Error) {
+            if (err.name === "NotFoundError") {
+                await tracker.finalize(`ERROR: That project or tag does not exist`);
+                return;
+            }
+
             await tracker.finalize(`ERROR: ${err.message}`);
             console.error(err.stack);
         } else {
@@ -433,7 +377,6 @@ async function executeDeleteList(bot: Bot, interaction: ChatInputCommandInteract
     if (!listId) return;
 
     await bot.projectListOrchestrator.deleteProjectList(Number(listId));
-
     await interaction.editReply({ content: `Deleted project list` });
 }
 
@@ -466,7 +409,7 @@ async function executeViewList(bot: Bot, interaction: ChatInputCommandInteractio
     }
 
     await interaction.editReply({
-        content: `**${list.name}**\nTags: ${list.tags.length}\nEntries: ${list.entries.length}`
+        content: `**${list.name}**\nTags: ${list.tags.length}\nEntries: ${list.entries.length}\nFilters:\nALL: ${JSON.stringify(list.filters.all)}\nANY: ${JSON.stringify(list.filters.any)}`
     });
 }
 
@@ -663,3 +606,4 @@ async function executeClearTagFilters(bot: Bot, interaction: ChatInputCommandInt
 }
 
 export { autocomplete, data, execute };
+

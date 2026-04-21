@@ -6,6 +6,12 @@ import { ProjectDiscordService } from "../infrastructure/discord/ProjectDiscordS
 import { ProjectList, ProjectListTag, ProjectListWithRelations } from "@wyzards/crossroadsclientts/dist/projectLists/types.js";
 import { Project, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { ProjectListEntry } from "@wyzards/crossroadsclientts/dist/projectListEntries/types.js";
+import { ProjectMessageBuilder } from "../infrastructure/discord/helpers/ProjectMessageBuilder.js";
+
+type EnsureThreadResult = {
+    thread: ForumThreadChannel | null;
+    replacedThreadId?: string;
+}
 
 export class ProjectListOrchestrator {
     constructor(
@@ -13,6 +19,14 @@ export class ProjectListOrchestrator {
         public readonly projectRepo: ProjectRepository,
         private discordService: ProjectDiscordService
     ) { }
+
+    async syncAllLists() {
+        const lists = await this.projectListRepo.list();
+
+        for (const list of lists) {
+            await this.syncList(list);
+        }
+    }
 
     async ensureChannel(list: ProjectList): Promise<ForumChannel | null> {
         let channel = list.channel_id
@@ -136,7 +150,7 @@ export class ProjectListOrchestrator {
 
     private async syncProjectThreads(
         channel: ForumChannel,
-        projects: ProjectWithRelations[],
+        desiredProjects: ProjectWithRelations[],
         existingEntries: ProjectListEntry[],
         tagResults: Record<number, ProjectListTag[]>
     ) {
@@ -147,19 +161,21 @@ export class ProjectListOrchestrator {
             thread_channel_id: string;
         }[] = [];
 
+        const replacedThreadIds = new Set<string>();
 
-        for (const project of projects) {
-            const attachments = await this.projectRepo.downloadAttachments(project);
-            const thread = await this.ensureThreadForProject(
+        for (const project of desiredProjects) {
+            const { thread, replacedThreadId } = await this.ensureThreadForProject(
                 channel,
                 project,
-                attachments,
                 existingMap.get(project.id)
             );
 
+            if (replacedThreadId)
+                replacedThreadIds.add(replacedThreadId);
+
             if (!thread) continue;
 
-            await this.syncThreadContent(project, thread, attachments);
+            await this.syncThreadContent(project, thread);
 
             await this.applyThreadTags(
                 channel,
@@ -179,16 +195,25 @@ export class ProjectListOrchestrator {
     private async ensureThreadForProject(
         channel: ForumChannel,
         project: Project,
-        attachments: Buffer[],
         entry?: ProjectListEntry
-    ): Promise<ForumThreadChannel | null> {
+    ): Promise<EnsureThreadResult> {
         const existing = entry
             ? await this.discordService.fetchThread(entry.thread_channel_id)
             : null;
 
-        if (existing) return existing as ForumThreadChannel;
+        if (existing) {
+            if (existing.name !== ProjectMessageBuilder.buildDiscoveryThreadName(project)) {
+                await this.discordService.deleteThread(existing);
 
-        return this.discordService.createListThread(channel, project, attachments);
+                const newThread = await this.discordService.createListThread(channel, project);
+                return { thread: newThread, replacedThreadId: existing.id };
+            }
+
+            return { thread: existing as ForumThreadChannel };
+        }
+
+        const newThread = await this.discordService.createListThread(channel, project);
+        return { thread: newThread };
     }
 
     private async applyThreadTags(
@@ -235,13 +260,13 @@ export class ProjectListOrchestrator {
     async syncThreadContent(
         project: ProjectWithRelations,
         thread: ForumThreadChannel,
-        attachments: Buffer[]
     ): Promise<void> {
 
         const starterMessage = await thread.fetchStarterMessage();
         const messages = await thread.messages.fetch();
 
         if (starterMessage) {
+            const attachments = await this.projectRepo.downloadAttachments(project);
             const content = await this.discordService.buildListThreadStarterMessage(project, attachments);
             await starterMessage.edit(content);
             messages.delete(starterMessage.id);
@@ -262,7 +287,12 @@ export class ProjectListOrchestrator {
         listId: number,
         data: { name: string; filters: FilterGroup }
     ) {
-        return this.projectListRepo.createTag(listId, data);
+        const tag = await this.projectListRepo.createTag(listId, data);
+
+        const list = await this.projectListRepo.getById(listId);
+        await this.syncList(list);
+
+        return tag;
     }
 
     async updateTag(
@@ -270,11 +300,18 @@ export class ProjectListOrchestrator {
         tagId: number,
         data: { name?: string; filters?: FilterGroup }
     ) {
-        return this.projectListRepo.updateTag(listId, tagId, data);
+        const tag = await this.projectListRepo.updateTag(listId, tagId, data);
+        const list = await this.projectListRepo.getById(listId);
+        await this.syncList(list);
+
+        return tag;
     }
 
     async deleteTag(listId: number, tagId: number) {
-        return this.projectListRepo.deleteTag(listId, tagId);
+        await this.projectListRepo.deleteTag(listId, tagId);
+        const list = await this.projectListRepo.getById(listId);
+
+        await this.syncList(list);
     }
 
     async evaluateTagsForProject(
@@ -285,6 +322,10 @@ export class ProjectListOrchestrator {
     }
 
     async evaluateTagsBulk(list: ProjectListWithRelations, projects: ProjectWithRelations[]): Promise<Record<number, ProjectListTag[]>> {
+        if (projects.length === 0) {
+            return {};
+        }
+
         return this.projectListRepo.evaluateTagsBulk(list.id, projects.map(p => p.id));
     }
 

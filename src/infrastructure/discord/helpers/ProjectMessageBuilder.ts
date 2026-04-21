@@ -49,11 +49,15 @@ export class ProjectMessageBuilder {
     }
 
     static buildDiscoveryThreadName(project: Project): string {
-        return ProjectStageDiscordMeta[project.project_stage].channelIcon + " " + ProjectMessageBuilder.buildThreadName(project);
+        return ProjectStageDiscordMeta.channelIcon(project) + " " + ProjectMessageBuilder.buildThreadName(project);
     }
 
     static buildChannelName(project: Project) {
-        return ProjectStageDiscordMeta[project.project_stage].channelIcon + "｜" + project.name;
+        return ProjectStageDiscordMeta.channelIcon(project) + "｜" + project.name;
+    }
+
+    static buildArchivedChannelName(project: Project) {
+        return "⚫｜" + project.name;
     }
 
 }

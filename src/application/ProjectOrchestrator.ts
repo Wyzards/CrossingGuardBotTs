@@ -19,7 +19,6 @@ export class ProjectOrchestrator {
 
     async setAttachments(project: ProjectWithRelations, attachments: Attachment[]) {
         await this.repo.storeAttachments(project.id, attachments);
-        await this.sync(project)
     }
 
     async addLink(project: ProjectWithRelations, label: string, url: string, reporter: IOperationReporter): Promise<ProjectWithRelations> {
@@ -34,7 +33,6 @@ export class ProjectOrchestrator {
 
         const links = project.links.filter(l => l.label !== link.label);
         project.links = links;
-        await this.sync(project, reporter);
 
         return project;
     }
@@ -50,8 +48,6 @@ export class ProjectOrchestrator {
             await this.repo.removeStaffByDiscord(project.id, staff.user.discordId);
             const remainingStaff = project.staff.filter(s => s.user.discordId !== staff.user.discordId);
             project.staff = remainingStaff;
-
-            await this.sync(project, reporter);
         }
     }
 
@@ -79,8 +75,6 @@ export class ProjectOrchestrator {
             project.staff[existingIndex] = newStaff;
         else
             project.staff.push(newStaff);
-
-        await this.sync(project, reporter);
     }
 
     async updateStaffRoles(discordUserId: string) {
@@ -113,34 +107,27 @@ export class ProjectOrchestrator {
 
     async ensureChannel(project: Project): Promise<ForumChannel | null> {
         const channel = await this.discordService.fetchProjectChannel(project);
+        const channelShouldExist = shouldHaveChannel(project);
 
-        if (shouldHaveChannel(project) && !channel) {
+        if (channelShouldExist && !channel) {
             return this.createProjectChannel(project);
         }
 
-        else if (!shouldHaveChannel(project) && channel) {
-            await this.deleteProjectChannel(project, channel);
+        else if (!channelShouldExist && channel) {
+            await this.discordService.archiveProjectChannel(project, channel);
+            return null;
         }
 
         return channel as ForumChannel;
     }
 
-    private async deleteProjectChannel(project: Project, channel: ForumChannel) {
-        await this.discordService.deleteChannel(channel);
-
-        if (project.channel_id) {
-            project.channel_id = undefined;
-            this.save(project);
-        }
-    }
-
-    async sync(project: ProjectWithRelations, reporter?: IOperationReporter) {
+    async sync(project: ProjectWithRelations, onAfterSync: () => Promise<void>, reporter?: IOperationReporter) {
         const attachments = await this.repo.downloadAttachments(project);
 
         await this.syncRole(project, reporter);
         await this.syncProjectChannel(project, attachments, reporter);
-        await this.discordService.syncDiscoveryThread(project, attachments, await this.ensureDiscoveryThread(project));
-        await this.discordService.syncMapsChannel(project, attachments); // If not a map, will delete a matching maps thread then do nothing
+
+        await onAfterSync();
     }
 
     private async syncProjectChannel(project: ProjectWithRelations, attachments: Buffer[], reporter?: IOperationReporter) {
@@ -163,19 +150,8 @@ export class ProjectOrchestrator {
         return role;
     }
 
-    async ensureDiscoveryThread(project: Project): Promise<ForumThreadChannel | null> {
-        const attachments = await this.repo.downloadAttachments(project);
-        const thread = await this.discordService.ensureDiscoveryThread(project, attachments);
-
-        project.discovery_thread_id = thread?.id;
-        await this.save(project);
-
-        return thread;
-    }
-
-    async createNewProject(name: string, displayName: string, type: ProjectType): Promise<Project> {
+    async createNewProject(name: string, displayName: string, type: ProjectType): Promise<ProjectWithRelations> {
         const project = await this.repo.create({ name, display_name: displayName, type });
-        await this.sync(project);
 
         return project;
     }

@@ -1,4 +1,4 @@
-import { ProjectStaffRank, ProjectStaffRankHelper, ProjectStage, ProjectStageHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
+import { Accessibility, AccessibilityHelper, ArchitectApproval, ArchitectApprovalHelper, CommunityVetted, CommunityVettedHelper, ProjectStaffRank, ProjectStaffRankHelper, ProjectStage, ProjectStageHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { MessageFlags } from "discord-api-types/v10";
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { IOperationReporter, OperationTracker } from "../../../shared/operations.js";
@@ -12,6 +12,18 @@ const projectStageChoices = ProjectStageHelper.values().map(stage => ({
 const projectTypeChoices = ProjectTypeHelper.values().map(type => ({
     name: ProjectTypeHelper.pretty(type as ProjectType),
     value: type,
+}));
+const architectApprovalChoices = ArchitectApprovalHelper.values().map(approval => ({
+    name: ArchitectApprovalHelper.pretty(approval as ArchitectApproval),
+    value: approval,
+}));
+const communityVettedChoices = CommunityVettedHelper.values().map(vetted => ({
+    name: CommunityVettedHelper.pretty(vetted as CommunityVetted),
+    value: vetted,
+}));
+const accessibilityChoices = AccessibilityHelper.values().map(accessibility => ({
+    name: AccessibilityHelper.pretty(accessibility as Accessibility),
+    value: accessibility,
 }));
 
 const projectStaffRankChoices = ProjectStaffRankHelper.values().map(rank => ({
@@ -184,6 +196,45 @@ const data = new SlashCommandBuilder()
                             .setDescription("The type of project")
                             .setRequired(true)
                             .addChoices(...projectTypeChoices)))
+            .addSubcommand(subcommand =>
+                subcommand.setName("architect_approval")
+                    .setDescription("Set a project's Architect approval status")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("architect_approval")
+                            .setDescription("The Architect approval status")
+                            .setRequired(true)
+                            .addChoices(...architectApprovalChoices)))
+            .addSubcommand(subcommand =>
+                subcommand.setName("community_vetted")
+                    .setDescription("Set a project's Community Vetting status")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("community_vetted")
+                            .setDescription("The Community Vetting status")
+                            .setRequired(true)
+                            .addChoices(...communityVettedChoices)))
+            .addSubcommand(subcommand =>
+                subcommand.setName("accessibility")
+                    .setDescription("Set a project's accessibility")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("The name of the project")
+                            .setAutocomplete(true)
+                            .setRequired(true))
+                    .addStringOption(option =>
+                        option.setName("accessibility")
+                            .setDescription("The accessibility status of project")
+                            .setRequired(true)
+                            .addChoices(...accessibilityChoices)))
             // Set IP
             .addSubcommand(subcommand =>
                 subcommand.setName("ip")
@@ -304,6 +355,12 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
         if (subcommandGroup == "set") {
             if (subcommand == "type")
                 await executeSetType(bot, interaction, tracker);
+            if (subcommand == "architect_approval")
+                await executeSetArchitectApproval(bot, interaction, tracker);
+            if (subcommand == "community_vetted")
+                await executeSetCommunityVetted(bot, interaction, tracker);
+            if (subcommand == "accessibility")
+                await executeSetAccessibility(bot, interaction, tracker);
             else if (subcommand == "ip")
                 await executeSetIp(bot, interaction, tracker);
             else if (subcommand == "version")
@@ -377,7 +434,9 @@ async function executeUpdateViews(bot: Bot, interaction: ChatInputCommandInterac
         // TODO: Make this a promise.all()
 
         count++;
-        await bot.projectOrchestrator.sync(project, reporter);
+        await bot.projectOrchestrator.sync(project, async () => {
+            await bot.projectListOrchestrator.syncAllLists();
+        }, reporter);
         await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
 }
@@ -410,7 +469,9 @@ async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction
 
     project.name = newName;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
     await interaction.editReply({ content: `${nameBefore} has been renamed to ${newName}` });
 }
 
@@ -431,7 +492,9 @@ async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInte
 
     project.display_name = displayName;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     if (nameBefore)
         await interaction.editReply({ content: `${nameBefore}'s display name has been changed to ${displayName}` });
@@ -474,6 +537,9 @@ async function executeRemoveStaff(bot: Bot, interaction: ChatInputCommandInterac
     }
 
     await bot.projectOrchestrator.removeStaff(project, staff, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
     await reporter.finalize(`Removed the user ${user} from ${project.display_name}`);
 }
 
@@ -493,6 +559,9 @@ async function executeRemoveLink(bot: Bot, interaction: ChatInputCommandInteract
 
     if (link) {
         await bot.projectOrchestrator.removeLink(project, link, reporter);
+        await bot.projectOrchestrator.sync(project, async () => {
+            await bot.projectListOrchestrator.syncAllLists();
+        }, reporter);
         await reporter.finalize(`Removed the link \`${linkName}\` from ${project.display_name}`);
     } else {
         await reporter.finalize(`A link with the name ${linkName} does not exist on the project ${project.display_name}!`);
@@ -532,6 +601,9 @@ async function executeAddStaff(bot: Bot, interaction: ChatInputCommandInteractio
         return;
 
     await bot.projectOrchestrator.addOrSetStaff(project, user.id, rank, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
     await reporter.finalize(`Added ${user.toString()} to the staff of ${project.display_name} as a ${ProjectStaffRankHelper.pretty(rank)}`);
 }
 
@@ -568,7 +640,9 @@ async function executeAddLink(bot: Bot, interaction: ChatInputCommandInteraction
         return;
 
     await bot.projectOrchestrator.addLink(project, linkName, linkURL, reporter);
-    await bot.projectOrchestrator.sync(project);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.display_name}`);
 }
@@ -612,6 +686,10 @@ async function executeSetAttachments(bot: Bot, interaction: ChatInputCommandInte
             return;
 
         await bot.projectOrchestrator.setAttachments(project, attachments);
+        await bot.projectOrchestrator.sync(project, async () => {
+            await bot.projectListOrchestrator.syncAllLists();
+        });
+
         await interaction.editReply({ content: `${project.display_name}'s attachments have been set` });
     } catch (error) {
         if (error instanceof Error) {
@@ -639,9 +717,74 @@ async function executeSetType(bot: Bot, interaction: ChatInputCommandInteraction
 
     project.type = type;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     await reporter.finalize(`${project.display_name}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
+}
+
+async function executeSetArchitectApproval(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+    const projectName = interaction.options.getString("project");
+    const architectApproval = interaction.options.getString("architect_approval") as ArchitectApproval;
+
+    if (!projectName || !architectApproval)
+        return;
+
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
+    project.architect_approval = architectApproval;
+    await bot.projectOrchestrator.save(project);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
+
+    await reporter.finalize(`${project.display_name}'s Architect approval status was set to ${ArchitectApprovalHelper.pretty(architectApproval)}`);
+}
+
+async function executeSetCommunityVetted(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+    const projectName = interaction.options.getString("project");
+    const communityVetted = interaction.options.getString("community_vetted") as CommunityVetted;
+
+    if (!projectName || !communityVetted)
+        return;
+
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
+    project.community_vetted = communityVetted;
+    await bot.projectOrchestrator.save(project);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
+
+    await reporter.finalize(`${project.display_name}'s Community Vetting status was set to ${CommunityVettedHelper.pretty(communityVetted)}`);
+}
+
+async function executeSetAccessibility(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
+    const projectName = interaction.options.getString("project");
+    const accesibility = interaction.options.getString("accessibility") as Accessibility;
+
+    if (!projectName || !accesibility)
+        return;
+
+    const project = await getProjectByName(bot, interaction, projectName);
+
+    if (!project)
+        return;
+
+    project.accessibility = accesibility;
+    await bot.projectOrchestrator.save(project);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
+
+    await reporter.finalize(`${project.display_name}'s accessibility status was set to ${AccessibilityHelper.pretty(accesibility)}`);
 }
 
 async function executeSetDescription(bot: Bot, interaction: ChatInputCommandInteraction, reporter: OperationTracker) {
@@ -666,7 +809,9 @@ async function executeSetDescription(bot: Bot, interaction: ChatInputCommandInte
 
         project.description = description;
         await bot.projectOrchestrator.save(project);
-        await bot.projectOrchestrator.sync(project, reporter);
+        await bot.projectOrchestrator.sync(project, async () => {
+            await bot.projectListOrchestrator.syncAllLists();
+        }, reporter);
 
         await reporter.finalize(`${project.display_name} has been given the following description:\n${description}`);
     } catch (error) {
@@ -694,7 +839,9 @@ async function executeSetEmoji(bot: Bot, interaction: ChatInputCommandInteractio
         return;
     project.emoji = emojiIdOrUnicode;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     await reporter.finalize(`${project.display_name}'s emoji set to \`${project.emoji}\``);
 }
@@ -714,7 +861,9 @@ async function executeSetStage(bot: Bot, interaction: ChatInputCommandInteractio
 
     project.project_stage = stage;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
     await reporter.finalize(`${project.display_name}'s stage set to ${ProjectStageHelper.pretty(stage as ProjectStage)}`);
 }
 
@@ -732,7 +881,9 @@ async function executeSetIp(bot: Bot, interaction: ChatInputCommandInteraction, 
 
     project.ip = ip;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     await reporter.finalize(`${project.display_name}'s IP set to \`${ip}\``);
 }
@@ -751,7 +902,9 @@ async function executeSetVersion(bot: Bot, interaction: ChatInputCommandInteract
 
     project.version = version;
     await bot.projectOrchestrator.save(project);
-    await bot.projectOrchestrator.sync(project, reporter);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    }, reporter);
 
     await reporter.finalize(`${project.display_name}'s version set to \`${version}\``);
 }
@@ -777,6 +930,9 @@ async function executeCreateProject(bot: Bot, interaction: ChatInputCommandInter
     }
 
     const project = await bot.projectOrchestrator.createNewProject(projectName, displayName, type);
+    await bot.projectOrchestrator.sync(project, async () => {
+        await bot.projectListOrchestrator.syncAllLists();
+    });
 
     await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.display_name}\`` });
 }

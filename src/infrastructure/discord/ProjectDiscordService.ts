@@ -1,6 +1,6 @@
 import { ArchitectApproval, Project, ProjectStaff, ProjectStaffRank, ProjectStaffRankHelper, ProjectStageHelper, ProjectTypeHelper, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, Client, ForumChannel, ForumThreadChannel, Guild, GuildChannel, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, Role, ThreadChannel } from "discord.js";
-import { shouldHaveDiscoveryThread, shouldHaveMapsThread, shouldHaveRole } from "../../application/ProjectRules.js";
+import { shouldHaveRole } from "../../application/ProjectRules.js";
 import { AppConfig } from "../../core/config.js";
 import { IOperationReporter, track } from "../../shared/operations.js";
 import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
@@ -86,7 +86,7 @@ export class ProjectDiscordService {
             position: 2,
             hoist: true,
             name: project.display_name ?? project.name,
-            color: ProjectStageDiscordMeta[project.project_stage].roleColor
+            color: ProjectStageDiscordMeta.roleColor(project)
         }
     }
 
@@ -192,6 +192,23 @@ export class ProjectDiscordService {
         }));
     }
 
+    async archiveProjectChannel(project: Project, channel: ForumChannel) {
+        const guild = await this.getGuild();
+        // Set to hidden channel color
+        // Set permissions to not visible
+        await channel.edit({
+            name: ProjectMessageBuilder.buildArchivedChannelName(project),
+            permissionOverwrites: [{
+                id: guild.roles.everyone.id,
+                deny: [PermissionsBitField.Flags.ViewChannel]
+            },
+            {
+                id: this.config.discord.roles.intake,
+                allow: [PermissionsBitField.Flags.ViewChannel]
+            }]
+        })
+    }
+
     async createProjectChannel(project: Project): Promise<ForumChannel> {
         const guild = await this.getGuild();
         const category = await this.getProjectChannelCategory();
@@ -203,51 +220,6 @@ export class ProjectDiscordService {
         });
 
         return await channel;
-    }
-
-    async getMapsChannel(): Promise<ForumChannel> {
-        const guild = await this.getGuild();
-        const channel = await guild.channels.fetch(this.config.discord.channels.mapsForum).catch(() => null);
-
-        // TODO: Add self healing
-
-        if (!channel)
-            throw new Error(`Fetch for maps ForumChannel ${this.config.discord.channels.mapsForum} failed. Does it exist? Check config.`);
-
-        return channel as ForumChannel;
-    }
-
-    async getDiscoveryChannel(): Promise<ForumChannel> {
-        const guild = await this.getGuild();
-        const channel = await guild.channels.fetch(this.config.discord.channels.discovery).catch(() => null);
-
-        // TODO: Add self healing
-
-        if (!channel)
-            throw new Error(`Fetch for discovery ForumChannel ${this.config.discord.channels.discovery} failed. Does it exist? Check config.`);
-
-        return channel as ForumChannel;
-    }
-
-    public async getDiscoveryThreadAppliedTags(project: Project): Promise<string[]> {
-        const tags = [];
-        const discoveryChannel = await this.getDiscoveryChannel();
-        const availableTags = discoveryChannel.availableTags;
-        const stageTagName = ProjectStageHelper.pretty(project.project_stage);
-        const projectTypeTagName = ProjectTypeHelper.pretty(project.type);
-
-        const statusTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == stageTagName);
-        const projectTypeTag: GuildForumTag | undefined = availableTags.find(tag => tag.name == projectTypeTagName);
-
-        if (statusTag == undefined)
-            throw new Error("Tried to set status tag for discovery message but status tag did not exist on discovery channel forum");
-        if (projectTypeTag == undefined)
-            throw new Error("Tried to set project type tag for discovery message but project type tag did not exist on discovery channel forum");
-
-        tags.push(statusTag.id);
-        tags.push(projectTypeTag.id);
-
-        return tags;
     }
 
     public async getProjectListThreadAppliedTags(channel: ForumChannel, project: Project): Promise<string[]> {
@@ -266,19 +238,6 @@ export class ProjectDiscordService {
 
         tags.push(statusTag.id);
         tags.push(projectTypeTag.id);
-
-        return tags;
-    }
-
-    public async getMapsThreadAppliedTags(project: Project): Promise<string[]> {
-        const tags = [];
-        const mapsChannel = await this.getMapsChannel();
-        const availableTags = mapsChannel.availableTags;
-        const stageTag = ProjectStageHelper.pretty(project.project_stage);
-        const projectTypeTag = ProjectTypeHelper.pretty(project.type);
-
-        tags.push(availableTags.find(tag => tag.name == stageTag)!.id);
-        tags.push(availableTags.find(tag => tag.name == projectTypeTag)!.id);
 
         return tags;
     }
@@ -339,24 +298,6 @@ export class ProjectDiscordService {
 
     }
 
-    async ensureDiscoveryThread(project: Project, attachments: Buffer[]): Promise<ForumThreadChannel | null> {
-        const thread = await this.fetchDiscoveryThread(project);
-
-        if (shouldHaveDiscoveryThread(project)) {
-            if (!thread)
-                return this.createDiscoveryThread(project, attachments);
-            else if (thread.name !== ProjectMessageBuilder.buildDiscoveryThreadName(project)) {
-                await thread.delete();
-                return this.createDiscoveryThread(project, attachments);
-            }
-        } else if (thread) {
-            await thread.delete();
-            return null;
-        }
-
-        return thread;
-    }
-
     async ensureProjectRole(project: Project): Promise<Role | null> {
         const role = project.role_id ? await this.fetchRole(project.role_id) : null;
 
@@ -371,52 +312,6 @@ export class ProjectDiscordService {
         return role;
     }
 
-    async syncDiscoveryThread(project: ProjectWithRelations, attachments: Buffer[], thread: ForumThreadChannel | null): Promise<void> {
-        if (!thread)
-            return;
-
-        await thread.edit({ appliedTags: await this.getDiscoveryThreadAppliedTags(project) });
-
-        const starterMessage = await thread.fetchStarterMessage();
-        const messages = await thread.messages.fetch();
-
-        if (starterMessage) {
-            const starterMessageContent = await this.getStarterMessage(project, attachments);
-            await starterMessage.edit(starterMessageContent);
-            messages.delete(starterMessage.id);
-        }
-
-        for (const message of messages.values())
-            if (!message.system)
-                await thread.messages.delete(message);
-
-        await this.sendChannelMessage(project, thread);
-    }
-
-    async syncMapsChannel(project: ProjectWithRelations, attachments: Buffer[]) {
-        const thread = await this.ensureMapsThread(project, attachments);
-
-        if (!thread)
-            return;
-
-        await thread.edit({ appliedTags: await this.getMapsThreadAppliedTags(project) });
-
-        const starterMessage = await thread.fetchStarterMessage();
-        const messages = await thread.messages.fetch();
-
-        if (starterMessage) {
-            const starterMessageContent = await this.getStarterMessage(project, attachments);
-            starterMessage.edit(starterMessageContent);
-            messages.delete(starterMessage.id);
-        }
-
-        for (const message of messages.values())
-            if (!message.system)
-                await thread.messages.delete(message);
-
-        this.sendChannelMessage(project, thread);
-    }
-
     async getProjectChannelCategory(): Promise<CategoryChannel> {
         const guild = await this.getGuild();
         const channel = await guild.channels.fetch(this.config.discord.channels.projectCategory);
@@ -428,39 +323,13 @@ export class ProjectDiscordService {
         return channel as CategoryChannel;
     }
 
-    async createDiscoveryThread(project: Project, attachments: Buffer[]): Promise<ForumThreadChannel> {
-        const discovery = await this.getDiscoveryChannel();
-        const starterMessage = await this.getStarterMessage(project, attachments);
-        const discoveryThread = await discovery.threads.create({
-            appliedTags: await this.getDiscoveryThreadAppliedTags(project),
-            message: starterMessage as GuildForumThreadMessageCreateOptions,
-            name: ProjectMessageBuilder.buildDiscoveryThreadName(project),
-        }) as ForumThreadChannel;
-
-        return discoveryThread;
-    }
-
-    async createListThread(channel: ForumChannel, project: Project, attachments: Buffer[]): Promise<ForumThreadChannel> {
-        const starterMessage = await this.getStarterMessage(project, attachments);
+    async createListThread(channel: ForumChannel, project: Project): Promise<ForumThreadChannel> {
         const discoveryThread = await channel.threads.create({
-            appliedTags: await this.getDiscoveryThreadAppliedTags(project),
-            message: starterMessage as GuildForumThreadMessageCreateOptions,
+            message: { content: channel.name },
             name: ProjectMessageBuilder.buildDiscoveryThreadName(project),
         }) as ForumThreadChannel;
 
         return discoveryThread;
-    }
-
-    async createMapsThread(project: Project, attachments: Buffer[]) {
-        const mapsChannel = await this.getMapsChannel();
-        const starterMessage = await this.getStarterMessage(project, attachments);
-        const mapsThread = await mapsChannel.threads.create({
-            appliedTags: await this.getMapsThreadAppliedTags(project),
-            message: starterMessage as GuildForumThreadMessageCreateOptions,
-            name: ProjectMessageBuilder.buildDiscoveryThreadName(project),
-        }) as ForumThreadChannel;
-
-        return mapsThread;
     }
 
     async getStarterMessage(project: Project, attachments: Buffer[]): Promise<BaseMessageOptions> {
@@ -562,30 +431,6 @@ export class ProjectDiscordService {
 
             await channel.send(messageToSend);
         }
-    }
-
-    async ensureMapsThread(project: Project, attachments: Buffer[]): Promise<ForumThreadChannel | null> {
-        const thread = await this.getMapsThread(project);
-
-        if (shouldHaveMapsThread(project)) {
-            return this.createMapsThread(project, attachments);
-        } else if (thread) {
-            await thread.delete();
-            return null;
-        }
-
-        return thread;
-    }
-
-    async getMapsThread(project: Project): Promise<ForumThreadChannel | null> {
-        const mapsChannel = await this.getMapsChannel();
-        const mapThreads = await mapsChannel.threads.fetchActive();
-
-        for (const mapThread of mapThreads.threads)
-            if (mapThread[1].name == ProjectMessageBuilder.buildDiscoveryThreadName(project)) // Same format as discovery channel
-                return mapThread[1] as ForumThreadChannel;
-
-        return null;
     }
 
     async getPinnedInForum(forum: ForumChannel): Promise<ForumThreadChannel | null> {
