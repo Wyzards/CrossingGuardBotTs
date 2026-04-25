@@ -1,9 +1,9 @@
 import { Accessibility, AccessibilityHelper, ArchitectApproval, ArchitectApprovalHelper, CommunityVetted, CommunityVettedHelper, ProjectStage, ProjectStageHelper, ProjectType, ProjectTypeHelper } from "@wyzards/crossroadsclientts/dist/projects/types.js";
 import { FilterField } from "@wyzards/crossroadsclientts/dist/types/filter.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { fieldOption, groupOption, listOption, operatorOption, tagOption, valueOption } from "../../../infrastructure/discord/helpers/projectListOptions.js";
 import { OperationTracker } from "../../../shared/operations.js";
 import { Bot } from "../../Bot.js";
-import { fieldOption, groupOption, listOption, operatorOption, tagOption, valueOption } from "../../../infrastructure/discord/helpers/projectListOptions.js";
 
 const filterOperatorChoices = [
     { name: "Equals", value: "=" },

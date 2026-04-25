@@ -67,14 +67,16 @@ export class ProjectOrchestrator {
         }
     }
 
-    async addOrSetStaff(project: ProjectWithRelations, userId: string, rank: ProjectStaffRank, reporter: IOperationReporter) {
-        const newStaff = await this.repo.addOrSetStaff(project.id, userId, rank);
+    async addOrSetStaff(project: ProjectWithRelations, discordUserId: string, rank: ProjectStaffRank, reporter: IOperationReporter) {
+        const newStaff = await this.repo.addOrSetStaff(project.id, discordUserId, rank);
         const existingIndex = project.staff.findIndex(s => s.user.id === newStaff.user.id);
 
         if (existingIndex >= 0)
             project.staff[existingIndex] = newStaff;
         else
             project.staff.push(newStaff);
+
+        await this.updateStaffRoles(discordUserId);
     }
 
     async updateStaffRoles(discordUserId: string) {
@@ -126,6 +128,10 @@ export class ProjectOrchestrator {
 
         await this.syncRole(project, reporter);
         await this.syncProjectChannel(project, attachments, reporter);
+
+        for (const staff of project.staff)
+            if (staff.user.discordId)
+                await this.updateStaffRoles(staff.user.discordId);
 
         await onAfterSync();
     }

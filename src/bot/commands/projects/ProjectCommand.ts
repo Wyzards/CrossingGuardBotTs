@@ -330,7 +330,7 @@ const data = new SlashCommandBuilder()
 async function autocomplete(bot: Bot, interaction: AutocompleteInteraction) {
     const projects = await bot.projectOrchestrator.repo.list();
     const focusedValue = interaction.options.getFocused();
-    const filtered = projects.filter(project => project.name.includes(focusedValue) || project.display_name?.includes(focusedValue)) ?? false;
+    const filtered = projects.filter(project => project.name.toLowerCase().includes(focusedValue.toLowerCase()) || project.display_name?.toLowerCase().includes(focusedValue.toLocaleLowerCase())) ?? false;
 
     await interaction.respond(
         filtered.slice(0, 24).map(projectChoice => ({ name: projectChoice.display_name ?? projectChoice.name, value: projectChoice.name })),
@@ -435,7 +435,7 @@ async function executeUpdateViews(bot: Bot, interaction: ChatInputCommandInterac
 
         count++;
         await bot.projectOrchestrator.sync(project, async () => {
-            await bot.projectListOrchestrator.syncAllLists();
+            await bot.projectListOrchestrator.syncProject(project);
         }, reporter);
         await interaction.editReply(`Edited ${count}/${projectName == null ? projects.length : 1} project views`);
     }
@@ -470,7 +470,7 @@ async function executeSetName(bot: Bot, interaction: ChatInputCommandInteraction
     project.name = newName;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
     await interaction.editReply({ content: `${nameBefore} has been renamed to ${newName}` });
 }
@@ -493,7 +493,7 @@ async function executeSetDisplayName(bot: Bot, interaction: ChatInputCommandInte
     project.display_name = displayName;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     if (nameBefore)
@@ -538,7 +538,7 @@ async function executeRemoveStaff(bot: Bot, interaction: ChatInputCommandInterac
 
     await bot.projectOrchestrator.removeStaff(project, staff, reporter);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
     await reporter.finalize(`Removed the user ${user} from ${project.display_name}`);
 }
@@ -560,7 +560,7 @@ async function executeRemoveLink(bot: Bot, interaction: ChatInputCommandInteract
     if (link) {
         await bot.projectOrchestrator.removeLink(project, link, reporter);
         await bot.projectOrchestrator.sync(project, async () => {
-            await bot.projectListOrchestrator.syncAllLists();
+            await bot.projectListOrchestrator.syncProject(project);
         }, reporter);
         await reporter.finalize(`Removed the link \`${linkName}\` from ${project.display_name}`);
     } else {
@@ -602,7 +602,7 @@ async function executeAddStaff(bot: Bot, interaction: ChatInputCommandInteractio
 
     await bot.projectOrchestrator.addOrSetStaff(project, user.id, rank, reporter);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
     await reporter.finalize(`Added ${user.toString()} to the staff of ${project.display_name} as a ${ProjectStaffRankHelper.pretty(rank)}`);
 }
@@ -641,7 +641,7 @@ async function executeAddLink(bot: Bot, interaction: ChatInputCommandInteraction
 
     await bot.projectOrchestrator.addLink(project, linkName, linkURL, reporter);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`Added the link [${linkName}](${linkURL}) to ${project.display_name}`);
@@ -687,7 +687,7 @@ async function executeSetAttachments(bot: Bot, interaction: ChatInputCommandInte
 
         await bot.projectOrchestrator.setAttachments(project, attachments);
         await bot.projectOrchestrator.sync(project, async () => {
-            await bot.projectListOrchestrator.syncAllLists();
+            await bot.projectListOrchestrator.syncProject(project);
         });
 
         await interaction.editReply({ content: `${project.display_name}'s attachments have been set` });
@@ -718,7 +718,7 @@ async function executeSetType(bot: Bot, interaction: ChatInputCommandInteraction
     project.type = type;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s type was set to ${ProjectTypeHelper.pretty(type)}`);
@@ -739,7 +739,7 @@ async function executeSetArchitectApproval(bot: Bot, interaction: ChatInputComma
     project.architect_approval = architectApproval;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s Architect approval status was set to ${ArchitectApprovalHelper.pretty(architectApproval)}`);
@@ -760,7 +760,7 @@ async function executeSetCommunityVetted(bot: Bot, interaction: ChatInputCommand
     project.community_vetted = communityVetted;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s Community Vetting status was set to ${CommunityVettedHelper.pretty(communityVetted)}`);
@@ -781,7 +781,7 @@ async function executeSetAccessibility(bot: Bot, interaction: ChatInputCommandIn
     project.accessibility = accesibility;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s accessibility status was set to ${AccessibilityHelper.pretty(accesibility)}`);
@@ -810,7 +810,7 @@ async function executeSetDescription(bot: Bot, interaction: ChatInputCommandInte
         project.description = description;
         await bot.projectOrchestrator.save(project);
         await bot.projectOrchestrator.sync(project, async () => {
-            await bot.projectListOrchestrator.syncAllLists();
+            await bot.projectListOrchestrator.syncProject(project);
         }, reporter);
 
         await reporter.finalize(`${project.display_name} has been given the following description:\n${description}`);
@@ -840,7 +840,7 @@ async function executeSetEmoji(bot: Bot, interaction: ChatInputCommandInteractio
     project.emoji = emojiIdOrUnicode;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s emoji set to \`${project.emoji}\``);
@@ -862,7 +862,7 @@ async function executeSetStage(bot: Bot, interaction: ChatInputCommandInteractio
     project.project_stage = stage;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
     await reporter.finalize(`${project.display_name}'s stage set to ${ProjectStageHelper.pretty(stage as ProjectStage)}`);
 }
@@ -882,7 +882,7 @@ async function executeSetIp(bot: Bot, interaction: ChatInputCommandInteraction, 
     project.ip = ip;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s IP set to \`${ip}\``);
@@ -903,7 +903,7 @@ async function executeSetVersion(bot: Bot, interaction: ChatInputCommandInteract
     project.version = version;
     await bot.projectOrchestrator.save(project);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     }, reporter);
 
     await reporter.finalize(`${project.display_name}'s version set to \`${version}\``);
@@ -931,7 +931,7 @@ async function executeCreateProject(bot: Bot, interaction: ChatInputCommandInter
 
     const project = await bot.projectOrchestrator.createNewProject(projectName, displayName, type);
     await bot.projectOrchestrator.sync(project, async () => {
-        await bot.projectListOrchestrator.syncAllLists();
+        await bot.projectListOrchestrator.syncProject(project);
     });
 
     await interaction.editReply({ content: `Project created with project_name: \`${project.name}\`, and display_name: \`${project.display_name}\`` });

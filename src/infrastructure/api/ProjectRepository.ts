@@ -107,8 +107,8 @@ export class ProjectRepository {
         return this.api.projects.removeLink(projectId, linkId);
     }
 
-    async addOrSetStaff(projectId: number, userId: string, rank: ProjectStaffRank): Promise<ProjectStaff> {
-        return this.api.setProjectStaffByDiscordId(projectId, userId, rank);
+    async addOrSetStaff(projectId: number, discordId: string, rank: ProjectStaffRank): Promise<ProjectStaff> {
+        return this.api.setProjectStaffByDiscordId(projectId, discordId, rank);
     }
 
     async removeStaffByDiscord(projectId: number, discordId: string): Promise<boolean> {
