@@ -1,11 +1,13 @@
 import { ArchitectApproval, Project, ProjectStaff, ProjectStaffRank, ProjectStaffRankHelper, ProjectStageHelper, ProjectTypeHelper, ProjectWithRelations } from "@wyzards/crossroadsclientts/dist/projects/types.js";
-import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, Client, ForumChannel, ForumThreadChannel, Guild, GuildChannel, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, Role, ThreadChannel } from "discord.js";
+import { BaseMessageOptions, CategoryChannel, ChannelFlags, ChannelType, Client, ForumChannel, ForumThreadChannel, Guild, GuildChannel, GuildForumTag, GuildForumTagData, GuildForumThreadMessageCreateOptions, MessageCreateOptions, MessageFlags, PermissionsBitField, Role, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 import { shouldHaveRole } from "../../application/ProjectRules.js";
 import { AppConfig } from "../../core/config.js";
 import { IOperationReporter, track } from "../../shared/operations.js";
 import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
 import { ProjectEmojiHelper } from "./helpers/ProjectEmojiHelper.js";
 import { ProjectMessageBuilder } from "./helpers/ProjectMessageBuilder.js";
+import { Era } from "@wyzards/crossroadsclientts/dist/badges/types.js";
+import { CrossroadsUser } from "@wyzards/crossroadsclientts/dist/users/types.js";
 
 export class ProjectDiscordService {
 
@@ -53,6 +55,10 @@ export class ProjectDiscordService {
         await thread.delete();
     }
 
+    async sendMessage(channel: TextChannel, message: string) {
+        await channel.send({ content: message });
+    }
+
     async getGuild(): Promise<Guild> {
         return this.client.guilds.fetch(this.config.discord.guildId);
     }
@@ -74,6 +80,28 @@ export class ProjectDiscordService {
         return guild.roles.fetch(roleId).catch(() => null);
     }
 
+    async syncUserEra(user: CrossroadsUser, eraRole: Role, allEras: Era[]) {
+        if (!user.discordId)
+            return;
+
+        const guild = await this.getGuild();
+        const member = await guild.members.fetch(user.discordId);
+
+        if (!member) {
+            return;
+        }
+
+        // remove any other era roles
+        for (const e of allEras) {
+            if (e.role_id && member.roles.cache.has(e.role_id.toString())) {
+                await member.roles.remove(e.role_id.toString());
+            }
+        }
+
+        // add correct era role
+        await member.roles.add(eraRole);
+    }
+
     async createProjectRole(project: Project) {
         const guild = await this.getGuild();
         const role = await guild.roles.create(this.getRoleSettings(project));
@@ -88,6 +116,16 @@ export class ProjectDiscordService {
             name: project.display_name ?? project.name,
             color: ProjectStageDiscordMeta.roleColor(project)
         }
+    }
+
+    async createRole(name: string): Promise<Role> {
+        const guild = await this.getGuild();
+
+        return guild.roles.create({
+            position: 2,
+            hoist: true,
+            name: name
+        });
     }
 
     async fetchProjectChannel(project: Project): Promise<ForumChannel | null> {
@@ -105,7 +143,12 @@ export class ProjectDiscordService {
         await channel.edit({ name: name });
     }
 
-    async fetchChannel(channelId: string): Promise<ForumChannel | null> {
+    async fetchForumChannel(channelId: string): Promise<ForumChannel | null> {
+        const guild = await this.getGuild();
+        return guild.channels.fetch(channelId).catch(() => null) as any;
+    }
+
+    async fetchChannel(channelId: string): Promise<GuildChannel | null> {
         const guild = await this.getGuild();
         return guild.channels.fetch(channelId).catch(() => null) as any;
     }
@@ -154,7 +197,7 @@ export class ProjectDiscordService {
         await Promise.all([pin, lock, send]);
     }
 
-    async createChannel(name: string): Promise<ForumChannel> {
+    async createForumChannel(name: string): Promise<ForumChannel> {
         const guild = await this.getGuild();
 
         const channel = await guild.channels.create({
@@ -163,6 +206,17 @@ export class ProjectDiscordService {
         });
 
         return channel as ForumChannel;
+    }
+
+    async createTextChannel(name: string): Promise<TextChannel> {
+        const guild = await this.getGuild();
+
+        const channel = await guild.channels.create({
+            name,
+            type: ChannelType.GuildText,
+        });
+
+        return channel;
     }
 
     async syncProjectChannel(project: Project, channel: ForumChannel, reporter?: IOperationReporter) {

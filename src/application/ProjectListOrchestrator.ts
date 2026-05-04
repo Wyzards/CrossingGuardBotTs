@@ -22,11 +22,11 @@ export class ProjectListOrchestrator {
 
     async ensureChannel(list: ProjectList): Promise<ForumChannel | null> {
         let channel = list.channel_id
-            ? await this.discordService.fetchChannel(list.channel_id)
+            ? await this.discordService.fetchForumChannel(list.channel_id)
             : null;
 
         if (!channel && list.is_active) {
-            channel = await this.discordService.createChannel(list.name);
+            channel = await this.discordService.createForumChannel(list.name);
 
             await this.projectListRepo.update(list.id, {
                 channel_id: channel.id,
@@ -93,7 +93,7 @@ export class ProjectListOrchestrator {
         const list = await this.projectListRepo.getById(id);
 
         if (list.channel_id) {
-            const channel = await this.discordService.fetchChannel(list.channel_id);
+            const channel = await this.discordService.fetchForumChannel(list.channel_id);
 
             if (channel) {
                 await this.discordService.deleteChannel(channel);
@@ -141,11 +141,11 @@ export class ProjectListOrchestrator {
         }
 
         if (belongsInList) {
-            const tagResults = await this.evaluateTagsForProject(list, project);
-
+            
             const { thread } = await this.ensureThreadForProject(channel, project, existingEntry);
-
+            
             if (!thread) return;
+            const tagResults = await this.evaluateTagsForProject(list, project);
 
             await this.syncThreadContent(project, thread);
             await this.applyThreadTags(

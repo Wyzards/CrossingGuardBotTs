@@ -11,6 +11,14 @@ import { CrossroadsApiClient } from '@wyzards/crossroadsclientts';
 import { ProjectDiscordService } from '../infrastructure/discord/ProjectDiscordService.js';
 import { ProjectListOrchestrator } from '../application/ProjectListOrchestrator.js';
 import { ProjectListRepository } from '../infrastructure/api/ProjectListRepository.js';
+import { BadgeOrchestrator } from '../application/BadgeOrchestrator.js';
+import { CrossroadsUserRepository } from '../infrastructure/api/CrossroadsUserRepository.js';
+import { BadgeRepository } from '../infrastructure/api/BadgeRepository.js';
+import { CrossroadsUserOrchestrator } from '../application/CrossroadsUserOrchestrator.js';
+import { EraOrchestrator } from '../application/EraOrchestrator.js';
+import { XpOrchestrator } from '../application/XpOrchestrator.js';
+import { XpRepository } from '../infrastructure/api/XpRepository.js';
+import { EraRepository } from '../infrastructure/api/EraRepository.js';
 
 
 export class Bot extends Client {
@@ -19,6 +27,10 @@ export class Bot extends Client {
     announcementManager!: AnnouncementManager;
     projectOrchestrator!: ProjectOrchestrator;
     projectListOrchestrator!: ProjectListOrchestrator;
+    badgeOrchestrator!: BadgeOrchestrator;
+    crossroadsUserOrchestrator!: CrossroadsUserOrchestrator;
+    eraOrchestrator!: EraOrchestrator;
+    xpOrchestrator!: XpOrchestrator;
 
     constructor(private config: AppConfig) {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
@@ -33,16 +45,24 @@ export class Bot extends Client {
 
     private registerServices(config: AppConfig) {
         const api = new CrossroadsApiClient(this.config.api.url, this.config.api.token);
+
         const projectRepo = new ProjectRepository(api);
         const projectListRepo = new ProjectListRepository(api);
-        const discordService = new ProjectDiscordService(config, this);
-        const projectOrchestrator = new ProjectOrchestrator(projectRepo, discordService);
-        const projectListOrchestrator = new ProjectListOrchestrator(projectListRepo, projectRepo, discordService);
-        const announcementManager = new AnnouncementManager(projectRepo, this, config);
+        const badgeRepo = new BadgeRepository(api);
+        const userRepo = new CrossroadsUserRepository(api);
+        const xpRepo = new XpRepository(api);
+        const eraRepo = new EraRepository(api);
 
-        this.announcementManager = announcementManager;
-        this.projectOrchestrator = projectOrchestrator;
-        this.projectListOrchestrator = projectListOrchestrator;
+        const discordService = new ProjectDiscordService(config, this);
+
+        this.projectOrchestrator = new ProjectOrchestrator(projectRepo, discordService);
+        this.projectListOrchestrator = new ProjectListOrchestrator(projectListRepo, projectRepo, discordService);
+        this.badgeOrchestrator = new BadgeOrchestrator(badgeRepo, userRepo, discordService);
+        this.crossroadsUserOrchestrator = new CrossroadsUserOrchestrator(userRepo);
+        this.xpOrchestrator = new XpOrchestrator(xpRepo);
+        this.eraOrchestrator = new EraOrchestrator(eraRepo, userRepo, discordService);
+
+        this.announcementManager = new AnnouncementManager(projectRepo, this, config);
     }
 
     private async registerEvents() {
