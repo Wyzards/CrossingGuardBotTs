@@ -21,24 +21,6 @@ const data = new SlashCommandBuilder()
             .addStringOption(o => o.setName("event").setRequired(true).setAutocomplete(true))
     )
 
-    // ===== RECALC =====
-    .addSubcommandGroup(group =>
-        group.setName("recalc")
-            .setDescription("Recalculate XP")
-
-            .addSubcommand(sub =>
-                sub.setName("user")
-                    .setDescription("Recalculate user XP")
-                    .addUserOption(o => o.setName("user").setRequired(true))
-            )
-
-            .addSubcommand(sub =>
-                sub.setName("badge")
-                    .setDescription("Recalculate badge XP")
-                    .addStringOption(o => o.setName("badge").setRequired(true).setAutocomplete(true))
-            )
-    )
-
     // ===== EVENTS =====
     .addSubcommandGroup(group =>
         group.setName("event")
@@ -106,11 +88,6 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
             if (sub === "give") await executeGiveXp(bot, interaction, tracker);
         }
 
-        else if (group === "recalc") {
-            if (sub === "user") await executeRecalcUser(bot, interaction, tracker);
-            else if (sub === "badge") await executeRecalcBadge(bot, interaction, tracker);
-        }
-
         else if (group === "event") {
             if (sub === "create") await executeCreateEvent(bot, interaction, tracker);
             else if (sub === "edit") await executeEditEvent(bot, interaction, tracker);
@@ -125,13 +102,30 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
 }
 
 // ===== STUBS =====
-async function executeGiveXp(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) { }
-async function executeRecalcUser(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) { }
-async function executeRecalcBadge(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) { }
+async function executeGiveXp(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
+    const discordUser = interaction.options.getUser("name");
+    const eventId = interaction.options.getString("event");
+
+    if (!discordUser || !eventId) {
+        await tracker.finalize(`The specified user or XP event was not valid`);
+        return;
+    }
+
+    const crossroadsUser = await bot.crossroadsUserOrchestrator.findByDiscordId(discordUser.id);
+    const event = await bot.xpOrchestrator.getXpEventDefinition(Number(eventId));
+
+    if (!event) {
+        await tracker.finalize(`The specified XP event does not exist`);
+        return;
+    }
+
+    await bot.xpOrchestrator.triggerXpEvent(crossroadsUser.id, event.id);
+    await tracker.finalize(`+${event.xp_amount} XP for <@${discordUser.id}> for ${event.name}`);
+}
 
 async function executeCreateEvent(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
     const name = interaction.options.getString("name");
-    const badgeId = interaction.options.getInteger("badge");
+    const badgeId = interaction.options.getString("badge");
     const xp = interaction.options.getInteger("xp");
     const cooldown = interaction.options.getInteger("cooldown");
 
@@ -139,7 +133,7 @@ async function executeCreateEvent(bot: Bot, interaction: ChatInputCommandInterac
 
     const event = await bot.xpOrchestrator.createXpEventDefinition({
         name,
-        badge_id: badgeId,
+        badge_id: Number(badgeId),
         xp_amount: xp,
         cooldown_seconds: cooldown
     });
@@ -148,12 +142,12 @@ async function executeCreateEvent(bot: Bot, interaction: ChatInputCommandInterac
 }
 
 async function executeEditEvent(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const id = interaction.options.getInteger("event");
+    const eventId = interaction.options.getString("event");
     const name = interaction.options.getString("name");
     const xp = interaction.options.getInteger("xp");
     const cooldown = interaction.options.getInteger("cooldown");
 
-    if (!id) return
+    if (!eventId) return
 
     if (!name && !xp && !cooldown) {
         await tracker.finalize("You must specify at least one field to edit");
@@ -166,19 +160,19 @@ async function executeEditEvent(bot: Bot, interaction: ChatInputCommandInteracti
     if (xp !== null) updates.xp_amount = xp;
     if (cooldown !== null) updates.cooldown_seconds = cooldown;
 
-    await bot.xpOrchestrator.updateXpEventDefinition(id, updates);
+    await bot.xpOrchestrator.updateXpEventDefinition(Number(eventId), updates);
 
-    await tracker.finalize(`Updated event ${id}`);
+    await tracker.finalize(`Updated event ${eventId}`);
 }
 
 async function executeDeleteEvent(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const id = interaction.options.getInteger("event");
+    const eventId = interaction.options.getString("event");
 
-    if (!id) return;
+    if (!eventId) return;
 
-    await bot.xpOrchestrator.deleteXpEventDefinition(id);
+    await bot.xpOrchestrator.deleteXpEventDefinition(Number(eventId));
 
-    await tracker.finalize(`Deleted event ${id}`);
+    await tracker.finalize(`Deleted event ${eventId}`);
 }
 
 async function executeListEvents(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
@@ -190,18 +184,18 @@ async function executeListEvents(bot: Bot, interaction: ChatInputCommandInteract
 }
 
 async function executeViewEvent(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const id = interaction.options.getInteger("event");
+    const eventId = interaction.options.getString("event");
 
-    if (!id) return;
+    if (!eventId) return;
 
-    const event = await bot.xpOrchestrator.getXpEventDefinition(id);
+    const event = await bot.xpOrchestrator.getXpEventDefinition(Number(eventId));
 
     if (!event) {
         await tracker.finalize("Event not found");
         return;
     }
 
-    await tracker.finalize(`${event.name} → ${event.xp_amount} XP`);
+    await tracker.finalize(`${event.name} | ${event.badge.name} Badge → ${event.xp_amount} XP, ${event.cooldown_seconds} cooldown`);
 }
 
 export { autocomplete, data, execute };

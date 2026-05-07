@@ -1,17 +1,15 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
 import {
     Badge,
+    BadgeProgression,
     CreateBadgePayload,
+    ProgressionCurveType,
     SystemChannels,
     UpdateBadgePayload
 } from "@wyzards/crossroadsclientts/dist/badges/types.js"; // adjust path if needed
 
 export class BadgeRepository {
     constructor(private api: CrossroadsApiClient) { }
-
-    // ========================
-    // Badges
-    // ========================
 
     async getBadges(): Promise<Badge[]> {
         return this.api.badges.getBadges();
@@ -29,10 +27,6 @@ export class BadgeRepository {
         return this.api.badges.updateBadge(id, data);
     }
 
-    // ========================
-    // User Badges
-    // ========================
-
     async assignBadge(userId: number, badgeId: number): Promise<boolean> {
         await this.api.badges.assignBadge(userId, badgeId);
         return true;
@@ -42,10 +36,15 @@ export class BadgeRepository {
         return this.api.badges.removeBadge(userId, badgeId);
     }
 
-    // ========================
-    // System Channels
-    // ========================
+    async getBadgeProgression(badgeId: number): Promise<BadgeProgression> {
+        return this.api.badges.getBadgeProgression(badgeId);
+    }
 
+    async updateBadgeProgression(badgeId: number, curveType: ProgressionCurveType, baseXp: number, growthRate: number): Promise<BadgeProgression> {
+        return this.api.badges.updateBadgeProgression(badgeId, { curve_type: curveType, base_xp: baseXp, growth_rate: growthRate });
+    }
+
+    // Todo: Move these somewhere else
     async getSystemChannels(): Promise<SystemChannels> {
         return this.api.badges.getSystemChannels();
     }

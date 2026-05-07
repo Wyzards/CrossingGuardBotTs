@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import { OperationTracker } from "../../../shared/operations.js";
 import { Bot } from "../../Bot.js";
-import { BadgeCategory, BadgeRarity } from "@wyzards/crossroadsclientts/dist/badges/types.js";
+import { BadgeCategory, BadgeRarity, ProgressionCurveType } from "@wyzards/crossroadsclientts/dist/badges/types.js";
 
 const data = new SlashCommandBuilder()
     .setName("badge")
@@ -167,7 +167,7 @@ async function executeCreateBadge(bot: Bot, interaction: ChatInputCommandInterac
 }
 
 async function executeEditBadge(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const badgeId = interaction.options.getInteger("badge");
+    const badgeId = interaction.options.getString("badge");
     const name = interaction.options.getString("name");
     const description = interaction.options.getString("description") ?? "";
     const category = interaction.options.getString("category") as BadgeCategory;
@@ -189,31 +189,35 @@ async function executeEditBadge(bot: Bot, interaction: ChatInputCommandInteracti
     if (isXpBased !== null && isXpBased !== undefined) updates.is_xp_based = isXpBased;
     if (rarity !== null) updates.rarity = rarity;
 
-    await bot.badgeOrchestrator.updateBadge(badgeId, updates);
+    await bot.badgeOrchestrator.updateBadge(Number(badgeId), updates);
 
     await tracker.finalize(`Updated badge ${badgeId}`);
 }
 
 async function executeAssignBadge(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const userId = interaction.options.getInteger("user");
-    const badgeId = interaction.options.getInteger("badge");
+    const discordUser = interaction.options.getUser("user");
+    const badgeId = interaction.options.getString("badge");
 
-    if (!userId || !badgeId) return;
+    if (!discordUser || !badgeId) return;
 
-    await bot.badgeOrchestrator.assignBadgeAndNotify(userId, badgeId);
+    const crossroadsUser = await bot.crossroadsUserOrchestrator.findByDiscordId(discordUser.id);
 
-    await tracker.finalize(`Assigned badge ${badgeId} to user ${userId}`);
+    await bot.badgeOrchestrator.assignBadgeAndNotify(crossroadsUser.id, Number(badgeId));
+
+    await tracker.finalize(`Assigned badge ${badgeId} to user <@${discordUser.id}>`);
 }
 
 async function executeRemoveBadge(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const userId = interaction.options.getInteger("user");
-    const badgeId = interaction.options.getInteger("badge");
+    const discordUser = interaction.options.getUser("user");
+    const badgeId = interaction.options.getString("badge");
 
-    if (!userId || !badgeId) return;
+    if (!discordUser || !badgeId) return;
 
-    await bot.badgeOrchestrator.removeBadge(userId, badgeId);
+    const crossroadsUser = await bot.crossroadsUserOrchestrator.findByDiscordId(discordUser.id);
 
-    await tracker.finalize(`Removed badge ${badgeId} from user ${userId}`);
+    await bot.badgeOrchestrator.removeBadge(crossroadsUser.id, Number(badgeId));
+
+    await tracker.finalize(`Removed badge ${badgeId} from user <@${discordUser.id}>`);
 }
 
 async function executeListBadges(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
@@ -225,11 +229,11 @@ async function executeListBadges(bot: Bot, interaction: ChatInputCommandInteract
 }
 
 async function executeViewBadge(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const badgeId = interaction.options.getInteger("badge");
+    const badgeId = interaction.options.getString("badge");
 
     if (!badgeId) return;
 
-    const badge = await bot.badgeOrchestrator.getBadge(badgeId);
+    const badge = await bot.badgeOrchestrator.getBadge(Number(badgeId));
 
     if (!badge) {
         await tracker.finalize("Badge not found");
@@ -241,9 +245,23 @@ async function executeViewBadge(bot: Bot, interaction: ChatInputCommandInteracti
 
 
 async function executeSetProgression(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
+    const badgeId = interaction.options.getString("badge");
+    const baseXp = interaction.options.getInteger("base_xp");
+    const growthFactor = interaction.options.getNumber("growth_factor");
+    const curveType = interaction.options.getString("curve") as ProgressionCurveType;
 
+    if (!badgeId || !baseXp || !growthFactor || !curveType) {
+        await tracker.finalize(`One or more of the required arguments between the badge, level curve type, base xp and growth rate was not specified.`)
+        return;
+    }
+
+    await bot.badgeOrchestrator.updateBadgeProgressionById(Number(badgeId), curveType, baseXp, growthFactor);
+
+    await tracker.finalize(`The progression curve for the specified badge has been updated`);
 }
 
-async function executeViewProgression(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) { }
+async function executeViewProgression(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
+    const badgeId = interaction.options.getString("badge");
+}
 
 export { data, autocomplete, execute };

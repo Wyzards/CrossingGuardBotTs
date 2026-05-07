@@ -1,7 +1,8 @@
-import { Badge, CreateBadgePayload, UpdateBadgePayload } from "@wyzards/crossroadsclientts/dist/badges/types.js";
+import { Badge, BadgeProgression, CreateBadgePayload, ProgressionCurveType, UpdateBadgePayload } from "@wyzards/crossroadsclientts/dist/badges/types.js";
 import { TextChannel } from "discord.js";
 import { BadgeRepository } from "../infrastructure/api/BadgeRepository.js";
 import { ProjectDiscordService } from "../infrastructure/discord/ProjectDiscordService.js";
+import { XpOrchestrator } from "./XpOrchestrator.js";
 
 export class BadgeOrchestrator {
     constructor(
@@ -44,9 +45,34 @@ export class BadgeOrchestrator {
         await this.repo.removeBadge(userId, badgeId);
     }
 
-    // ========================
-    // SYSTEM CHANNELS
-    // ========================
+    async getBadgeProgressionById(badgeId: number): Promise<BadgeProgression | null> {
+        const badge = await this.getBadge(badgeId);
+
+        if (badge)
+            return this.getBadgeProgression(badge);
+
+        return null;
+    }
+
+    async getBadgeProgression(badge: Badge): Promise<BadgeProgression | null> {
+        if (!badge.is_xp_based) return null;
+
+        return this.repo.getBadgeProgression(badge.id)
+    }
+
+    async updateBadgeProgressionById(badgeId: number, curveType: ProgressionCurveType, baseXp: number, growthRate: number): Promise<BadgeProgression | null> {
+        const badge = await this.getBadge(badgeId);
+
+        if (!badge) return null;
+
+        return this.updateBadgeProgression(badge, curveType, baseXp, growthRate);
+    }
+
+    async updateBadgeProgression(badge: Badge, curveType: ProgressionCurveType, baseXp: number, growthRate: number): Promise<BadgeProgression | null> {
+        if (!badge.is_xp_based) return null;
+
+        return this.repo.updateBadgeProgression(badge.id, curveType, baseXp, growthRate);
+    }
 
     async ensureAchievementChannel(): Promise<TextChannel> {
         const system = await this.repo.getSystemChannels();
@@ -64,10 +90,6 @@ export class BadgeOrchestrator {
 
         return channel;
     }
-
-    // ========================
-    // INTERNAL HELPERS
-    // ========================
 
     private async sendBadgeAnnouncement(userId: number, badge: Badge) {
         const channel = await this.ensureAchievementChannel();

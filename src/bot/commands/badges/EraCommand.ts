@@ -87,7 +87,7 @@ async function executeRenameEra(bot: Bot, interaction: ChatInputCommandInteracti
 
     const renamed = await bot.eraOrchestrator.renameEra(era, name);
 
-    await tracker.finalize(`Created era: ${era.name}`);
+    await tracker.finalize(`Renamed era ${era.name} to ${renamed.name}`);
 }
 
 async function executeActivateEra(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
