@@ -1,10 +1,6 @@
-import {
-    AutocompleteInteraction,
-    ChatInputCommandInteraction,
-    MessageFlags,
-    PermissionFlagsBits,
-    SlashCommandBuilder
-} from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { badgeOption, userOption } from "../../../infrastructure/discord/helpers/badgeOptions.js";
+import { cooldownOption, xpAmountOption, xpEventNameOption, xpEventOption } from "../../../infrastructure/discord/helpers/xpEventOptions.js";
 import { OperationTracker } from "../../../shared/operations.js";
 import { Bot } from "../../Bot.js";
 
@@ -17,8 +13,8 @@ const data = new SlashCommandBuilder()
     .addSubcommand(sub =>
         sub.setName("give")
             .setDescription("Trigger XP event")
-            .addUserOption(o => o.setName("user").setRequired(true))
-            .addStringOption(o => o.setName("event").setRequired(true).setAutocomplete(true))
+            .addUserOption(userOption())
+            .addStringOption(xpEventOption())
     )
 
     // ===== EVENTS =====
@@ -29,51 +25,80 @@ const data = new SlashCommandBuilder()
             .addSubcommand(sub =>
                 sub.setName("create")
                     .setDescription("Create XP event")
-                    .addStringOption(o => o.setName("name").setRequired(true))
-                    .addStringOption(o => o.setName("badge").setRequired(true).setAutocomplete(true))
-                    .addIntegerOption(o => o.setName("xp").setRequired(true))
-                    .addIntegerOption(o => o.setName("cooldown").setRequired(true))
+                    .addStringOption(xpEventNameOption())
+                    .addStringOption(badgeOption())
+                    .addIntegerOption(xpAmountOption())
+                    .addIntegerOption(cooldownOption())
             )
 
             .addSubcommand(sub =>
                 sub.setName("edit")
                     .setDescription("Edit XP event")
-                    .addStringOption(o => o.setName("event").setRequired(true).setAutocomplete(true))
-                    .addStringOption(o => o.setName("name"))
-                    .addIntegerOption(o => o.setName("xp"))
-                    .addIntegerOption(o => o.setName("cooldown"))
+                    .addStringOption(xpEventOption())
+                    .addStringOption(xpEventNameOption(false))
+                    .addIntegerOption(xpAmountOption(false))
+                    .addIntegerOption(cooldownOption(false))
             )
 
             .addSubcommand(sub =>
                 sub.setName("delete")
                     .setDescription("Delete XP event")
-                    .addStringOption(o => o.setName("event").setRequired(true).setAutocomplete(true))
+                    .addStringOption(xpEventOption())
             )
 
             .addSubcommand(sub =>
                 sub.setName("list")
                     .setDescription("List XP events")
-                    .addStringOption(o => o.setName("badge").setAutocomplete(true))
+                    .addStringOption(badgeOption(false))
             )
 
             .addSubcommand(sub =>
                 sub.setName("view")
                     .setDescription("View XP event")
-                    .addStringOption(o => o.setName("event").setRequired(true).setAutocomplete(true))
+                    .addStringOption(xpEventOption())
             )
     );
 
 async function autocomplete(bot: Bot, interaction: AutocompleteInteraction) {
-    const focused = interaction.options.getFocused(true);
+    const focusedOption = interaction.options.getFocused(true);
 
-    // TODO: this!
-    if (focused.name === "event") {
-        return interaction.respond([]);
+    if (focusedOption.name === "badge") {
+        return autocompleteBadges(bot, interaction, focusedOption.value)
     }
 
-    if (focused.name === "badge") {
-        return interaction.respond([]);
+    if (focusedOption.name === "event") {
+        return autocompleteXpEvents(bot, interaction, focusedOption.value);
     }
+}
+
+async function autocompleteBadges(bot: Bot, interaction: AutocompleteInteraction, query: string) {
+    const badges = await bot.badgeOrchestrator.listBadges();
+
+    const filtered = badges.filter(badge =>
+        badge.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    await interaction.respond(
+        filtered.slice(0, 24).map(badge => ({
+            name: badge.name,
+            value: badge.id.toString(),
+        }))
+    );
+}
+
+async function autocompleteXpEvents(bot: Bot, interaction: AutocompleteInteraction, query: string) {
+    const xpEvents = await bot.xpOrchestrator.listXpEventDefinitions();
+
+    const filtered = xpEvents.filter(event =>
+        event.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    await interaction.respond(
+        filtered.slice(0, 24).map(event => ({
+            name: event.name,
+            value: event.id.toString(),
+        }))
+    );
 }
 
 async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
@@ -103,7 +128,7 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
 
 // ===== STUBS =====
 async function executeGiveXp(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const discordUser = interaction.options.getUser("name");
+    const discordUser = interaction.options.getUser("user");
     const eventId = interaction.options.getString("event");
 
     if (!discordUser || !eventId) {
@@ -111,7 +136,7 @@ async function executeGiveXp(bot: Bot, interaction: ChatInputCommandInteraction,
         return;
     }
 
-    const crossroadsUser = await bot.crossroadsUserOrchestrator.findByDiscordId(discordUser.id);
+    const crossroadsUser = await bot.crossroadsUserOrchestrator.ensureUserForDiscord(discordUser.id);
     const event = await bot.xpOrchestrator.getXpEventDefinition(Number(eventId));
 
     if (!event) {
@@ -119,7 +144,7 @@ async function executeGiveXp(bot: Bot, interaction: ChatInputCommandInteraction,
         return;
     }
 
-    await bot.xpOrchestrator.triggerXpEvent(crossroadsUser.id, event.id);
+    await bot.xpOrchestrator.triggerXpEvent(crossroadsUser, event);
     await tracker.finalize(`+${event.xp_amount} XP for <@${discordUser.id}> for ${event.name}`);
 }
 
@@ -160,9 +185,9 @@ async function executeEditEvent(bot: Bot, interaction: ChatInputCommandInteracti
     if (xp !== null) updates.xp_amount = xp;
     if (cooldown !== null) updates.cooldown_seconds = cooldown;
 
-    await bot.xpOrchestrator.updateXpEventDefinition(Number(eventId), updates);
+    const event = await bot.xpOrchestrator.updateXpEventDefinition(Number(eventId), updates);
 
-    await tracker.finalize(`Updated event ${eventId}`);
+    await tracker.finalize(`Updated event ${event.name}`);
 }
 
 async function executeDeleteEvent(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
@@ -170,15 +195,29 @@ async function executeDeleteEvent(bot: Bot, interaction: ChatInputCommandInterac
 
     if (!eventId) return;
 
-    await bot.xpOrchestrator.deleteXpEventDefinition(Number(eventId));
+    const event = await bot.xpOrchestrator.getXpEventDefinition(Number(eventId));
 
-    await tracker.finalize(`Deleted event ${eventId}`);
+    if (!event) {
+        await tracker.finalize(`The specified event does not exist`);
+        return;
+    }
+
+    await bot.xpOrchestrator.deleteXpEventDefinition(event.id);
+
+    await tracker.finalize(`Deleted event ${event.name}`);
 }
 
 async function executeListEvents(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    const events = await bot.xpOrchestrator.getXpEventDefinitions();
+    const badgeId = interaction.options.getString("badge");
+    var events = await bot.xpOrchestrator.listXpEventDefinitions();
 
-    const msg = events.map(e => `- ${e.id}: ${e.name} (${e.xp_amount} XP)`).join("\n");
+    if (badgeId) {
+        events = events.filter(event =>
+            event.badge.id === Number(badgeId)
+        );
+    }
+
+    const msg = events.map(e => `- ${e.badge.name} Badge: ${e.name} (${e.xp_amount} XP)`).join("\n");
 
     await tracker.finalize(`**Events**\n${msg}`);
 }
@@ -199,3 +238,4 @@ async function executeViewEvent(bot: Bot, interaction: ChatInputCommandInteracti
 }
 
 export { autocomplete, data, execute };
+

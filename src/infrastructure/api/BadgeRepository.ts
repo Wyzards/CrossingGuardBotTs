@@ -40,8 +40,8 @@ export class BadgeRepository {
         return this.api.badges.getBadgeProgression(badgeId);
     }
 
-    async updateBadgeProgression(badgeId: number, curveType: ProgressionCurveType, baseXp: number, growthRate: number): Promise<BadgeProgression> {
-        return this.api.badges.updateBadgeProgression(badgeId, { curve_type: curveType, base_xp: baseXp, growth_rate: growthRate });
+    async updateBadgeProgression(badgeId: number, curveType: ProgressionCurveType, baseXp: number, growthFactor: number): Promise<BadgeProgression> {
+        return this.api.badges.updateBadgeProgression(badgeId, { curve_type: curveType, base_xp: baseXp, growth_factor: growthFactor });
     }
 
     // Todo: Move these somewhere else

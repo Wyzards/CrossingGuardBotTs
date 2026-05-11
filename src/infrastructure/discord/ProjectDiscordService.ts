@@ -6,8 +6,9 @@ import { IOperationReporter, track } from "../../shared/operations.js";
 import { ProjectStageDiscordMeta } from "../../shared/projectStatusDiscord.js";
 import { ProjectEmojiHelper } from "./helpers/ProjectEmojiHelper.js";
 import { ProjectMessageBuilder } from "./helpers/ProjectMessageBuilder.js";
-import { Era } from "@wyzards/crossroadsclientts/dist/badges/types.js";
 import { CrossroadsUser } from "@wyzards/crossroadsclientts/dist/users/types.js";
+import { Era } from "@wyzards/crossroadsclientts/dist/eras/type.js";
+import { UserBadgeXp } from "@wyzards/crossroadsclientts/dist/badges/types.js";
 
 export class ProjectDiscordService {
 
@@ -85,7 +86,7 @@ export class ProjectDiscordService {
             return;
 
         const guild = await this.getGuild();
-        const member = await guild.members.fetch(user.discordId);
+        const member = await guild.members.fetch(user.discordId).catch(() => null);
 
         if (!member) {
             return;
@@ -443,6 +444,21 @@ export class ProjectDiscordService {
         const content = (project.attachments.length > 0 ? project.description + "\n\n" : "") + linksContent + staffContent + (discordLink ? `**Discord:** ${discordLink}` : "");
 
         return content;
+    }
+
+    public async sendXpGainDm(
+        discordId: string,
+        eventName: string,
+        xpAmount: number,
+        progression: UserBadgeXp
+    ): Promise<void> {
+        const user = await this.client.users.fetch(discordId);
+
+        await user.send(
+            `You gained **${xpAmount} XP** for **${progression.badge.name}**.\n` +
+            `Reason: *${eventName}*\n` +
+            `Use \`/profile\` to view your progression.`
+        );
     }
 
     async sendChannelMessage(project: ProjectWithRelations, channel: ForumThreadChannel) {

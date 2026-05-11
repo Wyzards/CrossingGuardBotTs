@@ -2,7 +2,7 @@ import { Badge, BadgeProgression, CreateBadgePayload, ProgressionCurveType, Upda
 import { TextChannel } from "discord.js";
 import { BadgeRepository } from "../infrastructure/api/BadgeRepository.js";
 import { ProjectDiscordService } from "../infrastructure/discord/ProjectDiscordService.js";
-import { XpOrchestrator } from "./XpOrchestrator.js";
+import { CrossroadsUser } from "@wyzards/crossroadsclientts/dist/users/types.js";
 
 export class BadgeOrchestrator {
     constructor(
@@ -17,7 +17,7 @@ export class BadgeOrchestrator {
         return this.repo.getBadge(id);
     }
 
-    async getBadges(): Promise<Badge[]> {
+    async listBadges(): Promise<Badge[]> {
         return this.repo.getBadges();
     }
 
@@ -29,16 +29,19 @@ export class BadgeOrchestrator {
         return this.repo.updateBadge(id, data);
     }
 
-    async assignBadgeAndNotify(userId: number, badgeId: number): Promise<void> {
-        await this.repo.assignBadge(userId, badgeId);
+    async assignBadgeAndNotify(user: CrossroadsUser, badgeId: number): Promise<Badge | null> {
+        await this.repo.assignBadge(user.id, badgeId);
 
         // optional: fetch badge for messaging
         const badges = await this.repo.getBadges();
         const badge = badges.find(b => b.id === badgeId);
 
-        if (!badge) return;
+        if (!badge) return null;
 
-        await this.sendBadgeAnnouncement(userId, badge);
+        if (user.discordId)
+            await this.sendBadgeAnnouncement(user.discordId, badge);
+
+        return badge;
     }
 
     async removeBadge(userId: number, badgeId: number): Promise<void> {
@@ -91,11 +94,13 @@ export class BadgeOrchestrator {
         return channel;
     }
 
-    private async sendBadgeAnnouncement(userId: number, badge: Badge) {
+    private async sendBadgeAnnouncement(discordId: string, badge: Badge) {
         const channel = await this.ensureAchievementChannel();
 
         if (!channel) return;
 
-        await this.discordService.sendMessage(channel, `User ${userId} earned ${badge.name}`);
+        await this.discordService.sendMessage(channel, `<@${discordId}> earned the Achievement Badge: __**${badge.name}**__\n-# Use \`/profile\` to view their badges`);
     }
+
+    // TODO: Make it so removing a badge autocompletes only the badges they have
 }

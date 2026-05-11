@@ -40,7 +40,7 @@ export class CrossroadsUserRepository {
     // Find by Minecraft UUID
     // ========================
 
-    async findByMinecraftUuid(uuid: string): Promise<CrossroadsUser> {
+    async findByMinecraftUuid(uuid: string): Promise<CrossroadsUser | null> {
         return this.api.users.findByMinecraftUuid(uuid)
     }
 
@@ -48,7 +48,7 @@ export class CrossroadsUserRepository {
     // Find by Discord ID
     // ========================
 
-    async findByDiscordId(discordId: string): Promise<CrossroadsUser> {
+    async findByDiscordId(discordId: string): Promise<CrossroadsUser | null> {
         return this.api.users.findByDiscordId(discordId)
     }
 

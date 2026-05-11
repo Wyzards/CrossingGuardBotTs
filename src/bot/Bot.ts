@@ -57,9 +57,9 @@ export class Bot extends Client {
 
         this.projectOrchestrator = new ProjectOrchestrator(projectRepo, discordService);
         this.projectListOrchestrator = new ProjectListOrchestrator(projectListRepo, projectRepo, discordService);
-        this.badgeOrchestrator = new BadgeOrchestrator(badgeRepo, userRepo, discordService);
-        this.crossroadsUserOrchestrator = new CrossroadsUserOrchestrator(userRepo);
-        this.xpOrchestrator = new XpOrchestrator(xpRepo);
+        this.badgeOrchestrator = new BadgeOrchestrator(badgeRepo, discordService);
+        this.crossroadsUserOrchestrator = new CrossroadsUserOrchestrator(userRepo, discordService);
+        this.xpOrchestrator = new XpOrchestrator(xpRepo, userRepo, discordService, this.badgeOrchestrator);
         this.eraOrchestrator = new EraOrchestrator(eraRepo, userRepo, discordService);
 
         this.announcementManager = new AnnouncementManager(projectRepo, this, config);

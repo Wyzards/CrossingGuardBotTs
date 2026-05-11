@@ -1,6 +1,7 @@
 import {
     AutocompleteInteraction,
     ChatInputCommandInteraction,
+    InteractionContextType,
     MessageFlags,
     SlashCommandBuilder
 } from "discord.js";
@@ -10,6 +11,10 @@ import { Bot } from "../../Bot.js";
 const data = new SlashCommandBuilder()
     .setName("profile")
     .setDescription("View a user's profile")
+    .setContexts(
+        InteractionContextType.Guild,
+        InteractionContextType.BotDM,
+    )
 
     .addUserOption(o =>
         o.setName("user")
@@ -40,10 +45,11 @@ async function executeProfile(bot: Bot, interaction: ChatInputCommandInteraction
     if (!targetDiscordUser)
         targetDiscordUser = interaction.user;
 
-    const user = await bot.crossroadsUserOrchestrator.findByDiscordId(targetDiscordUser.id);
-    const msg = await bot.crossroadsUserOrchestrator.handleProfileCommand(user.id);
+    const userIsTarget = targetDiscordUser.id === interaction.user.id
+    const user = await bot.crossroadsUserOrchestrator.ensureUserForDiscord(targetDiscordUser.id);
+    const msg = await bot.crossroadsUserOrchestrator.handleProfileCommand(user.id, userIsTarget);
 
     await tracker.finalize(msg);
 }
 
-export { data, autocomplete, execute };
+export { autocomplete, data, execute };

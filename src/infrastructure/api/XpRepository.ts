@@ -1,5 +1,6 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts";
-import { UserBadgeXp, XpEventDefinition } from "@wyzards/crossroadsclientts/dist/badges/types.js";
+import { UserBadgeXp } from "@wyzards/crossroadsclientts/dist/badges/types.js";
+import { XpEventDefinition } from "@wyzards/crossroadsclientts/dist/xp/types.js";
 
 export class XpRepository {
     constructor(private api: CrossroadsApiClient) { }
