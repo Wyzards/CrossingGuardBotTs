@@ -24,7 +24,7 @@ for (const folder of commandFolders) {
             const json = command.data.toJSON();
 
             // Commands allowed in DMs / globally
-            if (json.name === "profile") {
+            if (json.name === "profile" || json.name === "leaderboard") {
                 globalCommands.push(json);
             }
             else {

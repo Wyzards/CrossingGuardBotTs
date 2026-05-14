@@ -31,7 +31,7 @@ async function execute(
     try {
         const viewer = await bot.crossroadsUserOrchestrator.ensureUserForDiscord(interaction.user.id);
         const type = interaction.options.getString("type", true) as any;
-        const { entries, viewer_rank, total } = await bot.crossroadsUserOrchestrator.getLeaderboard(viewer, type);
+        const { entries, viewer_rank, viewer_is_tied, total } = await bot.crossroadsUserOrchestrator.getLeaderboard(viewer, type);
 
         let title = "";
 
@@ -57,13 +57,16 @@ async function execute(
                 ? await bot.users.fetch(entry.discord_id)
                 : null;
 
-            const name = user?.username ?? user ?? `User ${entry.user_id}`;
+            const name = user?.displayName ?? user ?? `User ${entry.user_id}`;
 
             msg += `**${entry.rank}.** ${name} — ${entry.value} ${type === "badge" ? "Badges" : "XP"}\n`;
         }
 
         if (viewer_rank !== null) {
-            msg += `\nYou are ranked #${viewer_rank} out of ${total}`;
+            if (viewer_is_tied)
+                msg += `\nYou are tied for rank #${viewer_rank} out of ${total}`;
+            else
+                msg += `\nYou are ranked #${viewer_rank} out of ${total}`;
         }
 
         await interaction.reply({
