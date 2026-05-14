@@ -59,7 +59,7 @@ async function execute(
 
             const name = user?.displayName ?? user ?? `User ${entry.user_id}`;
 
-            msg += `**${entry.rank}.** ${name} — ${entry.value} ${type === "badge" ? "Badges" : "XP"}\n`;
+            msg += `**${entry.rank}.** ${name} — ${entry.value} ${type === "badge" ? entry.value > 1 ? "Achievements" : "Achievement" : "XP"}\n`;
         }
 
         if (viewer_rank !== null) {
