@@ -1,4 +1,4 @@
-import { CrossroadsUser, UserProfile } from "@wyzards/crossroadsclientts/dist/users/types.js";
+import { CrossroadsUser, LeaderboardEntry, LeaderboardResponse, LeaderboardType, UserProfile } from "@wyzards/crossroadsclientts/dist/users/types.js";
 import { CrossroadsUserRepository } from "../infrastructure/api/CrossroadsUserRepository.js";
 import { ProjectDiscordService } from "../infrastructure/discord/ProjectDiscordService.js";
 
@@ -7,6 +7,10 @@ export class CrossroadsUserOrchestrator {
         private repo: CrossroadsUserRepository,
         private discordService: ProjectDiscordService
     ) { }
+
+    async getLeaderboard(viewer: CrossroadsUser, type: LeaderboardType): Promise<LeaderboardResponse> {
+        return this.repo.getLeaderboard(viewer.id, type);
+    }
 
     async handleProfileCommand(targetUserId: number, userIsTarget: boolean): Promise<string> {
         const profile = await this.repo.getProfile(targetUserId);

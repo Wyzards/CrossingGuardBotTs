@@ -19,6 +19,7 @@ import { EraOrchestrator } from '../application/EraOrchestrator.js';
 import { XpOrchestrator } from '../application/XpOrchestrator.js';
 import { XpRepository } from '../infrastructure/api/XpRepository.js';
 import { EraRepository } from '../infrastructure/api/EraRepository.js';
+import { ProgressionAnalyticsService } from '../application/ProgressionAnalytiicsService.js';
 
 
 export class Bot extends Client {
@@ -31,6 +32,7 @@ export class Bot extends Client {
     crossroadsUserOrchestrator!: CrossroadsUserOrchestrator;
     eraOrchestrator!: EraOrchestrator;
     xpOrchestrator!: XpOrchestrator;
+    progressionAnalyticsService!: ProgressionAnalyticsService;
 
     constructor(private config: AppConfig) {
         super({ intents: Object.entries(GatewayIntentBits).filter(arr => !isNaN(+arr[0])).map(arr => +arr[0]) });
@@ -52,7 +54,6 @@ export class Bot extends Client {
         const userRepo = new CrossroadsUserRepository(api);
         const xpRepo = new XpRepository(api);
         const eraRepo = new EraRepository(api);
-
         const discordService = new ProjectDiscordService(config, this);
 
         this.projectOrchestrator = new ProjectOrchestrator(projectRepo, discordService);
@@ -63,6 +64,7 @@ export class Bot extends Client {
         this.eraOrchestrator = new EraOrchestrator(eraRepo, userRepo, discordService);
 
         this.announcementManager = new AnnouncementManager(projectRepo, this, config);
+        this.progressionAnalyticsService = new ProgressionAnalyticsService(this, config)
     }
 
     private async registerEvents() {

@@ -40,12 +40,19 @@ async function execute(bot: Bot, interaction: ChatInputCommandInteraction) {
 
 // ===== STUB =====
 async function executeProfile(bot: Bot, interaction: ChatInputCommandInteraction, tracker: OperationTracker) {
-    var targetDiscordUser = interaction.options.getUser("user");
+    let targetDiscordUser = interaction.options.getUser("user");
 
     if (!targetDiscordUser)
         targetDiscordUser = interaction.user;
 
     const userIsTarget = targetDiscordUser.id === interaction.user.id
+
+    await bot.progressionAnalyticsService.trackProfileView({
+        viewerDiscordId: interaction.user.id,
+        targetDiscordId: targetDiscordUser.id,
+        selfView: userIsTarget
+    });
+
     const user = await bot.crossroadsUserOrchestrator.ensureUserForDiscord(targetDiscordUser.id);
     const msg = await bot.crossroadsUserOrchestrator.handleProfileCommand(user.id, userIsTarget);
 

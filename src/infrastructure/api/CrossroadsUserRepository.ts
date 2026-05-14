@@ -1,5 +1,5 @@
 import { CrossroadsApiClient } from "@wyzards/crossroadsclientts"
-import { CreateCrossroadsUserPayload, CrossroadsUser, UserProfile } from "@wyzards/crossroadsclientts/dist/users/types.js"
+import { CreateCrossroadsUserPayload, CrossroadsUser, LeaderboardEntry, LeaderboardResponse, LeaderboardType, UserProfile } from "@wyzards/crossroadsclientts/dist/users/types.js"
 
 export class CrossroadsUserRepository {
     constructor(private api: CrossroadsApiClient) { }
@@ -54,5 +54,9 @@ export class CrossroadsUserRepository {
 
     async getProfile(userId: number): Promise<UserProfile | null> {
         return this.api.users.getProfile(userId);
+    }
+
+    async getLeaderboard(viewerUserId: number, type: LeaderboardType): Promise<LeaderboardResponse> {
+        return this.api.users.getLeaderboard(viewerUserId, type);
     }
 }
