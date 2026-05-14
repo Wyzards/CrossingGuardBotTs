@@ -20,7 +20,7 @@ const data = new SlashCommandBuilder()
                 { name: "Hunter XP", value: "hunter" },
                 { name: "Scout XP", value: "scout" },
                 { name: "Total XP", value: "total" },
-                { name: "Badge Count", value: "badge" },
+                { name: "Achievement Badges", value: "badge" },
             )
     );
 
@@ -46,7 +46,7 @@ async function execute(
                 title = "Top Total XP Leaderboard";
                 break;
             case "badge":
-                title = "Top Badge Count Leaderboard";
+                title = "Top Achievement Badge Leaderboard";
                 break;
         }
 
