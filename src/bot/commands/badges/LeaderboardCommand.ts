@@ -1,5 +1,6 @@
 import {
     ChatInputCommandInteraction,
+    InteractionContextType,
     SlashCommandBuilder
 } from "discord.js";
 import { Bot } from "../../Bot.js";
@@ -7,6 +8,10 @@ import { Bot } from "../../Bot.js";
 const data = new SlashCommandBuilder()
     .setName("leaderboard")
     .setDescription("View progression leaderboards")
+    .setContexts(
+        InteractionContextType.Guild,
+        InteractionContextType.BotDM,
+    )
     .addStringOption(opt =>
         opt.setName("type")
             .setDescription("Leaderboard type")
@@ -52,9 +57,9 @@ async function execute(
                 ? await bot.users.fetch(entry.discord_id)
                 : null;
 
-            const name = user ?? `User ${entry.user_id}`;
+            const name = user?.username ?? user ?? `User ${entry.user_id}`;
 
-            msg += `${entry.rank}. ${name} — ${entry.value}\n`;
+            msg += `**${entry.rank}.** ${name} — ${entry.value} ${type === "badge" ? "Badges" : "XP"}\n`;
         }
 
         if (viewer_rank !== null) {
